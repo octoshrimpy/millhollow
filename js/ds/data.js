@@ -59,7 +59,7 @@ const CLASSES = {
 const JOBS = {
   farming: "Farming", woodcutting: "Woodcutting", quarrying: "Quarrying",
   herbalism: "Herbalism", smithing: "Smithing", healing: "Healing", scholarship: "Scholarship",
-  cooking: "Cooking",
+  cooking: "Cooking", fishing: "Fishing",
 };
 
 // Where someone came from before Millhollow: a birthplace, a trade, what their class made of
@@ -73,6 +73,7 @@ const PAST = {
     quarrying: "Cut stone.", herbalism: "Gathered herbs for a healer.",
     smithing: "Worked a smithy's bellows.", healing: "Set bones.",
     scholarship: "Copied books at a monastery.", cooking: "Cooked at an inn.",
+    fishing: "Mended nets.",
   },
   cls: {
     warrior: ["Two winters at a border fort.", "Pit fighter.", "Caravan guard."],
@@ -118,6 +119,8 @@ const TERRAIN = {
 // Workplaces that do better beside certain land.
 const BESIDE = { farm: ["water"], lumber: ["forest"], quarry: ["hills", "mountain"] };
 const BESIDE_BOOST = 0.25;
+// What a workplace turns out on top of its yields beside certain land, per worker per day at skill 0.
+const BESIDE_YIELDS = { quarry: { mountain: { ore: 0.35 } } };
 
 const BUILDINGS = {
   townhall: { name: "Town hall", icon: "🏛️", cost: {}, beds: 4, desc: "4 beds." },
@@ -127,7 +130,8 @@ const BUILDINGS = {
   hall: { name: "Manor", icon: "🏰", cost: { wood: 10, stone: 14, ore: 2 }, beds: 6, needs: "architecture", desc: "6 beds." },
   farm: { name: "Farm", icon: "🌾", cost: { wood: 4 }, job: "farming", yields: { food: 3 }, desc: "Makes food." },
   lumber: { name: "Lumber camp", icon: "🪓", cost: { wood: 2 }, job: "woodcutting", yields: { wood: 3 }, desc: "Makes wood." },
-  quarry: { name: "Quarry", icon: "⛰️", cost: { wood: 6 }, job: "quarrying", yields: { stone: 2, ore: 0.5 }, desc: "Makes stone, some ore." },
+  quarry: { name: "Quarry", icon: "⛰️", cost: { wood: 6 }, job: "quarrying", yields: { stone: 2, ore: 0.15 }, desc: "Makes stone, a little ore. More beside mountains." },
+  dock: { name: "Fishing dock", icon: "🎣", cost: { wood: 5 }, job: "fishing", yields: { food: 2.5 }, near: "water", desc: "Makes food." },
   garden: { name: "Herb garden", icon: "🌿", cost: { wood: 4, stone: 2 }, job: "herbalism", yields: { herbs: 1.5 }, desc: "Makes herbs for potions." },
   forge: { name: "Forge", icon: "⚒️", cost: { wood: 8, stone: 6 }, job: "smithing", desc: "Crafts gear and brews potions. Needs a worker." },
   infirmary: { name: "Infirmary", icon: "🩹", cost: { wood: 6, stone: 4 }, job: "healing", desc: "Wounded heal 3× faster. Needs a worker." },

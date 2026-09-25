@@ -1,6 +1,6 @@
 // Millhollow — offline play. Code and page come from the network when it's there, so an
 // update shows up on the next open; faces never change, so they're served from the cache.
-const CACHE = "millhollow-v1";
+const CACHE = "millhollow-v2";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icons/icon-192.png",
   ...["themes", "data", "names", "game", "combat", "sprite", "icons", "juice", "ui"].map((f) => `js/ds/${f}.js`)];
 
@@ -24,6 +24,8 @@ self.addEventListener("fetch", (e) => {
   if (req.url.includes("/assets/")) {
     e.respondWith(caches.match(req).then((hit) => hit || fetch(req).then(keep)));
   } else {
-    e.respondWith(fetch(req).then(keep).catch(() => caches.match(req, { ignoreSearch: true })));
+    // no-cache: always ask the server (a cheap 304 when nothing changed), never trust the
+    // browser's copy, which GitHub Pages lets sit for 10 minutes.
+    e.respondWith(fetch(req.url, { cache: "no-cache" }).then(keep).catch(() => caches.match(req, { ignoreSearch: true })));
   }
 });

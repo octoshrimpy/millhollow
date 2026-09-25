@@ -37,6 +37,7 @@ const ICONS = {
   "🏰": ["lu-castle", "brown"],
   "🏛": ["lu-landmark", "yellow"],
   "🍖": ["lu-ham", "red"],
+  "🎣": ["lu-fish", "blue"],
   // land
   "🗻": ["ra-mountains", "brown"],
   "🏔": ["lu-mountain-snow", "gray"],

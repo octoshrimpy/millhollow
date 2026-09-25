@@ -21,6 +21,7 @@
   slot, the only place to build. Woods, hills and ruins clear to meadow for their yield; water and
   mountains stay.
 - Farms, lumber camps and quarries get +25% beside water, woods and hills or mountains.
+- Quarries turn up 0.15⛏️ a day, 0.5⛏️ beside mountains. Fishing docks only go beside water.
 - Workplaces improve in place (+25%, +50%, +80%) instead of taking tools.
 - Settlers level up, gain skill by working, and carry thoughts that move morale.
 - Each person at home eats 1🍞 a day. A day without food costs 15% HP (never below 1) and halves

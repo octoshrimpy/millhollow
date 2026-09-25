@@ -345,6 +345,9 @@ function clearLand(i) {
 const gainText = (got) => Object.entries(got).map(([k, v]) => `+${v}${RESOURCES[k].icon}`).join(" ");
 
 // Beside the right land a workplace does better, e.g. a farm by water.
+const beside = (i, land) => around(i).some((j) => S.land[j] === land);
+const besideYields = (i, type) => Object.entries(BESIDE_YIELDS[type] || {})
+  .filter(([land]) => beside(i, land)).reduce((all, [, y]) => addCost(all, y), {});
 const besideBoost = (i, type) => (BESIDE[type] && around(i).some((j) => BESIDE[type].includes(S.land[j])) ? BESIDE_BOOST : 0);
 
 // Each building remembers what went into it, upgrades included, so demolishing can give some back.
@@ -353,6 +356,7 @@ const addCost = (into, cost) => { for (const [k, v] of Object.entries(cost)) int
 function build(i, type) {
   const b = BUILDINGS[type];
   if (S.grid[i] || S.land[i] !== "meadow" || siteAt(i) || !S.seen[i] || !afford(b.cost) || (b.needs && !has(b.needs))) return;
+  if (b.near && !beside(i, b.near)) return;
   // The town hall comes first, and only once.
   if ((S.hall == null) !== (type === "townhall")) return;
   pay(b.cost);
@@ -456,7 +460,7 @@ function endDay() {
     const skill = s.skills[def.job] || 0;
     const boost = 1 + boostOf(b) + besideBoost(i, b.type);
     const eff = (1 + skill * 0.1) * (s.morale < 30 ? 0.5 : 1) * fedRate(s) * boost;
-    for (const [r, n] of Object.entries(def.yields || {})) take(r, n * eff);
+    for (const [r, n] of Object.entries(addCost({ ...def.yields }, besideYields(i, b.type)))) take(r, n * eff);
     if (b.type === "library" && S.res.relics > 0) {
       S.res.relics--;
       spent.relics = (spent.relics || 0) + 1;

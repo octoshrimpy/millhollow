@@ -132,9 +132,9 @@ function sheetPlot(i) {
   }
   if (!b) {
     return `<h3>Build</h3>` + Object.entries(BUILDINGS).filter(([id]) => (S.hall == null) === (id === "townhall")).map(([id, d]) => {
-      const locked = d.needs && !has(d.needs);
-      return `<button class="opt" data-act="build" data-v="${id}" ${locked || !afford(d.cost) ? "disabled" : ""}>
-        <span class="ico">${d.icon}</span><span><b>${d.name}</b> ${costText(d.cost)}${besideTag(i, id)}<br><small>${locked ? `🔒 📜 ${RESEARCH[d.needs].name}` : d.desc}</small></span></button>`;
+      const locked = d.needs && !has(d.needs), far = d.near && !beside(i, d.near);
+      return `<button class="opt" data-act="build" data-v="${id}" ${locked || far || !afford(d.cost) ? "disabled" : ""}>
+        <span class="ico">${d.icon}</span><span><b>${d.name}</b> ${costText(d.cost)}${besideTag(i, id)}<br><small>${locked ? `🔒 📜 ${RESEARCH[d.needs].name}` : far ? `🔒 ${TERRAIN[d.near].icon}` : d.desc}</small></span></button>`;
     }).join("");
   }
   const d = BUILDINGS[b.type];
@@ -181,9 +181,14 @@ function sheetSite(site) {
     <button class="primary wide" data-act="tosite" data-v="${k}" ${S.expedition ? "disabled" : ""}>🧭 Set out</button>`;
 }
 
-// The land that helps a workplace here, e.g. "🌊+25%".
-const besideTag = (i, type) => besideBoost(i, type)
-  ? ` <span class="beside">${TERRAIN[BESIDE[type].find((k) => around(i).some((j) => S.land[j] === k))].icon}+${BESIDE_BOOST * 100}%</span>` : "";
+// The land that helps a workplace here, e.g. "🌊+25%", and what it adds, e.g. "🏔️⛏️".
+const besideTag = (i, type) => {
+  const boost = besideBoost(i, type) ? `${TERRAIN[BESIDE[type].find((k) => beside(i, k))].icon}+${BESIDE_BOOST * 100}%` : "";
+  const extra = Object.keys(BESIDE_YIELDS[type] || {}).filter((k) => beside(i, k))
+    .map((k) => TERRAIN[k].icon + Object.keys(BESIDE_YIELDS[type][k]).map((r) => RESOURCES[r].icon).join("")).join(" ");
+  const tag = [boost, extra].filter(Boolean).join(" ");
+  return tag ? ` <span class="beside">${tag}</span>` : "";
+};
 
 // A skill's icon is the building that trains it: 🌾 farming, 🪓 woodcutting…
 const jobIcon = (job) => Object.values(BUILDINGS).find((d) => d.job === job).icon;
@@ -245,7 +250,12 @@ const thoughtChip = (x) => {
 
 function viewPeople() {
   const dead = S.settlers.filter((s) => s.dead);
-  return living().map(settlerCard).join("") + (dead.length ? `<h4>🪦</h4><div class="remembered">${dead.map((s) =>
+  // During an expedition: the party under the site, then who stayed home.
+  const below = S.expedition ? living().filter(away) : [];
+  const cards = !below.length ? living().map(settlerCard).join("")
+    : `<h4>${SITES[siteOf().kind].icon} ${esc(siteOf().name)}</h4>${below.map(settlerCard).join("")}
+      <h4 class="split">🏘 Millhollow</h4>${living().filter((s) => !away(s)).map(settlerCard).join("")}`;
+  return cards + (dead.length ? `<h4>🪦</h4><div class="remembered">${dead.map((s) =>
     `<button data-act="person" data-v="${s.id}"><img class="mini" src="${faceSrc(s)}" alt="">${esc(s.name)}</button>`).join("")}</div>` : "");
 }
 
@@ -879,6 +889,36 @@ document.addEventListener("keydown", (e) => {
   if (e.code === "Space") { e.preventDefault(); document.activeElement.blur(); run(f.over ? "fightdone" : "pause"); }
 });
 
+// ---------- updates ----------
+// Every 10 minutes and whenever the page comes back into view, ask the server for the page's
+// and scripts' ETags. If any changed since this page loaded, save and reload: at once when coming
+// back into view, otherwise after 30s without a tap. Never mid-fight.
+const updates = { tags: null, ready: false, lastTap: Date.now() };
+const codeFiles = () => ["./", ...[...document.scripts].map((s) => s.src).filter(Boolean)];
+const etags = () => Promise.all(codeFiles().map((u) =>
+  fetch(u, { method: "HEAD", cache: "no-store" }).then((r) => r.headers.get("etag") || r.headers.get("last-modified") || "")))
+  .then((t) => t.join("|"));
+function reloadIfSafe(now) {
+  if (!updates.ready || (S.expedition && S.expedition.fight)) return;
+  if (!now && Date.now() - updates.lastTap < 30000) return;
+  save();
+  location.reload();
+}
+function checkUpdate(now) {
+  if (!navigator.onLine) return;
+  etags().then((t) => {
+    if (updates.tags == null) updates.tags = t;
+    else if (t !== updates.tags) updates.ready = true;
+    reloadIfSafe(now);
+  }).catch(() => {});
+}
+if (location.protocol.startsWith("http")) {
+  checkUpdate();
+  setInterval(() => (updates.ready ? reloadIfSafe() : checkUpdate()), 10 * 60 * 1000);
+  setInterval(() => updates.ready && reloadIfSafe(), 5000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) checkUpdate(true); });
+  window.addEventListener("pointerdown", () => (updates.lastTap = Date.now()), true);
+}
 
 if (!load()) newGame();
 render();

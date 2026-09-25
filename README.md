@@ -6,7 +6,8 @@ A settlement builder and dungeon crawler for the browser. Play at
 ## Play
 
 - Found a town hall, clear land, build, and put settlers to work.
-- Farms, lumber camps and quarries do better beside water, woods and hills.
+- Farms, lumber camps and quarries do better beside water, woods and hills. Fishing docks go
+  beside water; quarries find more ore beside mountains.
 - Send a party of 3–4 into dungeon sites on the overworld: the old mill, a barrow, a mine, a
   thornwood and a shrine. Each has its own foes, loot and keeper.
 - Floors are random room maps. Fights are real-time auto-battles; you control pause, speed,
@@ -38,7 +39,8 @@ All in `js/ds/`:
 | `ui.js` | DOM |
 | `icons.js`, `sprite.js` | Icons |
 
-`sw.js` and `manifest.webmanifest` make it installable.
+`sw.js` and `manifest.webmanifest` make it installable. The worker always checks the server for
+code, and an open page reloads itself when a deploy changes any script (never mid-fight).
 
 ## Icons
 
