@@ -87,6 +87,20 @@ const PAST = {
 
 // `yields` is per worker per day at skill 0; each skill point adds 10%. `up` is what it can be
 // rebuilt into where it stands, and what that costs on top.
+// What the land is. Land with `clear` can be cleared to meadow for what it gives; water and
+// mountains stay as they are.
+const TERRAIN = {
+  meadow: { name: "Meadow", icon: "" },
+  forest: { name: "Woods", icon: "🌲", clear: { wood: 5 } },
+  hills: { name: "Hills", icon: "🗻", clear: { stone: 4 } },
+  ruins: { name: "Ruins", icon: "🧱", clear: { relics: 2, stone: 2 } },
+  water: { name: "Water", icon: "🌊" },
+  mountain: { name: "Mountains", icon: "🏔️" },
+};
+// Workplaces that do better beside certain land.
+const BESIDE = { farm: ["water"], lumber: ["forest"], quarry: ["hills", "mountain"] };
+const BESIDE_BOOST = 0.25;
+
 const BUILDINGS = {
   townhall: { name: "Town hall", icon: "🏛️", cost: {}, beds: 4, desc: "4 beds." },
   hut: { name: "Hut", icon: "🛖", cost: { wood: 6 }, beds: 2, desc: "2 beds.", up: { to: "stonehouse", cost: { stone: 8 } } },
@@ -102,26 +116,31 @@ const BUILDINGS = {
   library: { name: "Library", icon: "📚", cost: { wood: 8, stone: 8 }, job: "scholarship", desc: "1 relic → 1 research per day. Needs a worker." },
   smokehouse: { name: "Smokehouse", icon: "🍖", cost: { wood: 8, stone: 2 }, job: "cooking", needs: "smoking", desc: "3🍞 → 1🥪 trail meal per day." },
 };
-// Buildings where a tool raises the day's output.
-const TOOLED = (type) => !!(BUILDINGS[type].yields || ["library", "smokehouse"].includes(type));
+// Workplaces improve in place; each level raises what the worker turns out (boost is the total).
+const IMPROVABLE = (type) => !!(BUILDINGS[type].yields || ["library", "smokehouse"].includes(type));
+const IMPROVE = [
+  { boost: 0.25, cost: { ore: 3, wood: 4 }, needs: "smelting" },
+  { boost: 0.5, cost: { silver: 3, stone: 4 }, needs: "silverwork" },
+  { boost: 0.8, cost: { starmetal: 2, silver: 2 }, needs: "starforging" },
+];
 
 // `after` is the research that has to come first.
 const RESEARCH = {
   scouting: { name: "Scouting", cost: 5, desc: "See 1 further from the town hall." },
   herbalism: { name: "Herbalism", cost: 4, desc: "Brew potions at the forge. 3🌿 each, heals 20." },
   salvage: { name: "Salvage", cost: 5, desc: "Demolishing returns ½ of what it cost." },
-  smelting: { name: "Smelting", cost: 6, desc: "Iron gear and tools." },
+  smelting: { name: "Smelting", cost: 6, desc: "Iron gear. Workplaces improve to +25%." },
   field_rations: { name: "Field rations", cost: 6, desc: "Food and meals last one room longer." },
   smoking: { name: "Smoking", cost: 6, desc: "Smokehouse: trail meals last 3 rooms and heal." },
   masonry: { name: "Masonry", cost: 8, desc: "Stone houses (4 beds). Huts can be rebuilt." },
   reclaim: { name: "Reclamation", cost: 10, after: "salvage", desc: "Demolishing returns ¾." },
   surveying: { name: "Surveying", cost: 10, after: "scouting", desc: "See 1 further again." },
   tactics: { name: "Tactics", cost: 10, desc: "Party size 4." },
-  silverwork: { name: "Silverwork", cost: 12, after: "smelting", desc: "Silver gear and tools. Silver lies below floor 3." },
+  silverwork: { name: "Silverwork", cost: 12, after: "smelting", desc: "Silver gear. Workplaces to +50%. Silver lies below floor 3." },
   lanterns: { name: "Deep lanterns", cost: 12, desc: "See inside rooms next to you." },
   architecture: { name: "Architecture", cost: 14, after: "masonry", desc: "Manors (6 beds)." },
   cartography: { name: "Cartography", cost: 16, after: "surveying", desc: "See 2 further again." },
-  starforging: { name: "Starforging", cost: 18, after: "silverwork", desc: "Starmetal gear. Starmetal lies below floor 6." },
+  starforging: { name: "Starforging", cost: 18, after: "silverwork", desc: "Starmetal gear. Workplaces to +80%. Starmetal lies below floor 6." },
 };
 // Where each ore first turns up in the dungeon.
 const ORE_FLOOR = { silver: 3, starmetal: 6 };
@@ -133,14 +152,11 @@ const RECIPES = [
   { id: "sword", name: "Iron sword", slot: "weapon", atk: 5, cost: { ore: 4, wood: 2 }, needs: "smelting" },
   { id: "mail", name: "Iron mail", slot: "armor", def: 3, hp: 10, spd: -1, cost: { ore: 6 }, needs: "smelting" },
   { id: "bow", name: "Yew longbow", slot: "weapon", atk: 4, spd: 1, cost: { wood: 6, ore: 1 }, needs: "smelting" },
-  { id: "tools", name: "Iron tools", slot: "tool", yield: 0.25, cost: { ore: 3, wood: 2 }, needs: "smelting" },
   { id: "ssword", name: "Silver blade", slot: "weapon", atk: 8, cost: { silver: 4, ore: 2 }, needs: "silverwork" },
   { id: "smail", name: "Silver mail", slot: "armor", def: 5, hp: 14, cost: { silver: 6, ore: 2 }, needs: "silverwork" },
   { id: "sbow", name: "Silver-strung bow", slot: "weapon", atk: 7, spd: 1, cost: { silver: 3, wood: 4 }, needs: "silverwork" },
-  { id: "stools", name: "Silver tools", slot: "tool", yield: 0.5, cost: { silver: 3, wood: 2 }, needs: "silverwork" },
   { id: "starblade", name: "Star blade", slot: "weapon", atk: 12, spd: 1, cost: { starmetal: 4, silver: 2 }, needs: "starforging" },
   { id: "starplate", name: "Star plate", slot: "armor", def: 7, hp: 20, cost: { starmetal: 6, silver: 2 }, needs: "starforging" },
-  { id: "startools", name: "Star tools", slot: "tool", yield: 0.8, cost: { starmetal: 2, silver: 2, wood: 2 }, needs: "starforging" },
 ];
 
 // Drops found in the dungeon, scaled by floor when rolled.
@@ -162,6 +178,9 @@ const ENEMIES = {
   cultist: { name: "Cultist", icon: "🕯️", hp: 14, atk: 6, def: 1, spd: 8, flying: true, ranged: true, from: 2 },
   ghoul: { name: "Ghoul", icon: "🧟", hp: 26, atk: 7, def: 2, spd: 7, from: 3 },
   root: { name: "Rootling", icon: "🌱", hp: 20, atk: 5, def: 3, spd: 6, from: 4 },
+  wolf: { name: "Grey wolf", icon: "🐺", hp: 12, atk: 4, def: 0, spd: 12, from: 1 },
+  spider: { name: "Cave spider", icon: "🕷️", hp: 11, atk: 5, def: 1, spd: 10, from: 1 },
+  wisp: { name: "Marsh wisp", icon: "👻", hp: 9, atk: 4, def: 0, spd: 12, flying: true, ranged: true, from: 1 },
 };
 // `flying` enemies ignore the front row and can hit anyone.
 
@@ -169,6 +188,20 @@ const BOSSES = {
   3: { name: "The Bone Warden", icon: "☠️", hp: 130, atk: 12, def: 4, spd: 7, aoeEvery: 4 },
   6: { name: "Mother of Roots", icon: "🌳", hp: 230, atk: 15, def: 5, spd: 6, aoeEvery: 3 },
 };
+// Places with a way down. None of them end: each goes as deep as anyone dares, and its keeper
+// is waiting again every third floor. `on` is the land a site sits on, `by` land it must touch.
+const SITES = {
+  mill: { name: "The old mill", icon: "🌀", foes: ["rat", "slime", "skeleton", "bat", "cultist", "ghoul", "root"], loot: [] },
+  barrow: { icon: "🪦", on: ["hills"], foes: ["skeleton", "ghoul", "bat", "cultist"], loot: ["relics", "relics", "stone"],
+    nouns: ["Barrow", "Howe", "Cairn"], adj: ["Cold", "Grey", "Crooked"], epithet: ["Unburied", "Pale", "Grey"], boss: "☠️" },
+  mine: { icon: "🛒", on: ["hills"], by: ["mountain"], foes: ["rat", "spider", "bat", "ghoul"], loot: ["ore", "ore", "silver", "stone"],
+    nouns: ["Delving", "Pit", "Workings"], adj: ["Flooded", "Deep", "Old"], epithet: ["Deep", "Blind", "Hungry"], boss: "👁️" },
+  thornwood: { icon: "🎄", on: ["forest"], foes: ["wolf", "root", "spider", "slime"], loot: ["wood", "herbs", "herbs"],
+    nouns: ["Tangle", "Weald", "Thicket"], adj: ["Black", "Crooked", "Weeping"], epithet: ["Rootbound", "Thorned", "Green"], boss: "🌳" },
+  shrine: { icon: "⛩️", on: ["meadow", "forest"], by: ["water"], foes: ["wisp", "slime", "cultist", "skeleton"], loot: ["herbs", "relics", "potions"],
+    nouns: ["Font", "Chapel", "Well"], adj: ["Sunken", "Drowned", "Weeping"], epithet: ["Drowned", "Weeping", "Pale"], boss: "🕯️" },
+};
+
 const bossFor = (floor) => BOSSES[floor] || (floor % 3 === 0 && floor > 6
   ? { name: "Hollow Tyrant", icon: "👁️", hp: 120 + floor * 12, atk: 8 + floor, def: 5, spd: 7, aoeEvery: 3 }
   : null);

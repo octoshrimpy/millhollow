@@ -89,13 +89,18 @@ function viewVillage() {
     const at = `data-act="plot" data-v="${i}"` + (newLand.includes(i) ? ` style="--d:${dist(i, origin)}"` : "");
     const cls = newLand.includes(i) ? " fresh" : "";
     if (!S.seen[i]) return `<div class="tile fog"></div>`;
-    if (S.wild[i]) return `<button class="tile wild${cls}" ${at}><span class="ico">🌲</span></button>`;
+    // Untouched land is ground, not a thing: a few small marks with no card around them.
+    const t = S.land[i], site = siteAt(i), ico = scatter(i, TERRAIN[t].icon);
+    if (site) return `<button class="tile site t-${t}${cls}" ${at}><span class="ico">${SITES[site.kind].icon}</span><small>${esc(site.name)}</small>${site.deepest ? `<span class="lvl">🪜${site.deepest}</span>` : ""}</button>`;
+    if (wild(i)) return `<button class="tile wild t-${t}${cls}" ${at}>${ico}</button>`;
+    if (t !== "meadow") return `<div class="tile still t-${t}${cls}"${newLand.includes(i) ? ` style="--d:${dist(i, origin)}"` : ""}>${ico}</div>`;
     // Before anything else: the town hall's place, pulsing.
     if (!b) return `<button class="tile empty${cls}${S.hall == null ? " found" : ""}" ${at}>${S.hall == null ? "🏛️" : "＋"}</button>`;
     const def = BUILDINGS[b.type], w = b.worker && byId(b.worker);
     // The worker sits in the corner as a badge, so the icon and name keep the middle.
     const who = w ? `<img class="mini" src="${faceSrc(w)}" alt="${esc(w.name)}">` : "";
-    return `<button class="tile${cls}${b.type === "townhall" ? " hall" : ""}" ${at}><span class="ico">${def.icon}</span><small>${def.name}</small>${who}</button>`;
+    const lvl = b.lvl ? `<span class="lvl">${"●".repeat(b.lvl)}</span>` : "";
+    return `<button class="tile${cls}${b.type === "townhall" ? " hall" : ""}" ${at}><span class="ico">${def.icon}</span><small>${def.name}</small>${who}${lvl}</button>`;
   };
   let tiles = "";
   for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) tiles += tile(y * LAND + x);
@@ -109,34 +114,43 @@ function viewVillage() {
     ${visitor}`;
 }
 
+// Three marks at spots of the tile's own, so a stretch of woods doesn't look stamped.
+function scatter(i, icon) {
+  const r = seeded(S.seed + i * 9973), spots = [[8, 10], [52, 6], [30, 40], [62, 46], [12, 58]];
+  for (let k = spots.length - 1; k > 0; k--) { const j = Math.floor(r() * (k + 1)); [spots[k], spots[j]] = [spots[j], spots[k]]; }
+  return `<span class="scatter">${spots.slice(0, 3).map(([x, y]) =>
+    `<i style="left:${x + r() * 8}%;top:${y + r() * 8}%;--s:${0.22 + r() * 0.12}">${icon}</i>`).join("")}</span>`;
+}
+
 function sheetPlot(i) {
-  const b = S.grid[i];
-  if (S.wild[i]) {
-    return `<h3>🌲 Woods</h3><button class="opt" data-act="clear" ${afford(clearCost()) ? "" : "disabled"}>
-      <span class="ico">🪓</span><span><b>Clear</b> ${costText(clearCost())} → +${CLEAR_WOOD}${RESOURCES.wood.icon}</span></button>`;
+  const b = S.grid[i], site = siteAt(i);
+  if (site) return sheetSite(site);
+  const t = TERRAIN[S.land[i]];
+  if (t.clear) {
+    return `<h3>${t.icon} ${t.name}</h3><button class="opt" data-act="clear" ${afford(clearCost()) ? "" : "disabled"}>
+      <span class="ico">${S.land[i] === "forest" ? "🪓" : "⛏️"}</span><span><b>Clear</b> ${costText(clearCost())} → ${gainText(t.clear)}</span></button>`;
   }
   if (!b) {
     return `<h3>Build</h3>` + Object.entries(BUILDINGS).filter(([id]) => (S.hall == null) === (id === "townhall")).map(([id, d]) => {
       const locked = d.needs && !has(d.needs);
       return `<button class="opt" data-act="build" data-v="${id}" ${locked || !afford(d.cost) ? "disabled" : ""}>
-        <span class="ico">${d.icon}</span><span><b>${d.name}</b> ${costText(d.cost)}<br><small>${locked ? `🔒 📜 ${RESEARCH[d.needs].name}` : d.desc}</small></span></button>`;
+        <span class="ico">${d.icon}</span><span><b>${d.name}</b> ${costText(d.cost)}${besideTag(i, id)}<br><small>${locked ? `🔒 📜 ${RESEARCH[d.needs].name}` : d.desc}</small></span></button>`;
     }).join("");
   }
   const d = BUILDINGS[b.type];
   const back = Object.entries(refundOf(i)).map(([k, v]) => `+${v}${RESOURCES[k].icon}`).join(" ");
   const knock = b.type === "townhall" ? "" : `<button class="danger small" data-act="demolish">Demolish${back ? ` <small>♻ ${back}</small>` : ""}</button>`;
-  let body = `<div class="sheet-head"><h3>${d.icon} ${d.name}</h3>${knock}</div><p class="dim desc">${d.desc}</p>`;
+  const lv = b.lvl || 0, pips = IMPROVABLE(b.type) ? ` <span class="pips">${"●".repeat(lv)}${"○".repeat(IMPROVE.length - lv)}</span>` : "";
+  let body = `<div class="sheet-head"><h3>${d.icon} ${d.name}${pips}${besideTag(i, b.type)}</h3>${knock}</div><p class="dim desc">${d.desc}</p>`;
   if (d.up) {
     const to = BUILDINGS[d.up.to], locked = to.needs && !has(to.needs);
     body += `<button class="opt" data-act="upgrade" ${canUpgrade(i) ? "" : "disabled"}>
       <span class="ico">⏫</span><span><b>${to.icon} ${to.name}</b> ${costText(d.up.cost)}<br><small>${locked ? `🔒 📜 ${RESEARCH[to.needs].name}` : to.desc}</small></span></button>`;
   }
-  if (TOOLED(b.type)) {
-    const tools = (S.stash || []).filter((g) => g.slot === "tool");
-    if (b.tool || tools.length) body += `<div class="row wrap tools">🔧
-      ${b.tool ? `<button class="chip" data-act="untool">${esc(b.tool.name)} +${Math.round(b.tool.yield * 100)}% ✕</button>` : ""}
-      ${tools.length ? `<select data-act="tool"><option value="">${b.tool ? "Swap…" : "Fit…"}</option>${tools.map((g) =>
-        `<option value="${g.uid}">${esc(g.name)} (+${Math.round(g.yield * 100)}%)</option>`).join("")}</select>` : ""}</div>`;
+  const next = IMPROVABLE(b.type) && IMPROVE[lv];
+  if (next) {
+    body += `<button class="opt" data-act="improve" ${canImprove(i) ? "" : "disabled"}>
+      <span class="ico">⏫</span><span><b>+${Math.round(next.boost * 100)}%</b> ${costText(next.cost)}${has(next.needs) ? "" : `<br><small>🔒 📜 ${RESEARCH[next.needs].name}</small>`}</span></button>`;
   }
   if (d.job) {
     // Current worker, then free people, then people who'd leave another building (its icon in the corner).
@@ -157,6 +171,19 @@ function sheetPlot(i) {
   }
   return body;
 }
+
+// A site: how deep it's been walked, how long the road is, who waits every third floor.
+function sheetSite(site) {
+  const d = SITES[site.kind], k = S.sites.indexOf(site), days = travelDays(site);
+  const chips = [site.deepest ? `🪜 ${site.deepest}` : "", days ? `👣 ${days}d` : "", site.boss ? `${d.boss} ${esc(site.boss)}` : ""]
+    .filter(Boolean).map((x) => `<span class="chip">${x}</span>`).join("");
+  return `<h3>${d.icon} ${esc(site.name)}</h3><div class="row wrap">${chips}</div>
+    <button class="primary wide" data-act="tosite" data-v="${k}" ${S.expedition ? "disabled" : ""}>🧭 Set out</button>`;
+}
+
+// The land that helps a workplace here, e.g. "🌊+25%".
+const besideTag = (i, type) => besideBoost(i, type)
+  ? ` <span class="beside">${TERRAIN[BESIDE[type].find((k) => around(i).some((j) => S.land[j] === k))].icon}+${BESIDE_BOOST * 100}%</span>` : "";
 
 // A skill's icon is the building that trains it: 🌾 farming, 🪓 woodcutting…
 const jobIcon = (job) => Object.values(BUILDINGS).find((d) => d.job === job).icon;
@@ -202,14 +229,13 @@ function gearRow(s) {
     return g ? `<button class="chip" data-act="unequip" data-v="${s.id}" data-slot="${slot}">${esc(g.name)} ✕</button>`
       : `<span class="chip dim">no ${slot}</span>`;
   }).join("");
-  const stash = (S.stash || []).filter((g) => g.slot !== "tool");
+  const stash = S.stash || [];
   return `<div class="row wrap center">${gear}
     ${stash.length && !away(s) ? `<select data-act="equip" data-v="${s.id}"><option value="">Equip…</option>${stash.map((g) =>
       `<option value="${g.uid}">${esc(g.name)} (${gearText(g)})</option>`).join("")}</select>` : ""}
     <button class="chip" data-act="row" data-v="${s.id}">${(s.row || defaultRow(s.cls)) === "front" ? "Front row" : "Back row"}</button></div>`;
 }
-const gearText = (g) => g.slot === "tool" ? `🔧 yield +${Math.round(g.yield * 100)}%`
-  : ["atk", "def", "hp", "spd"].filter((k) => g[k]).map((k) => `${k} ${g[k] > 0 ? "+" : ""}${g[k]}`).join(", ");
+const gearText = (g) => ["atk", "def", "hp", "spd"].filter((k) => g[k]).map((k) => `${k} ${g[k] > 0 ? "+" : ""}${g[k]}`).join(", ");
 
 const moraleChip = (s) => `<span class="thought">${moraleFace(s)}</span>`;
 const thoughtChip = (x) => {
@@ -279,13 +305,19 @@ function viewExpedition() {
   plan.party = plan.party.filter((id) => ready.some((s) => s.id === id));
   plan.rations = Math.min(plan.rations, S.res.food);
   plan.meals = Math.min(plan.meals || 0, S.res.meals);
-  plan.floor = Math.min(plan.floor, S.deepest + 1);
-  const floors = Array.from({ length: S.deepest + 1 }, (_, k) => k + 1);
+  const known = S.sites.filter((x) => S.seen[x.i]);
+  if (!known.includes(S.sites[plan.site || 0])) plan.site = 0;
+  const site = S.sites[plan.site || 0], days = travelDays(site);
+  plan.floor = Math.min(plan.floor, site.deepest + 1);
+  const floors = Array.from({ length: site.deepest + 1 }, (_, k) => k + 1);
+  const where = known.length > 1 ? `<div class="sites">${known.map((x) => `<button class="${x === site ? "on" : ""}" data-act="site" data-v="${S.sites.indexOf(x)}"
+    aria-label="${esc(x.name)}">${SITES[x.kind].icon}</button>`).join("")}</div>` : "";
   const per = (k) => `${roomsPer(k)} ${roomsPer(k) > 1 ? "rooms" : "room"}`;
   const cook = has("smoking") || S.res.meals > 0;
   const stepper = (act, icon, n) => `<div class="row between"><span>${icon}</span><span class="row">
       <button data-act="${act}" data-v="-1" data-hold>−</button><b>${n}</b><button data-act="${act}" data-v="1" data-hold>＋</button></span></div>`;
-  return `<p class="dim">Party of up to ${partyMax()}. 🍞 ${per("food")}${cook ? ` · 🥪 ${per("meals")}, +${MEAL_HEAL}❤️` : ""}. No food: starving. Death is permanent.</p>
+  return `${where}<div class="row between"><h3>${SITES[site.kind].icon} ${esc(site.name)}</h3>${days ? `<span class="chip">👣 ${days}d</span>` : ""}</div>
+    <p class="dim">Party of up to ${partyMax()}. 🍞 ${per("food")}${cook ? ` · 🥪 ${per("meals")}, +${MEAL_HEAL}❤️` : ""}. No food: starving. Death is permanent.</p>
     ${ready.map((s) => {
       const on = plan.party.includes(s.id), st = stats(s);
       return `<button class="opt ${on ? "on" : ""}" data-act="pick" data-v="${s.id}">
@@ -323,9 +355,9 @@ function viewDungeon() {
   } else {
     const down = ["stairs", "boss"].includes(r.type) && r.done;
     panel = `<div class="row wrap">${down ? `<button class="primary" data-act="descend">Down to floor ${m.floor + 1}</button>` : ""}
-      <button data-act="home">Head home (${Math.max(1, Math.ceil(e.moves / 5))}d)</button></div>`;
+      <button data-act="home">Head home (${homeDays()}d)</button></div>`;
   }
-  return `<div class="row between"><b>Floor ${m.floor}</b><small>🍞 ${e.rations}${e.meals ? ` 🥪 ${e.meals}` : ""} · 🧪 ${S.res.potions}</small></div>
+  return `<div class="row between"><b>${SITES[siteOf().kind].icon} ${esc(siteOf().name)} · ${m.floor}</b><small>🍞 ${e.rations}${e.meals ? ` 🥪 ${e.meals}` : ""} · 🧪 ${S.res.potions}</small></div>
     <div class="party">${party}</div>
     <div class="map" style="--w:${MAP}">${cells}</div>
     <p class="dim small">Carrying: ${loot}</p>${panel}`;
@@ -531,7 +563,7 @@ function renderSheet() {
   }
   // A built plot's sheet is one tap (pick a worker) or a tap outside; only the long build list keeps Close.
   inner.innerHTML = iconize(sheet.menu ? sheetMenu() : sheet.visitor ? sheetVisitor() : sheet.person ? sheetPerson()
-    : sheetPlot(sheet.i) + (S.grid[sheet.i] || S.wild[sheet.i] ? "" : `<button class="wide" data-act="close">Close</button>`));
+    : sheetPlot(sheet.i) + (S.grid[sheet.i] || wild(sheet.i) ? "" : `<button class="wide" data-act="close">Close</button>`));
 }
 
 (() => {
@@ -657,7 +689,7 @@ const ACTS = {
     if (confirm(back ? `Demolish? Get back ${back}.` : "Demolish? No refund.")) { demolish(sheet.i); sheet = null; }
   },
   upgrade: () => upgrade(sheet.i),
-  untool: () => unfitTool(sheet.i),
+  improve: () => improve(sheet.i),
   assign: (v) => { assign(sheet.i, +v); sheet = null; },
   endday: () => passDays(1),
   visitor: (v) => { welcomeVisitor(v === "1"); sheet = null; },
@@ -675,7 +707,9 @@ const ACTS = {
   },
   rations: (v) => (plan.rations = Math.max(0, Math.min(S.res.food, plan.rations + +v))),
   meals: (v) => (plan.meals = Math.max(0, Math.min(S.res.meals, (plan.meals || 0) + +v))),
-  depart: () => depart(plan.party, plan.rations, plan.floor, plan.meals || 0),
+  depart: () => depart(plan.party, plan.rations, plan.floor, plan.meals || 0, plan.site || 0),
+  site: (v) => { plan.site = +v; plan.floor = 1; },
+  tosite: (v) => { plan.site = +v; plan.floor = 1; tab = "expedition"; sheet = null; },
   move: (v) => move(v),
   event: (v) => resolveEvent(v),
   descend: () => descend(),
@@ -815,7 +849,6 @@ document.addEventListener("change", (e) => {
   if (el.id === "savepick") { const f = el.files[0]; el.value = ""; if (f) f.text().then(loadCode); return; }
   if (!el.dataset.act) return;
   if (el.dataset.act === "equip" && el.value) equip(+el.dataset.v, +el.value);
-  if (el.dataset.act === "tool" && el.value && sheet) fitTool(sheet.i, +el.value);
   if (el.dataset.act === "floor") plan.floor = +el.value;
   render();
 });

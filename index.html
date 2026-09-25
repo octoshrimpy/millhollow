@@ -78,12 +78,29 @@
   @keyframes found { 50% { box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 45%, transparent); } }
   .tile.fresh { animation: reveal .45s calc(var(--d, 0) * 90ms) both; }
   button.ghost { background: transparent; border-color: transparent; color: var(--dim); }
-  .tools { align-items: center; gap: .4em; margin: .7em 0; }
+  .pips, .tile .lvl { color: var(--accent); letter-spacing: .1em; }
+  .pips { font-size: .7em; vertical-align: middle; }
+  .tile .lvl { position: absolute; left: 5px; top: 2px; font-size: .5rem; }
   .tile .mini { position: absolute; top: 3px; right: 3px; width: 34%; height: auto; aspect-ratio: 1; border-radius: 5px;
     box-shadow: 0 0 0 1.5px var(--card); }
   .tile.empty { color: var(--dim); background: transparent; border-style: dashed; }
-  .tile.wild { background: color-mix(in srgb, var(--c-green) 7%, var(--bg)); border-color: color-mix(in srgb, var(--c-green) 16%, var(--bg)); }
-  .tile.wild .ico { opacity: .55; }
+  .tile.wild, .tile.still { --tint: var(--c-green); background: color-mix(in srgb, var(--tint) 7%, var(--bg)); border-color: color-mix(in srgb, var(--tint) 16%, var(--bg)); }
+  /* Ground runs into the gap, so neighbouring land joins up and only built things stand apart. */
+  .tile.wild, .tile.still { border-color: transparent !important; border-radius: 0; margin: -3px; }
+  .scatter { position: absolute; inset: 0; opacity: .5; }
+  .scatter i { position: absolute; font-style: normal; font-size: calc(var(--t) * var(--s)); line-height: 1; }
+  .tile.t-water .scatter { opacity: .35; }
+  .land .tile:not(.wild):not(.still):not(.empty):not(.fog) { box-shadow: 0 3px 0 color-mix(in srgb, var(--ink) 18%, transparent); }
+  .tile.t-hills { --tint: var(--c-brown); }
+  .tile.t-ruins { --tint: var(--c-orange); }
+  .tile.t-mountain { --tint: var(--c-gray); background: color-mix(in srgb, var(--tint) 16%, var(--bg)); }
+  .tile.t-water { --tint: var(--c-blue); background: color-mix(in srgb, var(--tint) 24%, var(--bg)); }
+  .tile.site { --tint: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+  .tile.site .ico { opacity: 1; }
+  .sites { display: flex; gap: 6px; margin-bottom: 8px; }
+  .sites button { flex: 1; padding: 8px 0; }
+  .sites button.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--bg)); }
+  .beside { color: var(--c-green); font-weight: 600; }
   .chip.potion { border-color: var(--good); color: var(--ink); }
   .chip.potion:disabled { opacity: .45; }
   .ico { font-size: 1.5rem; line-height: 1; }
@@ -299,6 +316,7 @@
 <div id="floats"></div>
 <div id="toasts"></div>
 <script src="js/ds/data.js"></script>
+<script src="js/ds/names.js"></script>
 <script src="js/ds/game.js"></script>
 <script src="js/ds/combat.js"></script>
 <script src="js/ds/sprite.js"></script>

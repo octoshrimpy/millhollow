@@ -33,10 +33,9 @@ let nextId = 1;
 function makeSettler(cls) {
   const face = 1 + rand(FACES);
   const taken = new Set(S ? S.settlers.map((s) => s.name) : []);
-  const pool = namesFor(sexOf(face)).filter((n) => !taken.has(n));
   const c = CLASSES[cls || pick(Object.keys(CLASSES))];
   const s = {
-    id: nextId++, name: pick(pool.length ? pool : namesFor("any")), face, age: pick(AGES),
+    id: nextId++, name: makeName(sexOf(face), taken), face, age: pick(AGES),
     cls: cls || Object.keys(CLASSES).find((k) => CLASSES[k] === c),
     level: 1, xp: 0, hpMax: c.hp, hp: c.hp, morale: 70,
     skills: {}, job: null, gear: { weapon: null, armor: null },
@@ -118,10 +117,85 @@ function gainXp(s, n) {
 }
 
 // ---------- new game / save ----------
-// The land is woods with the odd meadow, around a small clearing in the middle.
 const xy = (i) => [i % LAND, Math.floor(i / LAND)];
 const dist = (a, b) => { const [ax, ay] = xy(a), [bx, by] = xy(b); return Math.max(Math.abs(ax - bx), Math.abs(ay - by)); };
-const startWild = () => Array.from({ length: LAND * LAND }, (_, i) => dist(i, MID) > 1 && chance(0.72));
+const around = (i) => Array.from({ length: LAND * LAND }, (_, j) => j).filter((j) => j !== i && dist(i, j) === 1);
+const wild = (i) => !!TERRAIN[S.land[i]].clear;
+
+// A repeatable stream of numbers from one seed, so a world can be grown again from its seed.
+const seeded = (seed) => () => {
+  seed = (seed + 0x6d2b79f5) | 0;
+  let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+};
+
+// Smooth noise over the land: random heights on a coarse lattice, eased between.
+function noise(rng, step) {
+  const n = Math.ceil(LAND / step) + 2, lat = Array.from({ length: n * n }, rng);
+  const ease = (t) => t * t * (3 - 2 * t);
+  return (x, y) => {
+    const gx = x / step, gy = y / step, x0 = Math.floor(gx), y0 = Math.floor(gy), tx = ease(gx - x0), ty = ease(gy - y0);
+    const at = (a, b) => lat[b * n + a];
+    const top = at(x0, y0) + (at(x0 + 1, y0) - at(x0, y0)) * tx, bot = at(x0, y0 + 1) + (at(x0 + 1, y0 + 1) - at(x0, y0 + 1)) * tx;
+    return top + (bot - top) * ty;
+  };
+}
+
+// Hills and mountains where it's high, lakes where it's low, woods where it's wet, one river
+// across, a few ruins, and open meadow around the middle where the settlers stop.
+function genLand(seed) {
+  const rng = seeded(seed);
+  const h1 = noise(rng, 6), h2 = noise(rng, 3), m1 = noise(rng, 5), m2 = noise(rng, 2.5);
+  const [cx, cy] = xy(MID);
+  const land = Array.from({ length: LAND * LAND }, (_, i) => {
+    const [x, y] = xy(i), d = dist(i, MID);
+    const h = 0.65 * h1(x, y) + 0.35 * h2(x, y), m = 0.6 * m1(x, y) + 0.4 * m2(x, y);
+    if (d <= 1) return "meadow";
+    if (h > 0.72 && d > 2) return "mountain";
+    if (h > 0.62) return "hills";
+    if (h < 0.21 && d > 2) return "water";
+    return m > 0.45 ? "forest" : "meadow";
+  });
+  // The river runs edge to edge, never through the clearing.
+  const across = rng() < 0.5, side = rng() < 0.5 ? -1 : 1;
+  let r = (across ? cx : cy) + side * (2 + Math.floor(rng() * 4));
+  const put = (a, b) => { const i = across ? b * LAND + a : a * LAND + b; if (dist(i, MID) > 1) land[i] = "water"; };
+  for (let t = 0; t < LAND; t++) {
+    put(r, t);
+    const was = r;
+    r += Math.floor(rng() * 3) - 1;
+    r = Math.max(0, Math.min(LAND - 1, r));
+    if (Math.abs(r - (across ? cx : cy)) < 2 && Math.abs(t - (across ? cy : cx)) < 3) r = was;
+    if (r !== was) put(r, t);
+  }
+  for (let k = 0; k < 3; k++) {
+    const spots = land.map((_, i) => i).filter((i) => dist(i, MID) >= 3 && ["meadow", "forest", "hills"].includes(land[i]));
+    land[spots[Math.floor(rng() * spots.length)]] = "ruins";
+  }
+  return land;
+}
+// The mill sits by the clearing; the other sites lie further out, each on its own kind of land,
+// named by the world's seed.
+function genSites(seed, land, grid = []) {
+  const rng = seeded(seed ^ 0x5173), pickR = (xs) => xs[Math.floor(rng() * xs.length)];
+  const all = land.map((_, j) => j), sites = [];
+  const free = (j) => !grid[j] && land[j] !== "water" && land[j] !== "mountain" && sites.every((s) => dist(s.i, j) >= 3);
+  const millAt = all.filter((j) => !grid[j] && land[j] === "meadow" && dist(j, MID) >= 1 && dist(j, MID) <= 2).sort((a, b) => dist(a, MID) - dist(b, MID));
+  sites.push({ kind: "mill", i: millAt.length ? pickR(millAt.filter((j) => dist(j, MID) === dist(millAt[0], MID))) : MID + 1, name: SITES.mill.name, deepest: 0 });
+  for (const kind of ["barrow", "mine", "thornwood", "shrine"]) {
+    const d = SITES[kind], out = (j) => dist(j, MID) >= 3 && dist(j, MID) <= 6 && free(j);
+    const fits = all.filter((j) => out(j) && d.on.includes(land[j]) && (!d.by || around(j).some((k) => d.by.includes(land[k]))));
+    const i = pickR(fits.length ? fits : all.filter(out));
+    const who = () => makeName(rng() < 0.5 ? "f" : "m", new Set(), rng);
+    const name = rng() < 0.5 ? `${who()}'s ${pickR(d.nouns)}` : `The ${pickR(d.adj)} ${pickR(d.nouns)}`;
+    sites.push({ kind, i, name, boss: `${who()} the ${pickR(d.epithet)}`, deepest: 0 });
+  }
+  return sites;
+}
+const siteAt = (i) => S.sites.find((s) => s.i === i);
+// Walking out to a site and back takes days, a day for every three tiles each way.
+const travelDays = (site) => (site.kind === "mill" ? 0 : 2 * Math.ceil(dist(site.i, S.hall ?? MID) / 3));
 
 // How far from the town hall the land is known. Seen land stays seen.
 const sight = () => 2 + has("scouting") + has("surveying") + 2 * has("cartography");
@@ -133,9 +207,11 @@ function reveal(at, r) {
 function newGame() {
   S = {
     day: 1, res: { food: 20, wood: 12, stone: 4, ore: 0, herbs: 0, relics: 0, research: 0, potions: 0, meals: 0, silver: 0, starmetal: 0 },
-    carry: {}, grid: Array(LAND * LAND).fill(null), wild: startWild(), seen: Array(LAND * LAND).fill(false), hall: null, cleared: 0, settlers: [], research: [],
+    seed: rand(2 ** 31), carry: {}, grid: Array(LAND * LAND).fill(null), seen: Array(LAND * LAND).fill(false), hall: null, cleared: 0, settlers: [], research: [],
     deepest: 0, visitor: null, expedition: null, log: [],
   };
+  S.land = genLand(S.seed);
+  S.sites = genSites(S.seed, S.land);
   nextId = 1;
   for (const c of ["warrior", "ranger", "cleric", "mystic"]) S.settlers.push(makeSettler(c));
   reveal(MID, 2);
@@ -152,6 +228,13 @@ function load() {
     ({ S, nextId } = JSON.parse(raw));
     if (S.expedition && S.expedition.fight) S.expedition.fight = null; // a fight restarts on reload
     if (!S.seen) widenLand();
+    if (!S.land) landFromWild();
+    if (!S.sites) {
+      S.sites = genSites(S.seed, S.land, S.grid);
+      S.sites[0].deepest = S.deepest;
+      if (S.expedition) S.expedition.site = 0;
+    }
+    unTool();
     for (const k of Object.keys(RESOURCES)) S.res[k] ??= 0;
     if (S.expedition) S.expedition.meals ??= 0;
     // People from older saves get a past, drawn from what they were best at.
@@ -170,7 +253,7 @@ function widenLand() {
   const ow = 6, ox = (LAND - ow) >> 1, oy = (LAND - 4) >> 1;
   const at = (i) => (oy + Math.floor(i / ow)) * LAND + ox + i % ow;
   const oldWild = S.wild || S.grid.map((b, i) => !b && (i % ow < 1 || i % ow > 4 || i >= 3 * ow));
-  const grid = Array(LAND * LAND).fill(null), wild = startWild(), seen = Array(LAND * LAND).fill(false);
+  const grid = Array(LAND * LAND).fill(null), wild = Array(LAND * LAND).fill(true), seen = Array(LAND * LAND).fill(false);
   S.grid.forEach((b, i) => { grid[at(i)] = b; wild[at(i)] = !!oldWild[i]; seen[at(i)] = true; });
   for (const s of [...S.settlers, S.visitor].filter(Boolean)) if (s.job != null) s.job = at(s.job);
   Object.assign(S, { grid, wild, seen, cleared: S.cleared || 0 });
@@ -182,6 +265,24 @@ function widenLand() {
   S.hall = k;
   reveal(k, sight());
   newLand = [];
+}
+
+// Saves from before the land had kinds only knew wooded or not. What they've seen stays as it
+// was; the rest grows from a seed like any new world.
+function landFromWild() {
+  S.seed ??= rand(2 ** 31);
+  S.land = genLand(S.seed).map((t, i) => !S.seen[i] ? t : S.grid[i] || !S.wild[i] ? "meadow" : TERRAIN[t].clear ? t : "forest");
+  delete S.wild;
+}
+
+// Tools used to be items fitted to a workplace. A fitted one becomes that workplace's level; a
+// spare one is melted back into what it cost.
+function unTool() {
+  const lvlOf = (t) => [0.25, 0.5, 0.8].indexOf(t.yield) + 1;
+  const melt = { 1: { ore: 3, wood: 2 }, 2: { silver: 3, wood: 2 }, 3: { starmetal: 2, silver: 2, wood: 2 } };
+  for (const b of S.grid) if (b && b.tool) { b.lvl = Math.max(b.lvl || 0, lvlOf(b.tool)); delete b.tool; }
+  for (const t of (S.stash || []).filter((g) => g.slot === "tool")) addCost(S.res, melt[lvlOf(t)] || {});
+  if (S.stash) S.stash = S.stash.filter((g) => g.slot !== "tool");
 }
 
 // A save as text: gzipped JSON in base64, tagged so a pasted code is recognisable. Plain JSON
@@ -225,27 +326,30 @@ const staffed = (type) => S.grid.some((b) => b && b.type === type && b.worker &&
 const away = (s) => S.expedition && S.expedition.party.includes(s.id);
 const available = (s) => s && !s.dead && !away(s);
 
-// Clearing is labour, paid in food, and the felled trees come back as logs.
+// Clearing is labour, paid in food; what stood there comes back as materials.
 const clearCost = () => ({ food: 6 + 4 * S.cleared });
-const CLEAR_WOOD = 5;
 
 function clearLand(i) {
-  const cost = clearCost();
-  if (!S.wild[i] || !S.seen[i] || !afford(cost)) return;
+  const cost = clearCost(), t = TERRAIN[S.land[i]];
+  if (!t.clear || !S.seen[i] || siteAt(i) || !afford(cost)) return;
   pay(cost);
-  S.wild[i] = false;
+  S.land[i] = "meadow";
   S.cleared++;
-  S.res.wood += CLEAR_WOOD;
-  log(`Cleared land. +${CLEAR_WOOD}${RESOURCES.wood.icon}`);
+  addCost(S.res, t.clear);
+  log(`Cleared ${t.name.toLowerCase()}. ${gainText(t.clear)}`);
   save();
 }
+const gainText = (got) => Object.entries(got).map(([k, v]) => `+${v}${RESOURCES[k].icon}`).join(" ");
+
+// Beside the right land a workplace does better, e.g. a farm by water.
+const besideBoost = (i, type) => (BESIDE[type] && around(i).some((j) => BESIDE[type].includes(S.land[j])) ? BESIDE_BOOST : 0);
 
 // Each building remembers what went into it, upgrades included, so demolishing can give some back.
 const addCost = (into, cost) => { for (const [k, v] of Object.entries(cost)) into[k] = (into[k] || 0) + v; return into; };
 
 function build(i, type) {
   const b = BUILDINGS[type];
-  if (S.grid[i] || S.wild[i] || !S.seen[i] || !afford(b.cost) || (b.needs && !has(b.needs))) return;
+  if (S.grid[i] || S.land[i] !== "meadow" || siteAt(i) || !S.seen[i] || !afford(b.cost) || (b.needs && !has(b.needs))) return;
   // The town hall comes first, and only once.
   if ((S.hall == null) !== (type === "townhall")) return;
   pay(b.cost);
@@ -286,7 +390,6 @@ function demolish(i) {
   const b = S.grid[i];
   if (!b || b.type === "townhall") return;
   if (b.worker) byId(b.worker).job = null;
-  if (b.tool) (S.stash = S.stash || []).push(b.tool);
   const back = refundOf(i);
   for (const [k, v] of Object.entries(back)) S.res[k] += v;
   S.grid[i] = null;
@@ -295,22 +398,19 @@ function demolish(i) {
   save();
 }
 
-// Tools sit in a building, not on a person, and raise what its worker turns out.
-function fitTool(i, uid) {
-  const b = S.grid[i];
-  S.stash = S.stash || [];
-  const k = S.stash.findIndex((it) => it.uid === uid && it.slot === "tool");
-  if (!b || k < 0 || !TOOLED(b.type)) return;
-  const tool = S.stash.splice(k, 1)[0];
-  if (b.tool) S.stash.push(b.tool);
-  b.tool = tool;
-  save();
+// A workplace's level; what it cost goes into `spent`, so demolishing gives some of it back.
+const boostOf = (b) => (b.lvl ? IMPROVE[b.lvl - 1].boost : 0);
+function canImprove(i) {
+  const b = S.grid[i], next = b && IMPROVABLE(b.type) && IMPROVE[b.lvl || 0];
+  return !!next && has(next.needs) && afford(next.cost);
 }
-function unfitTool(i) {
-  const b = S.grid[i];
-  if (!b || !b.tool) return;
-  (S.stash = S.stash || []).push(b.tool);
-  b.tool = null;
+function improve(i) {
+  if (!canImprove(i)) return;
+  const b = S.grid[i], next = IMPROVE[b.lvl || 0];
+  pay(next.cost);
+  b.spent = addCost(b.spent || { ...BUILDINGS[b.type].cost }, next.cost);
+  b.lvl = (b.lvl || 0) + 1;
+  log(`Improved the ${BUILDINGS[b.type].name.toLowerCase()}. +${Math.round(next.boost * 100)}%`, "good");
   save();
 }
 
@@ -348,13 +448,13 @@ function endDay() {
     const here = {};
     const take = (r, n) => { const w = add(r, n); got[r] = (got[r] || 0) + w; if (w) here[r] = w; };
     const skill = s.skills[def.job] || 0;
-    const tool = 1 + (b.tool ? b.tool.yield : 0);
-    const eff = (1 + skill * 0.1) * (s.morale < 30 ? 0.5 : 1) * tool;
+    const boost = 1 + boostOf(b) + besideBoost(i, b.type);
+    const eff = (1 + skill * 0.1) * (s.morale < 30 ? 0.5 : 1) * boost;
     for (const [r, n] of Object.entries(def.yields || {})) take(r, n * eff);
     if (b.type === "library" && S.res.relics > 0) {
       S.res.relics--;
       spent.relics = (spent.relics || 0) + 1;
-      take("research", (2 + skill * 0.5) * tool);
+      take("research", (2 + skill * 0.5) * boost);
     }
     // The smokehouse only cooks food nobody at home needs today.
     if (b.type === "smokehouse") {
@@ -479,7 +579,19 @@ const partyMax = () => (has("tactics") ? 4 : 3);
 const roomsPer = (kind) => (kind === "meals" ? 3 : 1) + (has("field_rations") ? 1 : 0);
 const MEAL_HEAL = 4;
 
-function genFloor(floor) {
+// The site the party is in, and the one waiting for them every third floor.
+const siteOf = () => S.sites[S.expedition.site || 0];
+function keeper(site, floor) {
+  if (site.kind === "mill") return bossFor(floor);
+  if (floor % 3) return null;
+  return { name: site.boss, icon: SITES[site.kind].boss, hp: 30 + 35 * floor, atk: Math.round(6 + 1.5 * floor), def: 3 + floor / 3, spd: 7, aoeEvery: floor >= 6 ? 3 : 4 };
+}
+function reached(f) {
+  S.deepest = Math.max(S.deepest, f);
+  siteOf().deepest = Math.max(siteOf().deepest || 0, f);
+}
+
+function genFloor(floor, site) {
   const rooms = {};
   const key = (x, y) => `${x},${y}`;
   let x = rand(MAP), y = MAP - 1;
@@ -501,7 +613,7 @@ function genFloor(floor) {
   const far = Object.keys(dist).sort((a, b) => dist[b] - dist[a])[0];
   for (const [k, r] of Object.entries(rooms)) {
     if (r.type) continue;
-    if (k === far) { r.type = bossFor(floor) ? "boss" : "stairs"; continue; }
+    if (k === far) { r.type = keeper(site, floor) ? "boss" : "stairs"; continue; }
     const t = Math.random();
     r.type = t < 0.5 ? "fight" : t < 0.65 ? "treasure" : t < 0.8 ? "empty" : t < 0.88 ? "shrine" : "event";
     if (r.type === "event") r.event = pick(EVENTS).id;
@@ -514,7 +626,10 @@ function neighbours(rooms, k) {
   return [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => `${x + dx},${y + dy}`).filter((n) => rooms[n]);
 }
 
-function depart(partyIds, rations, startFloor, meals = 0) {
+function depart(partyIds, rations, startFloor, meals = 0, siteIdx = 0) {
+  const site = S.sites[siteIdx];
+  if (!site || !S.seen[site.i]) return;
+  startFloor = Math.max(1, Math.min(startFloor, (site.deepest || 0) + 1));
   const party = partyIds.map(byId).filter(available).slice(0, partyMax());
   if (!party.length || S.expedition) return;
   rations = Math.min(rations, S.res.food);
@@ -525,9 +640,9 @@ function depart(partyIds, rations, startFloor, meals = 0) {
   party.forEach((s) => { if (s.job != null && S.grid[s.job]) S.grid[s.job].worker = null; s.job = null; });
   S.expedition = {
     party: party.map((s) => s.id), rations, meals, steps: 0, moves: 0,
-    loot: {}, gear: [], map: genFloor(startFloor), fight: null, event: null,
+    loot: {}, gear: [], site: siteIdx, map: genFloor(startFloor, site), fight: null, event: null,
   };
-  log(`Set out: ${party.map((s) => s.name).join(", ")}, ${rations}🍞${meals ? ` ${meals}🥪` : ""}.`, "story", party);
+  log(`Set out for ${site.name}: ${party.map((s) => s.name).join(", ")}, ${rations}🍞${meals ? ` ${meals}🥪` : ""}.`, "story", party);
   revealAround();
   save();
 }
@@ -572,7 +687,7 @@ function enterRoom() {
   const e = S.expedition, r = e.map.rooms[e.map.at], f = e.map.floor;
   if (r.done) return;
   if (r.type === "fight") return startFight(rollEnemies(f));
-  if (r.type === "boss") return startFight([scaleEnemy(bossFor(f), f, true)]);
+  if (r.type === "boss") return startFight([scaleEnemy(keeper(siteOf(), f), f, true)]);
   if (r.type === "event") { e.event = r.event; return; }
   r.done = true;
   if (r.type === "treasure") {
@@ -582,7 +697,7 @@ function enterRoom() {
     partyAlive().forEach((s) => (s.hp = Math.min(stats(s).hpMax, s.hp + Math.ceil(stats(s).hpMax * 0.4))));
     log(`Floor ${f}: shrine. Party healed.`, "good", partyAlive());
   } else if (r.type === "stairs") {
-    S.deepest = Math.max(S.deepest, f);
+    reached(f);
     log(`Floor ${f}: stairs down.`, "story", partyAlive());
   }
 }
@@ -598,7 +713,8 @@ function scaleEnemy(base, floor, boss = false) {
 }
 
 function rollEnemies(floor) {
-  const pool = Object.values(ENEMIES).filter((e) => e.from <= floor);
+  const foes = SITES[siteOf().kind].foes;
+  const pool = Object.entries(ENEMIES).filter(([k, e]) => e.from <= floor && foes.includes(k)).map(([, e]) => e);
   const n = Math.min(5, 1 + rand(2) + Math.floor(floor / 2));
   return Array.from({ length: n }, () => scaleEnemy(pick(pool), floor));
 }
@@ -608,7 +724,7 @@ function lootRoll(floor, rolls) {
   for (let i = 0; i < rolls; i++) {
     // Deeper floors add their own ores to the pool, and they turn up often once reached.
     const deep = Object.keys(ORE_FLOOR).filter((k) => floor >= ORE_FLOOR[k]);
-    const r = pick(["ore", "ore", "herbs", "relics", "stone", "wood", ...deep, ...deep]);
+    const r = pick(["ore", "ore", "herbs", "relics", "stone", "wood", ...deep, ...deep, ...SITES[siteOf().kind].loot]);
     const n = ORE_FLOOR[r] ? 1 + rand(1 + Math.floor((floor - ORE_FLOOR[r]) / 2)) : 1 + rand(1 + Math.ceil(floor / 2));
     e.loot[r] = (e.loot[r] || 0) + n;
     found.push(`+${n}${RESOURCES[r].icon}`);
@@ -696,7 +812,7 @@ function endFight(won) {
     const got = lootRoll(f, fight.enemies.some((x) => x.boss) ? 5 : 1);
     log(`Floor ${f}: won. ${got}`, "good", partyAlive());
     if (r.type === "boss") {
-      S.deepest = Math.max(S.deepest, f);
+      reached(f);
       partyAlive().forEach((s) => think(s, "victory"));
       log(`Floor ${f}: boss down. Stairs open.`, "story", partyAlive());
     }
@@ -707,16 +823,17 @@ function endFight(won) {
 function descend() {
   const e = S.expedition, r = e.map.rooms[e.map.at];
   if (!e || e.fight || !["stairs", "boss"].includes(r.type) || !r.done) return;
-  e.map = genFloor(e.map.floor + 1);
+  e.map = genFloor(e.map.floor + 1, siteOf());
   revealAround();
   log(`Down to floor ${e.map.floor}.`, "story", partyAlive());
   save();
 }
 
+const homeDays = () => Math.max(1, Math.ceil(S.expedition.moves / 5)) + travelDays(siteOf());
 function returnHome() {
   const e = S.expedition;
   if (!e || e.fight || e.event) return;
-  const days = Math.max(1, Math.ceil(e.moves / 5)), party = partyAlive();
+  const days = homeDays(), party = partyAlive();
   const brought = Object.entries(e.loot).filter(([, n]) => n).map(([r, n]) => { S.res[r] += n; return `${n}${RESOURCES[r].icon}`; });
   S.stash = (S.stash || []).concat(e.gear);
   S.res.food += e.rations;

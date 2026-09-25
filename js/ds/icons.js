@@ -37,6 +37,11 @@ const ICONS = {
   "🏰": ["lu-castle", "brown"],
   "🏛": ["lu-landmark", "yellow"],
   "🍖": ["lu-ham", "red"],
+  // land
+  "🗻": ["ra-mountains", "brown"],
+  "🏔": ["lu-mountain-snow", "gray"],
+  "🌊": ["lu-waves", "blue"],
+  "🧱": ["lu-brick-wall", "orange"],
   // stats and state
   "⚔": ["lu-sword", "ink"],
   "💨": ["lu-wind", "teal"],
@@ -83,6 +88,14 @@ const ICONS = {
   "☠": ["ra-death-skull", "ink"],
   "🌳": ["ra-dead-tree", "brown"],
   "👁": ["ra-eye-monster", "red"],
+  "🐺": ["ra-wolf-head", "gray"],
+  "🕷": ["ra-spider-face", "purple"],
+  "👻": ["lu-ghost", "teal"],
+  // sites
+  "🌀": ["lu-loader-pinwheel", "brown"],
+  "🛒": ["ra-mine-wagon", "gray"],
+  "🎄": ["lu-trees", "green"],
+  "⛩": ["ra-ankh", "teal"],
   // dungeon map
   "🚪": ["lu-door-open", "brown"],
   "💰": ["lu-coins", "yellow"],
