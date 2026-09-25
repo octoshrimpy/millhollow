@@ -66,23 +66,41 @@ const JOBS = {
 // them, and why they took the road. One of each, oldest first.
 const PAST = {
   born: ["Born in a fishing village.", "Grew up on a hill farm.", "Raised by an aunt in the city.",
-    "Born on the road, to traders.", "Orphaned young, raised at a temple.", "Grew up in a mining town.",
-    "Born to a miller's family.", "Raised in a forest camp.", "Grew up above a tavern."],
+    "Born to traders.", "Orphan, raised at a temple.", "Grew up in a mining town.",
+    "Born to millers.", "Raised in a forest camp.", "Grew up above a tavern."],
   trade: {
-    farming: "Worked the fields every harvest.", woodcutting: "Felled timber for the shipwrights.",
-    quarrying: "Cut stone in a flooded quarry.", herbalism: "Gathered herbs for a village healer.",
-    smithing: "Worked the bellows in a smithy.", healing: "Set bones for anyone who asked.",
-    scholarship: "Copied books for a monastery.",
+    farming: "Worked harvests.", woodcutting: "Felled timber for shipwrights.",
+    quarrying: "Cut stone.", herbalism: "Gathered herbs for a healer.",
+    smithing: "Worked a smithy's bellows.", healing: "Set bones.",
+    scholarship: "Copied books at a monastery.",
   },
   cls: {
-    warrior: ["Served two winters in a border fort.", "Fought in the pits for coin.", "Guarded caravans on the salt road."],
-    ranger: ["Hunted deer for a lord's table.", "Tracked poachers in the king's wood.", "Lived a year alone in the hills."],
-    mystic: ["Apprenticed to a hedge-witch.", "Set a library on fire. Mostly by accident.", "Read a book they shouldn't have."],
-    cleric: ["Tended the sick through a plague year.", "Took vows, then left the order.", "Buried half a village after a fever."],
+    warrior: ["Two winters at a border fort.", "Pit fighter.", "Caravan guard."],
+    ranger: ["Hunted for a lord.", "Tracked poachers.", "Lived a year alone in the hills."],
+    mystic: ["Apprenticed to a hedge-witch.", "Burned down a library.", "Studied banned books."],
+    cleric: ["Nursed the sick through a plague.", "Left a holy order.", "Buried a village after a fever."],
   },
-  road: ["Home burned. Walked north.", "Heard the mill stood empty.", "Owed money to the wrong people.",
-    "Wanted a quiet life.", "Came for the rumours of the stair.", "Lost family to a hard winter.",
-    "Left before the wedding.", "Followed a map that turned out wrong."],
+  road: ["Lost home to fire.", "Came for work.", "Fled debts.", "Wanted quiet.", "Came for the dungeons.",
+    "Lost family to winter.", "Fled a wedding.", "Got lost."],
+};
+// Older saves carry the wordier versions of these lines.
+const PAST_WAS = {
+  "Born on the road, to traders.": "Born to traders.", "Orphaned young, raised at a temple.": "Orphan, raised at a temple.",
+  "Born to a miller's family.": "Born to millers.", "Worked the fields every harvest.": "Worked harvests.",
+  "Felled timber for the shipwrights.": "Felled timber for shipwrights.", "Cut stone in a flooded quarry.": "Cut stone.",
+  "Gathered herbs for a village healer.": "Gathered herbs for a healer.", "Worked the bellows in a smithy.": "Worked a smithy's bellows.",
+  "Set bones for anyone who asked.": "Set bones.", "Copied books for a monastery.": "Copied books at a monastery.",
+  "Served two winters in a border fort.": "Two winters at a border fort.", "Fought in the pits for coin.": "Pit fighter.",
+  "Guarded caravans on the salt road.": "Caravan guard.", "Hunted deer for a lord's table.": "Hunted for a lord.",
+  "Tracked poachers in the king's wood.": "Tracked poachers.", "Set a library on fire. Mostly by accident.": "Burned down a library.",
+  "Read a book they shouldn't have.": "Studied banned books.", "Tended the sick through a plague year.": "Nursed the sick through a plague.",
+  "Took vows, then left the order.": "Left a holy order.", "Buried half a village after a fever.": "Buried a village after a fever.",
+  "Home burned. Walked north.": "Lost home to fire.", "Heard the mill stood empty.": "Came for work.",
+  "Owed money to the wrong people.": "Fled debts.", "Wanted a quiet life.": "Wanted quiet.",
+  "Came for the rumours of the stair.": "Came for the dungeons.", "Lost family to a hard winter.": "Lost family to winter.",
+  "Left before the wedding.": "Fled a wedding.", "Followed a map that turned out wrong.": "Got lost.",
+  "Four settlers reach the old mill. A stair under it leads down.": "Arrived.",
+  "Raised the town hall. Millhollow is founded.": "Built the town hall.",
 };
 
 // `yields` is per worker per day at skill 0; each skill point adds 10%. `up` is what it can be

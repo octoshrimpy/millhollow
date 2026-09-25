@@ -216,7 +216,7 @@ function newGame() {
   for (const c of ["warrior", "ranger", "cleric", "mystic"]) S.settlers.push(makeSettler(c));
   reveal(MID, 2);
   newLand = [];
-  log("Four settlers reach the old mill. A stair under it leads down.", "story", S.settlers);
+  log(`Arrived: ${S.settlers.map((s) => s.name).join(", ")}.`, "story", S.settlers);
   save();
 }
 
@@ -237,6 +237,7 @@ function load() {
     unTool();
     for (const k of Object.keys(RESOURCES)) S.res[k] ??= 0;
     if (S.expedition) S.expedition.meals ??= 0;
+    for (const e of [...S.log, ...[...S.settlers, S.visitor].filter(Boolean).flatMap((s) => s.story || [])]) e.text = PAST_WAS[e.text] || e.text;
     // People from older saves get a past, drawn from what they were best at.
     for (const s of [...S.settlers, S.visitor].filter(Boolean)) {
       if ((s.story || []).some((e) => e.kind === "past")) continue;
@@ -357,7 +358,7 @@ function build(i, type) {
   if (type === "townhall") {
     S.hall = i;
     reveal(i, sight());
-    log("Raised the town hall. Millhollow is founded.", "story", living());
+    log("Built the town hall.", "story", living());
   } else log(`Built ${b.name.toLowerCase()}.`);
   living().filter((s) => !away(s)).forEach((s) => think(s, "built"));
   save();
