@@ -133,13 +133,14 @@ const BUILDINGS = {
   quarry: { name: "Quarry", icon: "⛰️", cost: { wood: 6 }, job: "quarrying", yields: { stone: 2, ore: 0.15 }, desc: "Makes stone, a little ore. More beside mountains." },
   dock: { name: "Fishing dock", icon: "🎣", cost: { wood: 5 }, job: "fishing", yields: { food: 2.5 }, near: "water", desc: "Makes food." },
   garden: { name: "Herb garden", icon: "🌿", cost: { wood: 4, stone: 2 }, job: "herbalism", yields: { herbs: 1.5 }, desc: "Makes herbs for potions." },
-  forge: { name: "Forge", icon: "⚒️", cost: { wood: 8, stone: 6 }, job: "smithing", desc: "Crafts gear and brews potions. Needs a worker." },
-  infirmary: { name: "Infirmary", icon: "🩹", cost: { wood: 6, stone: 4 }, job: "healing", desc: "Wounded heal 3× faster. Needs a worker." },
-  library: { name: "Library", icon: "📚", cost: { wood: 8, stone: 8 }, job: "scholarship", desc: "1 relic → 1 research per day. Needs a worker." },
+  forge: { name: "Forge", icon: "⚒️", cost: { wood: 8, stone: 6 }, job: "smithing", desc: "Crafts gear and brews potions." },
+  infirmary: { name: "Infirmary", icon: "🩹", cost: { wood: 6, stone: 4 }, job: "healing", desc: "Wounded heal 3× faster." },
+  library: { name: "Library", icon: "📚", cost: { wood: 8, stone: 8 }, job: "scholarship", desc: "1 relic → research each day." },
+  graveyard: { name: "Graveyard", icon: "⛪", cost: { wood: 4, stone: 6 }, desc: "Lays the dead to rest." },
   smokehouse: { name: "Smokehouse", icon: "🍖", cost: { wood: 8, stone: 2 }, job: "cooking", needs: "smoking", desc: "3🍞 → 1🥪 trail meal per day." },
 };
 // Workplaces improve in place; each level raises what the worker turns out (boost is the total).
-const IMPROVABLE = (type) => !!(BUILDINGS[type].yields || ["library", "smokehouse"].includes(type));
+const IMPROVABLE = (type) => !!(BUILDINGS[type].yields || ["library", "smokehouse", "forge"].includes(type));
 const IMPROVE = [
   { boost: 0.25, cost: { ore: 3, wood: 4 }, needs: "smelting" },
   { boost: 0.5, cost: { silver: 3, stone: 4 }, needs: "silverwork" },
@@ -214,7 +215,7 @@ const BOSSES = {
 // Places with a way down. None of them end: each goes as deep as anyone dares, and its keeper
 // is waiting again every third floor. `on` is the land a site sits on, `by` land it must touch.
 const SITES = {
-  mill: { name: "The old mill", icon: "🌀", foes: ["rat", "slime", "skeleton", "bat", "cultist", "ghoul", "root"], loot: [] },
+  mill: { name: "The old mill", icon: "🪜", foes: ["rat", "slime", "skeleton", "bat", "cultist", "ghoul", "root"], loot: [] },
   barrow: { icon: "🪦", on: ["hills"], foes: ["skeleton", "ghoul", "bat", "cultist"], loot: ["relics", "relics", "stone"],
     nouns: ["Barrow", "Howe", "Cairn"], adj: ["Cold", "Grey", "Crooked"], epithet: ["Unburied", "Pale", "Grey"], boss: "☠️" },
   mine: { icon: "🛒", on: ["hills"], by: ["mountain"], foes: ["rat", "spider", "bat", "ghoul"], loot: ["ore", "ore", "silver", "stone"],

@@ -53,19 +53,25 @@ function stats(s) {
   const c = CLASSES[s.cls];
   const g = [s.gear.weapon, s.gear.armor].filter(Boolean);
   const sum = (k) => g.reduce((a, it) => a + (it[k] || 0), 0);
+  const atk = c.atk + Math.floor((s.level - 1) * 1.2) + sum("atk"), spd = c.spd + sum("spd");
+  const h = haunted(s);
   return {
     hpMax: s.hpMax + sum("hp"),
-    atk: c.atk + Math.floor((s.level - 1) * 1.2) + sum("atk"),
+    atk: h ? Math.ceil(atk * 0.75) : atk,
     def: c.def + Math.floor((s.level - 1) / 2) + sum("def"),
-    spd: c.spd + sum("spd"),
+    spd: h ? Math.max(1, spd - 2) : spd,
   };
 }
+
+// Each unburied dead haunts one of the living until they're laid to rest.
+const haunted = (s) => !s.dead && !!S.remains && S.remains.some((r) => r.haunts === s.id);
 
 // ---------- thoughts ----------
 // Things that just happened to someone. Each moves morale once, when it lands; while it's fresh
 // it also sets the face, strongest feeling first and the newest breaking ties.
 const THOUGHTS = {
   hungry:    { name: "Hungry", icon: "🍽", mood: "angry", morale: -12, days: 2 },
+  haunted:   { name: "Haunted", icon: "👻", mood: "scared", morale: -2, days: 2 },
   starving:  { name: "Starving", icon: "🍽", mood: "angry", morale: -3, days: 1 },
   rough:     { name: "No bed", icon: "🛏", mood: "angry", morale: -4, days: 1 },
   grief:     { name: "Grieving", icon: "🪦", mood: "sad", morale: -10, days: 4 },
@@ -92,7 +98,9 @@ function feeling(s) {
 
 function mood(s) {
   const st = stats(s);
-  if (s.dead) return "sad";
+  // The dead rest easy once buried; left below, they're angry.
+  if (s.dead) return s.buried ? "happy" : S.remains.some((r) => r.id === s.id) ? "angry" : "sad";
+  if (haunted(s)) return "scared";
   if (s.hp < st.hpMax * 0.3) return "scared";
   const f = feeling(s);
   if (f) return THOUGHTS[f.k].mood;
@@ -208,7 +216,7 @@ function newGame() {
   S = {
     day: 1, res: { food: 20, wood: 12, stone: 4, ore: 0, herbs: 0, relics: 0, research: 0, potions: 0, meals: 0, silver: 0, starmetal: 0 },
     seed: rand(2 ** 31), carry: {}, grid: Array(LAND * LAND).fill(null), seen: Array(LAND * LAND).fill(false), hall: null, cleared: 0, settlers: [], research: [],
-    deepest: 0, visitor: null, expedition: null, log: [],
+    deepest: 0, visitor: null, expedition: null, log: [], remains: [],
   };
   S.land = genLand(S.seed);
   S.sites = genSites(S.seed, S.land);
@@ -237,6 +245,7 @@ function load() {
     unTool();
     for (const k of Object.keys(RESOURCES)) S.res[k] ??= 0;
     if (S.expedition) S.expedition.meals ??= 0;
+    S.remains ??= [];
     for (const e of [...S.log, ...[...S.settlers, S.visitor].filter(Boolean).flatMap((s) => s.story || [])]) e.text = PAST_WAS[e.text] || e.text;
     // Cooks arrived with no trade line until cooking had one.
     for (const s of [...S.settlers, S.visitor].filter(Boolean)) for (const e of s.story || []) if (e.kind === "past" && !e.text) e.text = PAST.trade.cooking;
@@ -366,6 +375,7 @@ function build(i, type) {
     reveal(i, sight());
     log("Built the town hall.", "story", living());
   } else log(`Built ${b.name.toLowerCase()}.`);
+  if (type === "graveyard") bury();
   living().filter((s) => !away(s)).forEach((s) => think(s, "built"));
   save();
 }
@@ -459,7 +469,7 @@ function endDay() {
     const take = (r, n) => { const w = add(r, n); got[r] = (got[r] || 0) + w; if (w) here[r] = w; };
     const skill = s.skills[def.job] || 0;
     const boost = 1 + boostOf(b) + besideBoost(i, b.type);
-    const eff = (1 + skill * 0.1) * (s.morale < 30 ? 0.5 : 1) * fedRate(s) * boost;
+    const eff = (1 + skill * 0.1) * (s.morale < 30 ? 0.5 : 1) * (haunted(s) ? 0.5 : 1) * fedRate(s) * boost;
     for (const [r, n] of Object.entries(addCost({ ...def.yields }, besideYields(i, b.type)))) take(r, n * eff);
     if (b.type === "library" && S.res.relics > 0) {
       S.res.relics--;
@@ -502,6 +512,15 @@ function endDay() {
       s.hp = Math.max(1, s.hp - Math.ceil(stats(s).hpMax * 0.15));
     }
   });
+  // The dead they saw fall stay with them until they're buried.
+  // The dead with nobody left to haunt pick someone new.
+  for (const r of S.remains) {
+    if (r.haunts && !byId(r.haunts).dead) continue;
+    const l = living();
+    r.haunts = l.length ? pick(l).id : null;
+    if (r.haunts) log(`${byId(r.id).name} haunts ${byId(r.haunts).name}.`, "bad", [byId(r.haunts)]);
+  }
+  home.forEach((s) => { if (haunted(s)) think(s, "haunted"); });
   // Too many people for the beds wears everyone down.
   if (living().length > beds()) home.forEach((s) => think(s, "rough"));
 
@@ -551,10 +570,16 @@ function doResearch(id) {
   save();
 }
 
+// An improved forge wastes less: each level cuts what crafting and brewing cost.
+function forgeCost(cost) {
+  const f = S.grid.find((b) => b && b.type === "forge"), k = 1 + (f ? boostOf(f) : 0);
+  return Object.fromEntries(Object.entries(cost).map(([r, v]) => [r, Math.max(1, Math.round(v / k))]));
+}
+
 function craft(recipeId) {
   const r = RECIPES.find((x) => x.id === recipeId);
-  if (!r || !staffed("forge") || !afford(r.cost) || (r.needs && !has(r.needs))) return;
-  pay(r.cost);
+  if (!r || !staffed("forge") || !afford(forgeCost(r.cost)) || (r.needs && !has(r.needs))) return;
+  pay(forgeCost(r.cost));
   S.stash = S.stash || [];
   const { id, cost, needs, ...item } = r;
   S.stash.push({ ...item, uid: nextId++ });
@@ -562,9 +587,10 @@ function craft(recipeId) {
   save();
 }
 
+const POTION_COST = { herbs: 3 };
 function brew() {
-  if (!has("herbalism") || !staffed("forge") || S.res.herbs < 3) return;
-  S.res.herbs -= 3;
+  if (!has("herbalism") || !staffed("forge") || !afford(forgeCost(POTION_COST))) return;
+  pay(forgeCost(POTION_COST));
   S.res.potions++;
   save();
 }
@@ -635,6 +661,10 @@ function genFloor(floor, site) {
     r.type = t < 0.5 ? "fight" : t < 0.65 ? "treasure" : t < 0.8 ? "empty" : t < 0.88 ? "shrine" : "event";
     if (r.type === "event") r.event = pick(EVENTS).id;
   }
+  // The dead lie where they fell, in any room but the way in or out.
+  const here = S.remains.filter((x) => x.at === "below" && S.sites[x.site] === site && x.floor === floor);
+  const spots = Object.keys(rooms).filter((k) => !["entrance", "stairs", "boss"].includes(rooms[k].type));
+  for (const x of here) if (spots.length) rooms[spots.splice(rand(spots.length), 1)[0]].body = x.id;
   return { floor, rooms, at: start, from: start };
 }
 
@@ -713,6 +743,13 @@ function move(k) {
     think(s, "starving");
   });
   revealAround();
+  const r = e.map.rooms[k];
+  if (r.body) {
+    const x = S.remains.find((y) => y.id === r.body);
+    if (x) x.at = "carried";
+    log(`Floor ${e.map.floor}: found ${byId(r.body).name}'s remains.`, "story", partyAlive());
+    delete r.body;
+  }
   enterRoom();
   save();
 }
@@ -818,16 +855,26 @@ function endFight(won) {
   const e = S.expedition, f = e.map.floor, r = e.map.rooms[e.map.at];
   const fight = e.fight;
   e.fight = null;
+  const fell = [];
   for (const u of fight.heroes) {
     const s = byId(u.id);
     s.hp = Math.max(0, Math.round(u.hp));
     if (s.hp <= 0 && !s.dead) {
       s.dead = true;
+      fell.push(s.id);
+      S.remains.push({ id: s.id, site: e.site, floor: f, at: "below" });
       log(`${s.name} died on floor ${f}.`, "bad", [s, ...living()]);
       living().forEach((o) => think(o, "grief"));
     }
   }
+  // Each of the fallen picks one who watched to haunt until they're buried.
+  for (const id of fell) {
+    const r = S.remains.find((x) => x.id === id), seen = partyAlive();
+    r.haunts = seen.length ? pick(seen).id : null;
+    if (r.haunts) log(`${byId(id).name} haunts ${byId(r.haunts).name}.`, "bad", [byId(r.haunts)]);
+  }
   if (!partyAlive().length) {
+    S.remains.forEach((r) => { if (r.at === "carried") r.at = "below"; });
     log("Party wiped out. All loot lost.", "bad", living());
     S.expedition = null;
     passDays(1);
@@ -878,8 +925,21 @@ function returnHome() {
   S.expedition = null;
   living().forEach((s) => think(s, "home"));
   log(`Home after ${days}d: ${[...brought, ...e.gear.map((g) => g.name)].join(" ") || "nothing"}.${short ? ` ${short}d without food.` : ""}`, short ? "bad" : "story", party);
+  S.remains.forEach((r) => { if (r.at === "carried") r.at = "home"; });
+  bury();
   passDays(days);
   if (has("rosters")) backToWork(party);
+}
+
+// Remains brought home go into the graveyard, if there is one, and stop haunting those who saw.
+function bury() {
+  if (!S.grid.some((b) => b && b.type === "graveyard")) return;
+  const home = S.remains.filter((r) => r.at === "home");
+  if (!home.length) return;
+  S.remains = S.remains.filter((r) => r.at !== "home");
+  const ids = home.map((r) => r.id);
+  ids.forEach((id) => (byId(id).buried = true));
+  log(`Buried ${ids.map((id) => byId(id).name).join(", ")}.`, "story", [...ids.map(byId), ...living()]);
 }
 
 // With rosters, people go back to the job they left if it's still there and still open.

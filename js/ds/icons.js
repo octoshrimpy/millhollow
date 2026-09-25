@@ -38,6 +38,8 @@ const ICONS = {
   "🏛": ["lu-landmark", "yellow"],
   "🍖": ["lu-ham", "red"],
   "🎣": ["lu-fish", "blue"],
+  "⛪": ["lu-church", "gray"],
+  "🦴": ["lu-bone", "ink"],
   // land
   "🗻": ["ra-mountains", "brown"],
   "🏔": ["lu-mountain-snow", "gray"],
@@ -103,7 +105,7 @@ const ICONS = {
   "💰": ["lu-coins", "yellow"],
   "⛲": ["ra-ankh", "teal"],
   "❔": ["lu-circle-question-mark", "purple"],
-  "🪜": ["ra-hole-ladder", "gray"],
+  "🪜": ["lu-door-stairwell", "gray"],
   "🔦": ["ra-torch", "orange"],
 };
 

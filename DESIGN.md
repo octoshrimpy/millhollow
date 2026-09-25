@@ -22,7 +22,8 @@
   mountains stay.
 - Farms, lumber camps and quarries get +25% beside water, woods and hills or mountains.
 - Quarries turn up 0.15⛏️ a day, 0.5⛏️ beside mountains. Fishing docks only go beside water.
-- Workplaces improve in place (+25%, +50%, +80%) instead of taking tools.
+- Workplaces improve in place (+25%, +50%, +80%) instead of taking tools. An improved forge cuts
+  crafting and brewing costs instead (−20%, −33%, −44%).
 - Settlers level up, gain skill by working, and carry thoughts that move morale.
 - Each person at home eats 1🍞 a day. A day without food costs 15% HP (never below 1) and halves
   their work, down to a tenth. Whoever has gone longest without eats first.
@@ -36,6 +37,10 @@
   day. The game asks once before a step that leaves only enough food for the walk home.
 - Out of food below, every room costs 15% HP and the party fights at half attack.
 - Duty rosters (research) sends a party back to their old jobs when they get home.
+- The dead stay on the floor they fell. Each haunts one living person, a witness if any survived:
+  scared face, half work, −25% attack, −2 speed, −2 morale a day. The remains show as 🦴 on that
+  floor on the next dive; carried home and put in a graveyard, they rest and the haunting ends.
+  Unburied dead look angry, buried ones at peace.
 - Floors are random room maps. Fights are real-time auto-battles with pause, speed, potions and
   retreat. Death is permanent.
 

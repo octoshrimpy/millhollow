@@ -150,7 +150,7 @@ function sheetPlot(i) {
   const next = IMPROVABLE(b.type) && IMPROVE[lv];
   if (next) {
     body += `<button class="opt" data-act="improve" ${canImprove(i) ? "" : "disabled"}>
-      <span class="ico">⏫</span><span><b>+${Math.round(next.boost * 100)}%</b> ${costText(next.cost)}${has(next.needs) ? "" : `<br><small>🔒 📜 ${RESEARCH[next.needs].name}</small>`}</span></button>`;
+      <span class="ico">⏫</span><span><b>${b.type === "forge" ? `−${Math.round((1 - 1 / (1 + next.boost)) * 100)}%` : `+${Math.round(next.boost * 100)}%`}</b> ${costText(next.cost)}${has(next.needs) ? "" : `<br><small>🔒 📜 ${RESEARCH[next.needs].name}</small>`}</span></button>`;
   }
   if (d.job) {
     // Current worker, then free people, then people who'd leave another building (its icon in the corner).
@@ -175,7 +175,8 @@ function sheetPlot(i) {
 // A site: how deep it's been walked, how long the road is, who waits every third floor.
 function sheetSite(site) {
   const d = SITES[site.kind], k = S.sites.indexOf(site), days = travelDays(site);
-  const chips = [site.deepest ? `🪜 ${site.deepest}` : "", days ? `👣 ${days}d` : "", site.boss ? `${d.boss} ${esc(site.boss)}` : ""]
+  const dead = S.remains.filter((r) => r.at === "below" && r.site === k).map((r) => `🦴 ${esc(byId(r.id).name)} · ${r.floor}`);
+  const chips = [site.deepest ? `🪜 ${site.deepest}` : "", days ? `👣 ${days}d` : "", site.boss ? `${d.boss} ${esc(site.boss)}` : "", ...dead]
     .filter(Boolean).map((x) => `<span class="chip">${x}</span>`).join("");
   return `<h3>${d.icon} ${esc(site.name)}</h3><div class="row wrap">${chips}</div>
     <button class="primary wide" data-act="tosite" data-v="${k}" ${S.expedition ? "disabled" : ""}>🧭 Set out</button>`;
@@ -259,6 +260,14 @@ function viewPeople() {
     `<button data-act="person" data-v="${s.id}"><img class="mini" src="${faceSrc(s)}" alt="">${esc(s.name)}</button>`).join("")}</div>` : "");
 }
 
+// Where the dead lie: below, on the way up, waiting for a graveyard.
+function restText(s) {
+  const r = S.remains.find((x) => x.id === s.id);
+  if (!r) return "";
+  const where = r.at === "below" ? `${SITES[S.sites[r.site].kind].icon} ${esc(S.sites[r.site].name)} · ${r.floor}` : r.at === "carried" ? "👣" : "🏘";
+  return `<div class="chip">🦴 ${where}</div>`;
+}
+
 // Someone's own story: how they feel now, then what happened to and around them, newest first.
 function sheetPerson() {
   const s = byId(sheet.person), c = CLASSES[s.cls];
@@ -276,6 +285,7 @@ function sheetPerson() {
     <img class="face" src="${faceSrc(s)}" alt="">
     <h3>${esc(s.name)}</h3>
     <div>${c.icon} ${c.name} · lv ${s.level}${jobText(s) ? ` · ${jobText(s)}` : ""}</div>
+    ${s.dead ? restText(s) : ""}
     ${s.dead ? "" : `<div class="hpline">${bar(s.hp, st.hpMax, "hp")}</div>
     <div class="stats">${statLine(st, `❤️${s.hp}/${st.hpMax}`)}</div>
     <div class="thoughts">${moraleChip(s)}${fresh(s).sort((x, y) => y.n - x.n).map(thoughtChip).join("")}</div>
@@ -291,10 +301,10 @@ function viewForge() {
   if (!staffed("forge")) return `<p class="dim">The forge needs a worker.</p>`;
   const recipes = RECIPES.map((r) => {
     const locked = r.needs && !has(r.needs);
-    return `<button class="opt" data-act="craft" data-v="${r.id}" ${locked || !afford(r.cost) ? "disabled" : ""}>
-      <span><b>${r.name}</b> ${costText(r.cost)}<br><small>${locked ? `🔒 📜 ${RESEARCH[r.needs].name}` : gearText(r)}</small></span></button>`;
+    return `<button class="opt" data-act="craft" data-v="${r.id}" ${locked || !afford(forgeCost(r.cost)) ? "disabled" : ""}>
+      <span><b>${r.name}</b> ${costText(forgeCost(r.cost))}<br><small>${locked ? `🔒 📜 ${RESEARCH[r.needs].name}` : gearText(r)}</small></span></button>`;
   }).join("");
-  const potion = has("herbalism") ? `<button class="opt" data-act="brew" ${S.res.herbs < 3 ? "disabled" : ""}><span><b>Potion</b> ${costText({ herbs: 3 })}<br><small>Heals 20 in a fight.</small></span></button>` : "";
+  const potion = has("herbalism") ? `<button class="opt" data-act="brew" ${afford(forgeCost(POTION_COST)) ? "" : "disabled"}><span><b>Potion</b> ${costText(forgeCost(POTION_COST))}<br><small>Heals 20 in a fight.</small></span></button>` : "";
   const stash = (S.stash || []).map((g) => `<span class="chip">${esc(g.name)} (${gearText(g)})</span>`).join("") || `<span class="dim">Empty. Equip from People.</span>`;
   return recipes + potion + `<h4>Stores</h4><div class="row wrap">${stash}</div>`;
 }
@@ -351,10 +361,11 @@ function viewDungeon() {
     const show = r.done || r.type === "entrance" || (has("lanterns") && near.includes(k)) || r.type === "stairs" && r.done;
     const here = m.at === k, can = !here && canMove(k);
     // A room that's been dealt with fades its mark; a beaten keeper leaves the way down.
-    const spent = r.done && !["entrance", "stairs", "boss"].includes(r.type);
+    // The dead show from a room away, so they can be carried home.
+    const spent = r.done && !r.body && !["entrance", "stairs", "boss"].includes(r.type);
     const mark = r.done && r.type === "boss" ? ROOM_ICON.stairs : ROOM_ICON[r.type];
     cells += `<button class="room ${here ? "here" : ""} ${r.done ? "done" : ""} ${spent ? "spent" : ""}" data-k="${k}" ${can ? `data-act="move" data-v="${k}"` : "disabled"}>
-      ${here ? "🔦" : show ? `<span class="mark">${mark}</span>` : "?"}</button>`;
+      ${here ? "🔦" : r.body ? `<span class="mark">🦴</span>` : show ? `<span class="mark">${mark}</span>` : "?"}</button>`;
   }
   const r = m.rooms[m.at];
   const party = e.party.map(byId).map((s) => `<div class="pc ${s.dead ? "dead" : ""}"><img class="mini" src="${faceFor(s)}" alt="">
