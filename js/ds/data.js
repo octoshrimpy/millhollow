@@ -150,6 +150,7 @@ const RESEARCH = {
   smelting: { name: "Smelting", cost: 6, desc: "Iron gear. Workplaces improve to +25%." },
   field_rations: { name: "Field rations", cost: 6, desc: "Food and meals last one room longer." },
   smoking: { name: "Smoking", cost: 6, desc: "Smokehouse: trail meals last 3 rooms and heal." },
+  rosters: { name: "Duty rosters", cost: 5, desc: "Back from a dungeon, settlers return to their jobs." },
   masonry: { name: "Masonry", cost: 8, desc: "Stone houses (4 beds). Huts can be rebuilt." },
   reclaim: { name: "Reclamation", cost: 10, after: "salvage", desc: "Demolishing returns ¾." },
   surveying: { name: "Surveying", cost: 10, after: "scouting", desc: "See 1 further again." },

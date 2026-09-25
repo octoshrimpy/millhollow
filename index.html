@@ -160,9 +160,11 @@
   .bar.atb { height: 3px; } .bar.atb i { background: var(--accent); transition: none; }
 
   .map { max-width: 22em; margin-left: auto; margin-right: auto; }
+  small.short { color: var(--bad); }
   .room { aspect-ratio: 1; padding: 0; font-size: 1.3rem; }
   .room.none { visibility: hidden; }
   .room.done { background: color-mix(in srgb, var(--ink) 6%, var(--card)); }
+  .room.spent .mark { opacity: .25; filter: grayscale(1); }
   .room.here { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; opacity: 1; }
   .room:disabled { opacity: .55; }
   .room.here:disabled { opacity: 1; }
@@ -244,9 +246,9 @@
   #view.dawn { animation: dawn .9s ease-out; }
   @keyframes dawn { 0% { filter: brightness(.4) sepia(.6); } 100% { filter: none; } }
 
-  .room.reveal { animation: reveal .45s backwards cubic-bezier(.3, 1.6, .5, 1); animation-delay: var(--d, 0ms); }
-  @keyframes reveal { from { opacity: 0; scale: .3; } }
-  .room.here { animation: torch 1.4s infinite; }
+  .room.reveal { animation: reveal .3s backwards ease-out; animation-delay: var(--d, 0ms); }
+  @keyframes reveal { from { opacity: 0; scale: .85; } }
+  .room.here { animation: torch 2.4s infinite; }
   @keyframes torch { 0%, 100% { box-shadow: 0 0 0 2px var(--accent) inset, 0 0 12px color-mix(in srgb, var(--accent) 40%, transparent); } 30% { box-shadow: 0 0 0 2px var(--accent) inset, 0 0 20px color-mix(in srgb, var(--accent) 55%, transparent); }
     60% { box-shadow: 0 0 0 2px var(--accent) inset, 0 0 8px color-mix(in srgb, var(--accent) 27%, transparent); } }
 

@@ -11,7 +11,7 @@ function newFight(settlers, enemies) {
       const st = stats(s);
       return {
         side: "h", idx: i, id: s.id, name: s.name, cls: s.cls, level: s.level, row: s.row || defaultRow(s.cls),
-        hp: s.hp, hpMax: st.hpMax, atk: st.atk, def: st.def, spd: st.spd,
+        hp: s.hp, hpMax: st.hpMax, atk: starving() ? Math.ceil(st.atk / 2) : st.atk, def: st.def, spd: st.spd,
         gauge: rand(40), cd: 2,
       };
     }),

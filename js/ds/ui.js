@@ -340,8 +340,11 @@ function viewDungeon() {
     if (!r || !r.seen) { cells += `<div class="room none"></div>`; continue; }
     const show = r.done || r.type === "entrance" || (has("lanterns") && near.includes(k)) || r.type === "stairs" && r.done;
     const here = m.at === k, can = !here && canMove(k);
-    cells += `<button class="room ${here ? "here" : ""} ${r.done ? "done" : ""}" data-k="${k}" ${can ? `data-act="move" data-v="${k}"` : "disabled"}>
-      ${here ? "🔦" : show ? ROOM_ICON[r.type] : "?"}</button>`;
+    // A room that's been dealt with fades its mark; a beaten keeper leaves the way down.
+    const spent = r.done && !["entrance", "stairs", "boss"].includes(r.type);
+    const mark = r.done && r.type === "boss" ? ROOM_ICON.stairs : ROOM_ICON[r.type];
+    cells += `<button class="room ${here ? "here" : ""} ${r.done ? "done" : ""} ${spent ? "spent" : ""}" data-k="${k}" ${can ? `data-act="move" data-v="${k}"` : "disabled"}>
+      ${here ? "🔦" : show ? `<span class="mark">${mark}</span>` : "?"}</button>`;
   }
   const r = m.rooms[m.at];
   const party = e.party.map(byId).map((s) => `<div class="pc ${s.dead ? "dead" : ""}"><img class="mini" src="${faceFor(s)}" alt="">
@@ -355,9 +358,9 @@ function viewDungeon() {
   } else {
     const down = ["stairs", "boss"].includes(r.type) && r.done;
     panel = `<div class="row wrap">${down ? `<button class="primary" data-act="descend">Down to floor ${m.floor + 1}</button>` : ""}
-      <button data-act="home">Head home (${homeDays()}d)</button></div>`;
+      <button data-act="home">Head home (${homeDays()}d, ${homeDays()}🍞)</button></div>`;
   }
-  return `<div class="row between"><b>${SITES[siteOf().kind].icon} ${esc(siteOf().name)} · ${m.floor}</b><small>🍞 ${e.rations}${e.meals ? ` 🥪 ${e.meals}` : ""} · 🧪 ${S.res.potions}</small></div>
+  return `<div class="row between"><b>${SITES[siteOf().kind].icon} ${esc(siteOf().name)} · ${m.floor}</b><small class="${foodLeft() <= homeDays() ? "short" : ""}">🍞 ${e.rations}${e.meals ? ` 🥪 ${e.meals}` : ""} · 🧪 ${S.res.potions}</small></div>
     <div class="party">${party}</div>
     <div class="map" style="--w:${MAP}">${cells}</div>
     <p class="dim small">Carrying: ${loot}</p>${panel}`;
@@ -719,7 +722,14 @@ const ACTS = {
   depart: () => depart(plan.party, plan.rations, plan.floor, plan.meals || 0, plan.site || 0),
   site: (v) => { plan.site = +v; plan.floor = 1; },
   tosite: (v) => { plan.site = +v; plan.floor = 1; tab = "expedition"; sheet = null; },
-  move: (v) => move(v),
+  move: (v) => {
+    const e = S.expedition;
+    if (e && !e.warned && canMove(v) && onlyEnoughHome()) {
+      if (!confirm(`Food left only covers the walk home (${homeDays()}d). Keep going?`)) return;
+      e.warned = true;
+    }
+    move(v);
+  },
   event: (v) => resolveEvent(v),
   descend: () => descend(),
   home: () => returnHome(),
@@ -791,7 +801,8 @@ function snap() {
   const e = S.expedition;
   return {
     res: { ...S.res }, day: S.day, logN: S.logN || 0, grid: S.grid.map((b) => b && b.type),
-    exp: e && { at: e.map.at, floor: e.map.floor, seen: Object.keys(e.map.rooms).filter((k) => e.map.rooms[k].seen) },
+    exp: e && { at: e.map.at, floor: e.map.floor, seen: Object.keys(e.map.rooms).filter((k) => e.map.rooms[k].seen),
+      done: Object.keys(e.map.rooms).filter((k) => e.map.rooms[k].done) },
   };
 }
 
@@ -831,17 +842,16 @@ function celebrate(b) {
 
   if (!b.exp && e) Juice.veil("Dungeon", `Floor ${e.map.floor}`);
   else if (b.exp && !e) Juice.veil("Millhollow", `Day ${S.day}`);
-  else if (b.exp && e && e.map.floor !== b.exp.floor) Juice.veil(`Floor ${e.map.floor}`, bossFor(e.map.floor) ? "Boss floor" : "");
+  else if (b.exp && e && e.map.floor !== b.exp.floor) Juice.veil(`Floor ${e.map.floor}`, keeper(siteOf(), e.map.floor) ? "Boss floor" : "");
   else if (b.exp && e && e.map.at !== b.exp.at) {
-    const here = $(".room.here"), r = e.map.rooms[e.map.at];
-    if (here) {
-      Juice.pop(here, 1.25);
+    // Walking is quiet. Only a room that pays out on this step gets a flourish.
+    const here = $(".room.here"), r = e.map.rooms[e.map.at], fresh = r.done && !b.exp.done.includes(e.map.at);
+    if (here && fresh && (r.type === "treasure" || r.type === "shrine")) {
       const p = Juice.center(here);
-      Juice.burst(p.x, p.y + 10, { n: 10, colors: PAL.dust, speed: 90, up: 20, gravity: 80, life: 0.5, size: 3 });
-      if (r.type === "treasure") Juice.burst(p.x, p.y, { n: 30, colors: PAL.gold, speed: 260, up: 180, gravity: 500, life: 1, size: 3, spark: true });
-      if (r.type === "shrine") Juice.burst(p.x, p.y, { n: 26, colors: PAL.heal, speed: 60, up: 90, gravity: -100, life: 1.1, size: 3 });
+      Juice.pop(here, 1.15);
+      if (r.type === "treasure") Juice.burst(p.x, p.y, { n: 20, colors: PAL.gold, speed: 200, up: 140, gravity: 500, life: 0.8, size: 3, spark: true });
+      else Juice.burst(p.x, p.y, { n: 16, colors: PAL.heal, speed: 50, up: 70, gravity: -100, life: 0.9, size: 3 });
     }
-    document.querySelectorAll(".party .pc").forEach((pc, i) => setTimeout(() => Juice.lunge(pc, -8), i * 60));
     let n = 0;
     for (const k of Object.keys(e.map.rooms)) {
       if (!e.map.rooms[k].seen || b.exp.seen.includes(k)) continue;

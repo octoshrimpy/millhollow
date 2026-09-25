@@ -431,6 +431,9 @@ function assign(i, settlerId) {
   save();
 }
 
+// Each day without food halves what someone gets done, down to a tenth.
+const fedRate = (s) => Math.max(0.1, 0.5 ** (s.unfed || 0));
+
 // Fractional yields bank in S.carry so 0.5 ore a day is really one every other day.
 function add(res, n) {
   const t = (S.carry[res] || 0) + n;
@@ -452,12 +455,12 @@ function endDay() {
     const take = (r, n) => { const w = add(r, n); got[r] = (got[r] || 0) + w; if (w) here[r] = w; };
     const skill = s.skills[def.job] || 0;
     const boost = 1 + boostOf(b) + besideBoost(i, b.type);
-    const eff = (1 + skill * 0.1) * (s.morale < 30 ? 0.5 : 1) * boost;
+    const eff = (1 + skill * 0.1) * (s.morale < 30 ? 0.5 : 1) * fedRate(s) * boost;
     for (const [r, n] of Object.entries(def.yields || {})) take(r, n * eff);
     if (b.type === "library" && S.res.relics > 0) {
       S.res.relics--;
       spent.relics = (spent.relics || 0) + 1;
-      take("research", (2 + skill * 0.5) * boost);
+      take("research", (2 + skill * 0.5) * fedRate(s) * boost);
     }
     // The smokehouse only cooks food nobody at home needs today.
     if (b.type === "smokehouse") {
@@ -476,17 +479,24 @@ function endDay() {
   });
 
   // Everyone at home eats; the expedition carries its own rations.
-  const home = living().filter((s) => !away(s));
+  // When there isn't enough, whoever has gone longest without eats first.
+  const home = living().filter((s) => !away(s)).sort((a, b) => (b.unfed || 0) - (a.unfed || 0));
   const fed = Math.min(S.res.food, home.length);
   S.res.food -= fed;
   spent.food = (spent.food || 0) + fed;
   const hungry = home.length - fed;
   home.forEach((s, i) => {
     const ate = i < fed;
-    if (ate) s.morale = clampMorale(s.morale + 2);
-    else think(s, "hungry");
-    const heal = !ate ? 0 : staffed("infirmary") ? 9 : 3;
-    s.hp = Math.min(stats(s).hpMax, s.hp + heal);
+    if (ate) {
+      s.unfed = 0;
+      s.morale = clampMorale(s.morale + 2);
+      s.hp = Math.min(stats(s).hpMax, s.hp + (staffed("infirmary") ? 9 : 3));
+    } else {
+      // Hunger wears people down but never kills them.
+      s.unfed = (s.unfed || 0) + 1;
+      think(s, "hungry");
+      s.hp = Math.max(1, s.hp - Math.ceil(stats(s).hpMax * 0.15));
+    }
   });
   // Too many people for the beds wears everyone down.
   if (living().length > beds()) home.forEach((s) => think(s, "rough"));
@@ -640,7 +650,11 @@ function depart(partyIds, rations, startFloor, meals = 0, siteIdx = 0) {
   meals = Math.min(meals, S.res.meals);
   S.res.meals -= meals;
   // Nobody works at home while they're below.
-  party.forEach((s) => { if (s.job != null && S.grid[s.job]) S.grid[s.job].worker = null; s.job = null; });
+  party.forEach((s) => {
+    s.was = s.job != null && S.grid[s.job] ? { i: s.job, type: S.grid[s.job].type } : null;
+    if (s.was) S.grid[s.job].worker = null;
+    s.job = null;
+  });
   S.expedition = {
     party: party.map((s) => s.id), rations, meals, steps: 0, moves: 0,
     loot: {}, gear: [], site: siteIdx, map: genFloor(startFloor, site), fight: null, event: null,
@@ -662,6 +676,17 @@ function canMove(k) {
   return e && !e.fight && !e.event && neighbours(e.map.rooms, e.map.at).includes(k);
 }
 
+const starving = () => !!S.expedition && !S.expedition.rations && !S.expedition.meals;
+const foodLeft = () => S.expedition.rations + (S.expedition.meals || 0);
+
+// True when the next step leaves no more food than the walk home eats.
+function onlyEnoughHome() {
+  const e = S.expedition;
+  const kind = e.rations > 0 ? "food" : e.meals > 0 ? "meals" : null;
+  const after = foodLeft() - (kind && e.steps + 1 >= roomsPer(kind) ? 1 : 0);
+  return after <= homeDays(e.moves + 1);
+}
+
 function move(k) {
   const e = S.expedition;
   if (!canMove(k)) return;
@@ -675,12 +700,14 @@ function move(k) {
     else if (kind === "meals") {
       e.meals--;
       partyAlive().forEach((s) => (s.hp = Math.min(stats(s).hpMax, s.hp + MEAL_HEAL)));
-    } else partyAlive().forEach((s) => {
-      s.hp = Math.max(1, s.hp - 3);
-      think(s, "starving");
-    });
+    }
     if (kind && !e.rations && !e.meals) log("Out of food. The party is starving.", "bad", partyAlive());
   }
+  // With nothing to eat, every room costs blood, and they fight at half strength.
+  if (!kind) partyAlive().forEach((s) => {
+    s.hp = Math.max(1, s.hp - Math.ceil(stats(s).hpMax * 0.15));
+    think(s, "starving");
+  });
   revealAround();
   enterRoom();
   save();
@@ -832,19 +859,35 @@ function descend() {
   save();
 }
 
-const homeDays = () => Math.max(1, Math.ceil(S.expedition.moves / 5)) + travelDays(siteOf());
+const homeDays = (moves = S.expedition.moves) => Math.max(1, Math.ceil(moves / 5)) + travelDays(siteOf());
 function returnHome() {
   const e = S.expedition;
   if (!e || e.fight || e.event) return;
   const days = homeDays(), party = partyAlive();
   const brought = Object.entries(e.loot).filter(([, n]) => n).map(([r, n]) => { S.res[r] += n; return `${n}${RESOURCES[r].icon}`; });
   S.stash = (S.stash || []).concat(e.gear);
-  S.res.food += e.rations;
-  S.res.meals += e.meals || 0;
+  // The road home eats a day's food a day; short days cost blood.
+  const eat = Math.min(e.rations, days), eatMeals = Math.min(e.meals || 0, days - eat), short = days - eat - eatMeals;
+  S.res.food += e.rations - eat;
+  S.res.meals += (e.meals || 0) - eatMeals;
+  if (short) party.forEach((s) => (s.hp = Math.max(1, s.hp - Math.ceil(stats(s).hpMax * 0.15 * short))));
   S.expedition = null;
   living().forEach((s) => think(s, "home"));
-  log(`Home after ${days}d: ${[...brought, ...e.gear.map((g) => g.name)].join(" ") || "nothing"}.`, "story", party);
+  log(`Home after ${days}d: ${[...brought, ...e.gear.map((g) => g.name)].join(" ") || "nothing"}.${short ? ` ${short}d without food.` : ""}`, short ? "bad" : "story", party);
   passDays(days);
+  if (has("rosters")) backToWork(party);
+}
+
+// With rosters, people go back to the job they left if it's still there and still open.
+function backToWork(party) {
+  for (const s of party) {
+    const w = s.was, b = w && S.grid[w.i];
+    s.was = null;
+    if (s.dead || s.job != null || !b || b.type !== w.type || b.worker) continue;
+    s.job = w.i;
+    b.worker = s.id;
+  }
+  save();
 }
 
 function usePotion(heroIdx) {
