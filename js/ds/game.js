@@ -1,7 +1,8 @@
 // Millhollow — game state and rules. No DOM in here: ui.js reads and calls.
 
 const SAVE_KEY = "millhollow-ds-v1";
-const GRID_W = 6, GRID_H = 4;
+const LAND = 17; // the overworld is LAND×LAND, mostly unseen at first
+const MID = (LAND >> 1) * LAND + (LAND >> 1);
 const MAP = 5; // dungeon floors are MAP×MAP
 
 const rand = (n) => Math.floor(Math.random() * n);
@@ -117,24 +118,28 @@ function gainXp(s, n) {
 }
 
 // ---------- new game / save ----------
-// The village starts as a 4×3 clearing; the rest is woods to clear as it grows.
-const startWild = () => Array.from({ length: GRID_W * GRID_H }, (_, i) => {
-  const x = i % GRID_W, y = Math.floor(i / GRID_W);
-  return x < 1 || x > 4 || y > 2;
-});
+// The land is woods with the odd meadow, around a small clearing in the middle.
+const xy = (i) => [i % LAND, Math.floor(i / LAND)];
+const dist = (a, b) => { const [ax, ay] = xy(a), [bx, by] = xy(b); return Math.max(Math.abs(ax - bx), Math.abs(ay - by)); };
+const startWild = () => Array.from({ length: LAND * LAND }, (_, i) => dist(i, MID) > 1 && chance(0.72));
+
+// How far from the town hall the land is known. Seen land stays seen.
+const sight = () => 2 + has("scouting") + has("surveying") + 2 * has("cartography");
+let newLand = []; // tiles just revealed, for ui.js to fade in
+function reveal(at, r) {
+  S.seen.forEach((v, i) => { if (!v && dist(i, at) <= r) { S.seen[i] = true; newLand.push(i); } });
+}
 
 function newGame() {
   S = {
-    day: 1, res: { food: 20, wood: 12, stone: 4, ore: 0, herbs: 0, relics: 0, research: 0, potions: 0 },
-    carry: {}, grid: Array(GRID_W * GRID_H).fill(null), wild: startWild(), cleared: 0, settlers: [], research: [],
+    day: 1, res: { food: 20, wood: 12, stone: 4, ore: 0, herbs: 0, relics: 0, research: 0, potions: 0, meals: 0, silver: 0, starmetal: 0 },
+    carry: {}, grid: Array(LAND * LAND).fill(null), wild: startWild(), seen: Array(LAND * LAND).fill(false), hall: null, cleared: 0, settlers: [], research: [],
     deepest: 0, visitor: null, expedition: null, log: [],
   };
   nextId = 1;
   for (const c of ["warrior", "ranger", "cleric", "mystic"]) S.settlers.push(makeSettler(c));
-  S.grid[7] = { type: "hut", worker: null };
-  S.grid[8] = { type: "hut", worker: null };
-  S.grid[13] = { type: "farm", worker: S.settlers[2].id };
-  S.settlers[2].job = 13;
+  reveal(MID, 2);
+  newLand = [];
   log("Four settlers reach the old mill. A stair under it leads down.", "story", S.settlers);
   save();
 }
@@ -146,7 +151,9 @@ function load() {
     if (!raw) return false;
     ({ S, nextId } = JSON.parse(raw));
     if (S.expedition && S.expedition.fight) S.expedition.fight = null; // a fight restarts on reload
-    if (!S.wild) { S.wild = startWild().map((w, i) => w && !S.grid[i]); S.cleared = 0; }
+    if (!S.seen) widenLand();
+    for (const k of Object.keys(RESOURCES)) S.res[k] ??= 0;
+    if (S.expedition) S.expedition.meals ??= 0;
     // People from older saves get a past, drawn from what they were best at.
     for (const s of [...S.settlers, S.visitor].filter(Boolean)) {
       if ((s.story || []).some((e) => e.kind === "past")) continue;
@@ -155,6 +162,26 @@ function load() {
     }
     return true;
   } catch (e) { return false; }
+}
+
+// Saves from before the overworld had a 6×4 grid. It moves to the middle of the land, and the
+// town hall goes on the free spot nearest the middle, clearing woods for it if it has to.
+function widenLand() {
+  const ow = 6, ox = (LAND - ow) >> 1, oy = (LAND - 4) >> 1;
+  const at = (i) => (oy + Math.floor(i / ow)) * LAND + ox + i % ow;
+  const oldWild = S.wild || S.grid.map((b, i) => !b && (i % ow < 1 || i % ow > 4 || i >= 3 * ow));
+  const grid = Array(LAND * LAND).fill(null), wild = startWild(), seen = Array(LAND * LAND).fill(false);
+  S.grid.forEach((b, i) => { grid[at(i)] = b; wild[at(i)] = !!oldWild[i]; seen[at(i)] = true; });
+  for (const s of [...S.settlers, S.visitor].filter(Boolean)) if (s.job != null) s.job = at(s.job);
+  Object.assign(S, { grid, wild, seen, cleared: S.cleared || 0 });
+  const spot = grid.map((b, i) => i).filter((i) => seen[i] && !grid[i])
+    .sort((a, b) => wild[a] - wild[b] || dist(a, MID) - dist(b, MID))[0];
+  const k = spot ?? MID;
+  grid[k] = { type: "townhall", worker: null, spent: {} };
+  wild[k] = false;
+  S.hall = k;
+  reveal(k, sight());
+  newLand = [];
 }
 
 // A save as text: gzipped JSON in base64, tagged so a pasted code is recognisable. Plain JSON
@@ -204,7 +231,7 @@ const CLEAR_WOOD = 5;
 
 function clearLand(i) {
   const cost = clearCost();
-  if (!S.wild[i] || !afford(cost)) return;
+  if (!S.wild[i] || !S.seen[i] || !afford(cost)) return;
   pay(cost);
   S.wild[i] = false;
   S.cleared++;
@@ -213,22 +240,77 @@ function clearLand(i) {
   save();
 }
 
+// Each building remembers what went into it, upgrades included, so demolishing can give some back.
+const addCost = (into, cost) => { for (const [k, v] of Object.entries(cost)) into[k] = (into[k] || 0) + v; return into; };
+
 function build(i, type) {
   const b = BUILDINGS[type];
-  if (S.grid[i] || S.wild[i] || !afford(b.cost) || (b.needs && !has(b.needs))) return;
+  if (S.grid[i] || S.wild[i] || !S.seen[i] || !afford(b.cost) || (b.needs && !has(b.needs))) return;
+  // The town hall comes first, and only once.
+  if ((S.hall == null) !== (type === "townhall")) return;
   pay(b.cost);
-  S.grid[i] = { type, worker: null };
-  log(`Built ${b.name.toLowerCase()}.`);
+  S.grid[i] = { type, worker: null, spent: { ...b.cost } };
+  if (type === "townhall") {
+    S.hall = i;
+    reveal(i, sight());
+    log("Raised the town hall. Millhollow is founded.", "story", living());
+  } else log(`Built ${b.name.toLowerCase()}.`);
   living().filter((s) => !away(s)).forEach((s) => think(s, "built"));
   save();
 }
 
+// Rebuild in place as the next tier; whoever works there stays.
+function canUpgrade(i) {
+  const b = S.grid[i], up = b && BUILDINGS[b.type].up;
+  return !!up && (!BUILDINGS[up.to].needs || has(BUILDINGS[up.to].needs)) && afford(up.cost);
+}
+function upgrade(i) {
+  if (!canUpgrade(i)) return;
+  const b = S.grid[i], up = BUILDINGS[b.type].up;
+  pay(up.cost);
+  b.spent = addCost(b.spent || { ...BUILDINGS[b.type].cost }, up.cost);
+  b.type = up.to;
+  log(`Rebuilt as ${BUILDINGS[b.type].name.toLowerCase()}.`, "good");
+  living().filter((s) => !away(s)).forEach((s) => think(s, "built"));
+  save();
+}
+
+const refundRate = () => (has("reclaim") ? 0.75 : has("salvage") ? 0.5 : 0);
+function refundOf(i) {
+  const b = S.grid[i], rate = refundRate(), out = {};
+  for (const [k, v] of Object.entries(b.spent || BUILDINGS[b.type].cost)) if (Math.floor(v * rate)) out[k] = Math.floor(v * rate);
+  return out;
+}
+
 function demolish(i) {
   const b = S.grid[i];
-  if (!b) return;
+  if (!b || b.type === "townhall") return;
   if (b.worker) byId(b.worker).job = null;
+  if (b.tool) (S.stash = S.stash || []).push(b.tool);
+  const back = refundOf(i);
+  for (const [k, v] of Object.entries(back)) S.res[k] += v;
   S.grid[i] = null;
-  log(`Demolished ${BUILDINGS[b.type].name.toLowerCase()}.`);
+  const got = Object.entries(back).map(([k, v]) => `+${v}${RESOURCES[k].icon}`).join(" ");
+  log(`Demolished ${BUILDINGS[b.type].name.toLowerCase()}.${got ? ` ${got}` : ""}`);
+  save();
+}
+
+// Tools sit in a building, not on a person, and raise what its worker turns out.
+function fitTool(i, uid) {
+  const b = S.grid[i];
+  S.stash = S.stash || [];
+  const k = S.stash.findIndex((it) => it.uid === uid && it.slot === "tool");
+  if (!b || k < 0 || !TOOLED(b.type)) return;
+  const tool = S.stash.splice(k, 1)[0];
+  if (b.tool) S.stash.push(b.tool);
+  b.tool = tool;
+  save();
+}
+function unfitTool(i) {
+  const b = S.grid[i];
+  if (!b || !b.tool) return;
+  (S.stash = S.stash || []).push(b.tool);
+  b.tool = null;
   save();
 }
 
@@ -258,6 +340,7 @@ function add(res, n) {
 function endDay() {
   const got = {}, spent = {};
   lastYields = [];
+  const eaters = living().filter((s) => !away(s)).length;
   S.grid.forEach((b, i) => {
     if (!b || !b.worker) return;
     const s = byId(b.worker), def = BUILDINGS[b.type];
@@ -265,12 +348,25 @@ function endDay() {
     const here = {};
     const take = (r, n) => { const w = add(r, n); got[r] = (got[r] || 0) + w; if (w) here[r] = w; };
     const skill = s.skills[def.job] || 0;
-    const eff = (1 + skill * 0.1) * (s.morale < 30 ? 0.5 : 1);
+    const tool = 1 + (b.tool ? b.tool.yield : 0);
+    const eff = (1 + skill * 0.1) * (s.morale < 30 ? 0.5 : 1) * tool;
     for (const [r, n] of Object.entries(def.yields || {})) take(r, n * eff);
     if (b.type === "library" && S.res.relics > 0) {
       S.res.relics--;
       spent.relics = (spent.relics || 0) + 1;
-      take("research", 2 + skill * 0.5);
+      take("research", (2 + skill * 0.5) * tool);
+    }
+    // The smokehouse only cooks food nobody at home needs today.
+    if (b.type === "smokehouse") {
+      const spare = Math.floor((S.res.food - eaters) / 3);
+      if (spare > 0) {
+        let w = add("meals", eff);
+        if (w > spare) { S.res.meals -= w - spare; w = spare; }
+        S.res.food -= w * 3;
+        spent.food = (spent.food || 0) + w * 3;
+        got.meals = (got.meals || 0) + w;
+        if (w) here.meals = w;
+      }
     }
     s.skills[def.job] = +(skill + 0.1).toFixed(1);
     if (Object.keys(here).length) lastYields.push({ i, got: here });
@@ -280,7 +376,7 @@ function endDay() {
   const home = living().filter((s) => !away(s));
   const fed = Math.min(S.res.food, home.length);
   S.res.food -= fed;
-  spent.food = fed;
+  spent.food = (spent.food || 0) + fed;
   const hungry = home.length - fed;
   home.forEach((s, i) => {
     const ate = i < fed;
@@ -330,9 +426,10 @@ function welcomeVisitor(yes) {
 
 function doResearch(id) {
   const r = RESEARCH[id];
-  if (has(id) || S.res.research < r.cost) return;
+  if (has(id) || S.res.research < r.cost || (r.after && !has(r.after))) return;
   S.res.research -= r.cost;
   S.research.push(id);
+  if (S.hall != null) reveal(S.hall, sight());
   log(`Learned ${r.name}.`, "good");
   save();
 }
@@ -378,7 +475,9 @@ function unequip(settlerId, slot) {
 
 // ---------- dungeon ----------
 const partyMax = () => (has("tactics") ? 4 : 3);
-const roomsPerRation = () => (has("field_rations") ? 2 : 1);
+// How many rooms one of each lasts. Plain food goes first; meals are the reserve.
+const roomsPer = (kind) => (kind === "meals" ? 3 : 1) + (has("field_rations") ? 1 : 0);
+const MEAL_HEAL = 4;
 
 function genFloor(floor) {
   const rooms = {};
@@ -415,18 +514,20 @@ function neighbours(rooms, k) {
   return [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => `${x + dx},${y + dy}`).filter((n) => rooms[n]);
 }
 
-function depart(partyIds, rations, startFloor) {
+function depart(partyIds, rations, startFloor, meals = 0) {
   const party = partyIds.map(byId).filter(available).slice(0, partyMax());
   if (!party.length || S.expedition) return;
   rations = Math.min(rations, S.res.food);
   S.res.food -= rations;
+  meals = Math.min(meals, S.res.meals);
+  S.res.meals -= meals;
   // Nobody works at home while they're below.
   party.forEach((s) => { if (s.job != null && S.grid[s.job]) S.grid[s.job].worker = null; s.job = null; });
   S.expedition = {
-    party: party.map((s) => s.id), rations, steps: 0, moves: 0,
+    party: party.map((s) => s.id), rations, meals, steps: 0, moves: 0,
     loot: {}, gear: [], map: genFloor(startFloor), fight: null, event: null,
   };
-  log(`Set out: ${party.map((s) => s.name).join(", ")}, ${rations} rations.`, "story", party);
+  log(`Set out: ${party.map((s) => s.name).join(", ")}, ${rations}🍞${meals ? ` ${meals}🥪` : ""}.`, "story", party);
   revealAround();
   save();
 }
@@ -449,13 +550,18 @@ function move(k) {
   e.map.from = e.map.at;
   e.map.at = k;
   e.moves++;
-  if (++e.steps >= roomsPerRation()) {
+  const kind = e.rations > 0 ? "food" : e.meals > 0 ? "meals" : null;
+  if (++e.steps >= roomsPer(kind)) {
     e.steps = 0;
-    if (e.rations > 0) { if (--e.rations === 0) log("Out of rations. The party is starving.", "bad", partyAlive()); }
-    else partyAlive().forEach((s) => {
+    if (kind === "food") e.rations--;
+    else if (kind === "meals") {
+      e.meals--;
+      partyAlive().forEach((s) => (s.hp = Math.min(stats(s).hpMax, s.hp + MEAL_HEAL)));
+    } else partyAlive().forEach((s) => {
       s.hp = Math.max(1, s.hp - 3);
       think(s, "starving");
     });
+    if (kind && !e.rations && !e.meals) log("Out of food. The party is starving.", "bad", partyAlive());
   }
   revealAround();
   enterRoom();
@@ -500,8 +606,10 @@ function rollEnemies(floor) {
 function lootRoll(floor, rolls) {
   const e = S.expedition, found = [];
   for (let i = 0; i < rolls; i++) {
-    const r = pick(["ore", "ore", "herbs", "relics", "stone", "wood"]);
-    const n = 1 + rand(1 + Math.ceil(floor / 2));
+    // Deeper floors add their own ores to the pool, and they turn up often once reached.
+    const deep = Object.keys(ORE_FLOOR).filter((k) => floor >= ORE_FLOOR[k]);
+    const r = pick(["ore", "ore", "herbs", "relics", "stone", "wood", ...deep, ...deep]);
+    const n = ORE_FLOOR[r] ? 1 + rand(1 + Math.floor((floor - ORE_FLOOR[r]) / 2)) : 1 + rand(1 + Math.ceil(floor / 2));
     e.loot[r] = (e.loot[r] || 0) + n;
     found.push(`+${n}${RESOURCES[r].icon}`);
   }
@@ -536,9 +644,10 @@ function resolveEvent(act) {
     } else log("Altar: nothing.", "bad", party);
   } else if (act === "cart") {
     if (chance(0.35)) { log("Cart: ambush!", "bad", party); return startFight(rollEnemies(f)); }
+    const ore = f >= ORE_FLOOR.silver && chance(0.5) ? "silver" : "ore";
     const n = 2 + rand(3);
-    e.loot.ore = (e.loot.ore || 0) + n;
-    log(`Cart: +${n}⛏️.`, "good", party);
+    e.loot[ore] = (e.loot[ore] || 0) + n;
+    log(`Cart: +${n}${RESOURCES[ore].icon}.`, "good", party);
   } else if (act === "mushrooms") {
     e.loot.herbs = (e.loot.herbs || 0) + 3;
     if (chance(0.3)) { const s = pick(party); s.hp = Math.max(1, s.hp - 6); log(`Mushrooms: +3🌿. ${s.name} poisoned, −6 HP.`, "bad", party); }
@@ -611,6 +720,7 @@ function returnHome() {
   const brought = Object.entries(e.loot).filter(([, n]) => n).map(([r, n]) => { S.res[r] += n; return `${n}${RESOURCES[r].icon}`; });
   S.stash = (S.stash || []).concat(e.gear);
   S.res.food += e.rations;
+  S.res.meals += e.meals || 0;
   S.expedition = null;
   living().forEach((s) => think(s, "home"));
   log(`Home after ${days}d: ${[...brought, ...e.gear.map((g) => g.name)].join(" ") || "nothing"}.`, "story", party);

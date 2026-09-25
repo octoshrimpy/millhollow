@@ -30,6 +30,9 @@ const RESOURCES = {
   relics: { icon: "🏺", name: "Relics" },
   research: { icon: "📜", name: "Research" },
   potions: { icon: "🧪", name: "Potions" },
+  meals: { icon: "🥪", name: "Trail meals" },
+  silver: { icon: "🥈", name: "Silver" },
+  starmetal: { icon: "💎", name: "Starmetal" },
 };
 
 // Combat classes. `skill` is the one ability each hero fires on its own.
@@ -56,6 +59,7 @@ const CLASSES = {
 const JOBS = {
   farming: "Farming", woodcutting: "Woodcutting", quarrying: "Quarrying",
   herbalism: "Herbalism", smithing: "Smithing", healing: "Healing", scholarship: "Scholarship",
+  cooking: "Cooking",
 };
 
 // Where someone came from before the mill: a birthplace, a trade, what their class made of
@@ -81,10 +85,14 @@ const PAST = {
     "Left before the wedding.", "Followed a map that turned out wrong."],
 };
 
-// `yields` is per worker per day at skill 0; each skill point adds 10%.
+// `yields` is per worker per day at skill 0; each skill point adds 10%. `up` is what it can be
+// rebuilt into where it stands, and what that costs on top.
 const BUILDINGS = {
-  hut: { name: "Hut", icon: "🛖", cost: { wood: 6 }, beds: 2, desc: "2 beds." },
-  stonehouse: { name: "Stone house", icon: "🏠", cost: { wood: 4, stone: 8 }, beds: 4, needs: "masonry", desc: "4 beds." },
+  townhall: { name: "Town hall", icon: "🏛️", cost: {}, beds: 4, desc: "4 beds." },
+  hut: { name: "Hut", icon: "🛖", cost: { wood: 6 }, beds: 2, desc: "2 beds.", up: { to: "stonehouse", cost: { stone: 8 } } },
+  stonehouse: { name: "Stone house", icon: "🏠", cost: { wood: 4, stone: 8 }, beds: 4, needs: "masonry", desc: "4 beds.",
+    up: { to: "hall", cost: { wood: 6, stone: 6, ore: 2 } } },
+  hall: { name: "Manor", icon: "🏰", cost: { wood: 10, stone: 14, ore: 2 }, beds: 6, needs: "architecture", desc: "6 beds." },
   farm: { name: "Farm", icon: "🌾", cost: { wood: 4 }, job: "farming", yields: { food: 3 }, desc: "Makes food." },
   lumber: { name: "Lumber camp", icon: "🪓", cost: { wood: 2 }, job: "woodcutting", yields: { wood: 3 }, desc: "Makes wood." },
   quarry: { name: "Quarry", icon: "⛰️", cost: { wood: 6 }, job: "quarrying", yields: { stone: 2, ore: 0.5 }, desc: "Makes stone, some ore." },
@@ -92,16 +100,31 @@ const BUILDINGS = {
   forge: { name: "Forge", icon: "⚒️", cost: { wood: 8, stone: 6 }, job: "smithing", desc: "Crafts gear and brews potions. Needs a worker." },
   infirmary: { name: "Infirmary", icon: "🩹", cost: { wood: 6, stone: 4 }, job: "healing", desc: "Wounded heal 3× faster. Needs a worker." },
   library: { name: "Library", icon: "📚", cost: { wood: 8, stone: 8 }, job: "scholarship", desc: "1 relic → 1 research per day. Needs a worker." },
+  smokehouse: { name: "Smokehouse", icon: "🍖", cost: { wood: 8, stone: 2 }, job: "cooking", needs: "smoking", desc: "3🍞 → 1🥪 trail meal per day." },
 };
+// Buildings where a tool raises the day's output.
+const TOOLED = (type) => !!(BUILDINGS[type].yields || ["library", "smokehouse"].includes(type));
 
+// `after` is the research that has to come first.
 const RESEARCH = {
+  scouting: { name: "Scouting", cost: 5, desc: "See 1 further from the town hall." },
   herbalism: { name: "Herbalism", cost: 4, desc: "Brew potions at the forge. 3🌿 each, heals 20." },
-  smelting: { name: "Smelting", cost: 6, desc: "Craft iron gear." },
-  field_rations: { name: "Field rations", cost: 6, desc: "1 ration lasts 2 rooms." },
-  masonry: { name: "Masonry", cost: 8, desc: "Unlocks stone houses (4 beds)." },
+  salvage: { name: "Salvage", cost: 5, desc: "Demolishing returns ½ of what it cost." },
+  smelting: { name: "Smelting", cost: 6, desc: "Iron gear and tools." },
+  field_rations: { name: "Field rations", cost: 6, desc: "Food and meals last one room longer." },
+  smoking: { name: "Smoking", cost: 6, desc: "Smokehouse: trail meals last 3 rooms and heal." },
+  masonry: { name: "Masonry", cost: 8, desc: "Stone houses (4 beds). Huts can be rebuilt." },
+  reclaim: { name: "Reclamation", cost: 10, after: "salvage", desc: "Demolishing returns ¾." },
+  surveying: { name: "Surveying", cost: 10, after: "scouting", desc: "See 1 further again." },
   tactics: { name: "Tactics", cost: 10, desc: "Party size 4." },
+  silverwork: { name: "Silverwork", cost: 12, after: "smelting", desc: "Silver gear and tools. Silver lies below floor 3." },
   lanterns: { name: "Deep lanterns", cost: 12, desc: "See inside rooms next to you." },
+  architecture: { name: "Architecture", cost: 14, after: "masonry", desc: "Manors (6 beds)." },
+  cartography: { name: "Cartography", cost: 16, after: "surveying", desc: "See 2 further again." },
+  starforging: { name: "Starforging", cost: 18, after: "silverwork", desc: "Starmetal gear. Starmetal lies below floor 6." },
 };
+// Where each ore first turns up in the dungeon.
+const ORE_FLOOR = { silver: 3, starmetal: 6 };
 
 // Gear is plain stat bonuses; any class can wear any of it.
 const RECIPES = [
@@ -110,6 +133,14 @@ const RECIPES = [
   { id: "sword", name: "Iron sword", slot: "weapon", atk: 5, cost: { ore: 4, wood: 2 }, needs: "smelting" },
   { id: "mail", name: "Iron mail", slot: "armor", def: 3, hp: 10, spd: -1, cost: { ore: 6 }, needs: "smelting" },
   { id: "bow", name: "Yew longbow", slot: "weapon", atk: 4, spd: 1, cost: { wood: 6, ore: 1 }, needs: "smelting" },
+  { id: "tools", name: "Iron tools", slot: "tool", yield: 0.25, cost: { ore: 3, wood: 2 }, needs: "smelting" },
+  { id: "ssword", name: "Silver blade", slot: "weapon", atk: 8, cost: { silver: 4, ore: 2 }, needs: "silverwork" },
+  { id: "smail", name: "Silver mail", slot: "armor", def: 5, hp: 14, cost: { silver: 6, ore: 2 }, needs: "silverwork" },
+  { id: "sbow", name: "Silver-strung bow", slot: "weapon", atk: 7, spd: 1, cost: { silver: 3, wood: 4 }, needs: "silverwork" },
+  { id: "stools", name: "Silver tools", slot: "tool", yield: 0.5, cost: { silver: 3, wood: 2 }, needs: "silverwork" },
+  { id: "starblade", name: "Star blade", slot: "weapon", atk: 12, spd: 1, cost: { starmetal: 4, silver: 2 }, needs: "starforging" },
+  { id: "starplate", name: "Star plate", slot: "armor", def: 7, hp: 20, cost: { starmetal: 6, silver: 2 }, needs: "starforging" },
+  { id: "startools", name: "Star tools", slot: "tool", yield: 0.8, cost: { starmetal: 2, silver: 2, wood: 2 }, needs: "starforging" },
 ];
 
 // Drops found in the dungeon, scaled by floor when rolled.

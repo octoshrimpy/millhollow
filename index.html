@@ -67,6 +67,18 @@
   .tile { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 2px; overflow: hidden; }
   .tile small { font-size: .62rem; line-height: 1.1; text-align: center; }
   .tile { position: relative; }
+  /* The land pans under a fixed window; tiles keep their size however much is known. */
+  .land { position: relative; overflow: auto; max-height: 62vh; margin: .6em 0; overscroll-behavior: contain; scrollbar-width: none; touch-action: pan-x pan-y; }
+  .land::-webkit-scrollbar { display: none; }
+  .land .grid { --t: min(76px, calc((100vw - 60px) / 5.5)); grid-template-columns: repeat(var(--w), var(--t)); width: max-content; margin: 0 auto; }
+  .land.drag { cursor: grabbing; user-select: none; }
+  .tile.fog { border-color: transparent; background: radial-gradient(circle, color-mix(in srgb, var(--ink) 5%, transparent), transparent 70%); }
+  .tile.hall { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
+  .tile.found { border-color: var(--accent); border-style: solid; color: var(--accent); font-size: 1.4rem; animation: found 1.6s ease-in-out infinite; }
+  @keyframes found { 50% { box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 45%, transparent); } }
+  .tile.fresh { animation: reveal .45s calc(var(--d, 0) * 90ms) both; }
+  button.ghost { background: transparent; border-color: transparent; color: var(--dim); }
+  .tools { align-items: center; gap: .4em; margin: .7em 0; }
   .tile .mini { position: absolute; top: 3px; right: 3px; width: 34%; height: auto; aspect-ratio: 1; border-radius: 5px;
     box-shadow: 0 0 0 1.5px var(--card); }
   .tile.empty { color: var(--dim); background: transparent; border-style: dashed; }

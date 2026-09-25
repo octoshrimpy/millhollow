@@ -6,7 +6,7 @@ const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 let tab = "village";
 let sheet = null; // open modal: { i } for a plot, { visitor: true } for someone at the gate
 let knocked = null; // the visitor whose popup already opened by itself
-let plan = { party: [], rations: 6, floor: 1 };
+let plan = { party: [], rations: 6, meals: 0, floor: 1 };
 
 function faceFor(s, hp, hpMax) {
   let m = mood(s);
@@ -35,6 +35,7 @@ function render() {
   if (sheet && sheet.visitor && !S.visitor) sheet = null;
   const view = { village: viewVillage, people: viewPeople, forge: viewForge, research: viewResearch, expedition: viewExpedition, dungeon: viewDungeon, log: viewLog }[tab];
   $("#view").innerHTML = iconize(view());
+  placeLand();
   renderLog();
   renderSheet();
   if (S.expedition && S.expedition.fight) renderFight();
@@ -78,18 +79,32 @@ function viewVillage() {
   // Someone at the gate whose popup was swiped away: tap to see them again.
   const visitor = v ? `<button class="knock" data-act="knock"><img class="mini" src="${faceSrc(v)}" alt="">
     <b>${esc(v.name)}</b> ${CLASSES[v.cls].icon} <span class="dim">❯</span></button>` : "";
-  const tiles = S.grid.map((b, i) => {
-    if (S.wild[i]) return `<button class="tile wild" data-act="plot" data-v="${i}"><span class="ico">🌲</span></button>`;
-    if (!b) return `<button class="tile empty" data-act="plot" data-v="${i}">＋</button>`;
+  // Only the known land is drawn, with a ring of fog around it.
+  const known = S.seen.map((v, i) => v && xy(i)).filter(Boolean);
+  const x0 = Math.max(0, Math.min(...known.map(([x]) => x)) - 1), x1 = Math.min(LAND - 1, Math.max(...known.map(([x]) => x)) + 1);
+  const y0 = Math.max(0, Math.min(...known.map(([, y]) => y)) - 1), y1 = Math.min(LAND - 1, Math.max(...known.map(([, y]) => y)) + 1);
+  const origin = S.hall ?? MID;
+  const tile = (i) => {
+    const b = S.grid[i];
+    const at = `data-act="plot" data-v="${i}"` + (newLand.includes(i) ? ` style="--d:${dist(i, origin)}"` : "");
+    const cls = newLand.includes(i) ? " fresh" : "";
+    if (!S.seen[i]) return `<div class="tile fog"></div>`;
+    if (S.wild[i]) return `<button class="tile wild${cls}" ${at}><span class="ico">🌲</span></button>`;
+    // Before anything else: the town hall's place, pulsing.
+    if (!b) return `<button class="tile empty${cls}${S.hall == null ? " found" : ""}" ${at}>${S.hall == null ? "🏛️" : "＋"}</button>`;
     const def = BUILDINGS[b.type], w = b.worker && byId(b.worker);
     // The worker sits in the corner as a badge, so the icon and name keep the middle.
     const who = w ? `<img class="mini" src="${faceSrc(w)}" alt="${esc(w.name)}">` : "";
-    return `<button class="tile" data-act="plot" data-v="${i}"><span class="ico">${def.icon}</span><small>${def.name}</small>${who}</button>`;
-  }).join("");
+    return `<button class="tile${cls}${b.type === "townhall" ? " hall" : ""}" ${at}><span class="ico">${def.icon}</span><small>${def.name}</small>${who}</button>`;
+  };
+  let tiles = "";
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) tiles += tile(y * LAND + x);
+  newLand = [];
   // Housing: red only when someone is sleeping rough.
   const n = living().length, over = n > beds();
-  return `<div class="grid" style="--w:${GRID_W}">${tiles}</div>
-    <div class="row between"><span class="housing ${over ? "bad" : ""}">🛏️ ${n}/${beds()}</span>
+  return `<div class="land" id="land"><div class="grid" style="--w:${x1 - x0 + 1}" data-x0="${x0}" data-y0="${y0}">${tiles}</div></div>
+    <div class="row between"><span class="row"><span class="housing ${over ? "bad" : ""}">🛏️ ${n}/${beds()}</span>
+    ${S.hall != null ? `<button class="small ghost" data-act="center" aria-label="Centre">🎯</button>` : ""}</span>
     <button class="primary" data-act="endday">End day ▸</button></div>
     ${visitor}`;
 }
@@ -101,14 +116,28 @@ function sheetPlot(i) {
       <span class="ico">🪓</span><span><b>Clear</b> ${costText(clearCost())} → +${CLEAR_WOOD}${RESOURCES.wood.icon}</span></button>`;
   }
   if (!b) {
-    return `<h3>Build</h3>` + Object.entries(BUILDINGS).map(([id, d]) => {
+    return `<h3>Build</h3>` + Object.entries(BUILDINGS).filter(([id]) => (S.hall == null) === (id === "townhall")).map(([id, d]) => {
       const locked = d.needs && !has(d.needs);
       return `<button class="opt" data-act="build" data-v="${id}" ${locked || !afford(d.cost) ? "disabled" : ""}>
         <span class="ico">${d.icon}</span><span><b>${d.name}</b> ${costText(d.cost)}<br><small>${locked ? `🔒 📜 ${RESEARCH[d.needs].name}` : d.desc}</small></span></button>`;
     }).join("");
   }
   const d = BUILDINGS[b.type];
-  let body = `<div class="sheet-head"><h3>${d.icon} ${d.name}</h3><button class="danger small" data-act="demolish">Demolish</button></div><p class="dim desc">${d.desc}</p>`;
+  const back = Object.entries(refundOf(i)).map(([k, v]) => `+${v}${RESOURCES[k].icon}`).join(" ");
+  const knock = b.type === "townhall" ? "" : `<button class="danger small" data-act="demolish">Demolish${back ? ` <small>♻ ${back}</small>` : ""}</button>`;
+  let body = `<div class="sheet-head"><h3>${d.icon} ${d.name}</h3>${knock}</div><p class="dim desc">${d.desc}</p>`;
+  if (d.up) {
+    const to = BUILDINGS[d.up.to], locked = to.needs && !has(to.needs);
+    body += `<button class="opt" data-act="upgrade" ${canUpgrade(i) ? "" : "disabled"}>
+      <span class="ico">⏫</span><span><b>${to.icon} ${to.name}</b> ${costText(d.up.cost)}<br><small>${locked ? `🔒 📜 ${RESEARCH[to.needs].name}` : to.desc}</small></span></button>`;
+  }
+  if (TOOLED(b.type)) {
+    const tools = (S.stash || []).filter((g) => g.slot === "tool");
+    if (b.tool || tools.length) body += `<div class="row wrap tools">🔧
+      ${b.tool ? `<button class="chip" data-act="untool">${esc(b.tool.name)} +${Math.round(b.tool.yield * 100)}% ✕</button>` : ""}
+      ${tools.length ? `<select data-act="tool"><option value="">${b.tool ? "Swap…" : "Fit…"}</option>${tools.map((g) =>
+        `<option value="${g.uid}">${esc(g.name)} (+${Math.round(g.yield * 100)}%)</option>`).join("")}</select>` : ""}</div>`;
+  }
   if (d.job) {
     // Current worker, then free people, then people who'd leave another building (its icon in the corner).
     // Tapping the current worker takes them off.
@@ -173,13 +202,14 @@ function gearRow(s) {
     return g ? `<button class="chip" data-act="unequip" data-v="${s.id}" data-slot="${slot}">${esc(g.name)} ✕</button>`
       : `<span class="chip dim">no ${slot}</span>`;
   }).join("");
-  const stash = S.stash || [];
+  const stash = (S.stash || []).filter((g) => g.slot !== "tool");
   return `<div class="row wrap center">${gear}
     ${stash.length && !away(s) ? `<select data-act="equip" data-v="${s.id}"><option value="">Equip…</option>${stash.map((g) =>
       `<option value="${g.uid}">${esc(g.name)} (${gearText(g)})</option>`).join("")}</select>` : ""}
     <button class="chip" data-act="row" data-v="${s.id}">${(s.row || defaultRow(s.cls)) === "front" ? "Front row" : "Back row"}</button></div>`;
 }
-const gearText = (g) => ["atk", "def", "hp", "spd"].filter((k) => g[k]).map((k) => `${k} ${g[k] > 0 ? "+" : ""}${g[k]}`).join(", ");
+const gearText = (g) => g.slot === "tool" ? `🔧 yield +${Math.round(g.yield * 100)}%`
+  : ["atk", "def", "hp", "spd"].filter((k) => g[k]).map((k) => `${k} ${g[k] > 0 ? "+" : ""}${g[k]}`).join(", ");
 
 const moraleChip = (s) => `<span class="thought">${moraleFace(s)}</span>`;
 const thoughtChip = (x) => {
@@ -236,8 +266,11 @@ function viewForge() {
 function viewResearch() {
   const lib = S.grid.some((b) => b && b.type === "library");
   return `<p class="dim">${lib ? "Staffed library: 1🏺 → research per day." : "Needs a library and relics (🏺) from the dungeon."}</p>` +
-    Object.entries(RESEARCH).map(([id, r]) => `<button class="opt ${has(id) ? "on" : ""}" data-act="research" data-v="${id}" ${has(id) || S.res.research < r.cost ? "disabled" : ""}>
-      <span><b>${r.name}</b> ${has(id) ? "✓" : costText({ research: r.cost })}<br><small>${r.desc}</small></span></button>`).join("");
+    Object.entries(RESEARCH).map(([id, r]) => {
+      const locked = r.after && !has(r.after);
+      return `<button class="opt ${has(id) ? "on" : ""}" data-act="research" data-v="${id}" ${has(id) || locked || S.res.research < r.cost ? "disabled" : ""}>
+      <span><b>${r.name}</b> ${has(id) ? "✓" : costText({ research: r.cost })}<br><small>${locked ? `🔒 📜 ${RESEARCH[r.after].name}` : r.desc}</small></span></button>`;
+    }).join("");
 }
 
 // ---------- expedition ----------
@@ -245,17 +278,21 @@ function viewExpedition() {
   const ready = living().filter((s) => s.hp > 0);
   plan.party = plan.party.filter((id) => ready.some((s) => s.id === id));
   plan.rations = Math.min(plan.rations, S.res.food);
+  plan.meals = Math.min(plan.meals || 0, S.res.meals);
   plan.floor = Math.min(plan.floor, S.deepest + 1);
   const floors = Array.from({ length: S.deepest + 1 }, (_, k) => k + 1);
-  return `<p class="dim">Party of up to ${partyMax()}. ${has("field_rations") ? "½ ration" : "1 ration"} per room. No rations: starving. Death is permanent.</p>
+  const per = (k) => `${roomsPer(k)} ${roomsPer(k) > 1 ? "rooms" : "room"}`;
+  const cook = has("smoking") || S.res.meals > 0;
+  const stepper = (act, icon, n) => `<div class="row between"><span>${icon}</span><span class="row">
+      <button data-act="${act}" data-v="-1" data-hold>−</button><b>${n}</b><button data-act="${act}" data-v="1" data-hold>＋</button></span></div>`;
+  return `<p class="dim">Party of up to ${partyMax()}. 🍞 ${per("food")}${cook ? ` · 🥪 ${per("meals")}, +${MEAL_HEAL}❤️` : ""}. No food: starving. Death is permanent.</p>
     ${ready.map((s) => {
       const on = plan.party.includes(s.id), st = stats(s);
       return `<button class="opt ${on ? "on" : ""}" data-act="pick" data-v="${s.id}">
         <img class="mini" src="${faceSrc(s)}" alt=""><span><b>${esc(s.name)}</b> ${CLASSES[s.cls].icon} lv ${s.level}
         <br><small>HP ${s.hp}/${st.hpMax} · ${(s.row || defaultRow(s.cls))} row${s.job != null ? " · leaves their work" : ""}</small></span></button>`;
     }).join("")}
-    <div class="row between"><span>Rations</span><span class="row">
-      <button data-act="rations" data-v="-1" data-hold>−</button><b>${plan.rations}</b><button data-act="rations" data-v="1" data-hold>＋</button></span></div>
+    ${stepper("rations", "🍞", plan.rations)}${cook ? stepper("meals", "🥪", plan.meals) : ""}
     <div class="row between"><span>Start at floor</span><select data-act="floor">${floors.map((f) =>
       `<option ${f === plan.floor ? "selected" : ""}>${f}</option>`).join("")}</select></div>
     <button class="primary wide" data-act="depart" ${plan.party.length ? "" : "disabled"}>Set out</button>`;
@@ -288,7 +325,7 @@ function viewDungeon() {
     panel = `<div class="row wrap">${down ? `<button class="primary" data-act="descend">Down to floor ${m.floor + 1}</button>` : ""}
       <button data-act="home">Head home (${Math.max(1, Math.ceil(e.moves / 5))}d)</button></div>`;
   }
-  return `<div class="row between"><b>Floor ${m.floor}</b><small>🍞 ${e.rations} rations · 🧪 ${S.res.potions}</small></div>
+  return `<div class="row between"><b>Floor ${m.floor}</b><small>🍞 ${e.rations}${e.meals ? ` 🥪 ${e.meals}` : ""} · 🧪 ${S.res.potions}</small></div>
     <div class="party">${party}</div>
     <div class="map" style="--w:${MAP}">${cells}</div>
     <p class="dim small">Carrying: ${loot}</p>${panel}`;
@@ -527,6 +564,51 @@ function renderSheet() {
   inner.addEventListener("click", (e) => { if (dragged) { e.stopPropagation(); dragged = false; } }, true);
 })();
 
+// ---------- land ----------
+// The land keeps its place between renders as the map spot at the middle of the window, so
+// newly revealed rows don't shift it. The first look is at the town hall.
+let landPos = null;
+const landGeo = (land) => {
+  const g = land.firstElementChild, [a, b] = g.children;
+  const step = b.offsetLeft - a.offsetLeft;
+  return step > 0 && { step, ox: a.offsetLeft, oy: a.offsetTop, x0: +g.dataset.x0, y0: +g.dataset.y0 };
+};
+function placeLand(smooth) {
+  const land = $("#land"), geo = land && landGeo(land);
+  if (!geo) return;
+  const [hx, hy] = xy(S.hall ?? MID);
+  const [mx, my] = smooth || !landPos ? [hx + 0.5, hy + 0.5] : landPos;
+  land.scrollTo({ left: geo.ox + (mx - geo.x0) * geo.step - land.clientWidth / 2,
+    top: geo.oy + (my - geo.y0) * geo.step - land.clientHeight / 2, behavior: smooth ? "smooth" : "instant" });
+  if (!smooth) landPos = [mx, my];
+}
+document.addEventListener("scroll", (e) => {
+  const land = e.target.id === "land" && e.target, geo = land && landGeo(land);
+  if (geo) landPos = [geo.x0 + (land.scrollLeft + land.clientWidth / 2 - geo.ox) / geo.step,
+    geo.y0 + (land.scrollTop + land.clientHeight / 2 - geo.oy) / geo.step];
+}, true);
+// Touch pans natively; a mouse drags. A drag isn't a tap on the tile it ends on.
+(() => {
+  let from = null, moved = false;
+  document.addEventListener("pointerdown", (e) => {
+    const land = e.pointerType === "mouse" && e.target.closest("#land");
+    from = land && { x: e.clientX, y: e.clientY, l: land.scrollLeft, t: land.scrollTop };
+    moved = false;
+  });
+  document.addEventListener("pointermove", (e) => {
+    const land = from && $("#land");
+    if (!land) return;
+    const dx = e.clientX - from.x, dy = e.clientY - from.y;
+    if (!moved && Math.hypot(dx, dy) < 5) return;
+    moved = true;
+    land.classList.add("drag");
+    land.scrollLeft = from.l - dx;
+    land.scrollTop = from.t - dy;
+  });
+  window.addEventListener("pointerup", () => { from = null; const l = $("#land"); if (l) l.classList.remove("drag"); });
+  document.addEventListener("click", (e) => { if (moved) { moved = false; e.stopPropagation(); e.preventDefault(); } }, true);
+})();
+
 // ---------- input ----------
 // Buttons marked data-hold repeat while held, faster the longer the hold. The page re-renders
 // under the finger, so the repeat runs off the action name, not the element.
@@ -560,12 +642,22 @@ const ACTS = {
   menu: () => (sheet = { menu: true }),
   theme: (v) => { applyTheme(v); },
   newgame: () => (sheet = { menu: true, sure: true }),
-  wipe: () => { newGame(); plan = { party: [], rations: 6, floor: 1 }; tab = "village"; sheet = null; knocked = null; },
+  wipe: () => { newGame(); landPos = null; plan = { party: [], rations: 6, meals: 0, floor: 1 }; tab = "village"; sheet = null; knocked = null; },
   plot: (v) => (sheet = { i: +v }),
   close: () => (sheet = null),
   clear: () => { clearLand(sheet.i); sheet = null; },
-  build: (v) => { build(sheet.i, v); sheet = null; },
-  demolish: () => { if (confirm("Demolish? No refund.")) { demolish(sheet.i); sheet = null; } },
+  build: (v) => {
+    build(sheet.i, v);
+    sheet = null;
+    if (v === "townhall") setTimeout(() => placeLand(true), 60);
+  },
+  center: () => { placeLand(true); return "keep"; },
+  demolish: () => {
+    const back = Object.entries(refundOf(sheet.i)).map(([k, v]) => `${v} ${RESOURCES[k].name.toLowerCase()}`).join(", ");
+    if (confirm(back ? `Demolish? Get back ${back}.` : "Demolish? No refund.")) { demolish(sheet.i); sheet = null; }
+  },
+  upgrade: () => upgrade(sheet.i),
+  untool: () => unfitTool(sheet.i),
   assign: (v) => { assign(sheet.i, +v); sheet = null; },
   endday: () => passDays(1),
   visitor: (v) => { welcomeVisitor(v === "1"); sheet = null; },
@@ -582,7 +674,8 @@ const ACTS = {
     else if (plan.party.length < partyMax()) plan.party.push(id);
   },
   rations: (v) => (plan.rations = Math.max(0, Math.min(S.res.food, plan.rations + +v))),
-  depart: () => depart(plan.party, plan.rations, plan.floor),
+  meals: (v) => (plan.meals = Math.max(0, Math.min(S.res.meals, (plan.meals || 0) + +v))),
+  depart: () => depart(plan.party, plan.rations, plan.floor, plan.meals || 0),
   move: (v) => move(v),
   event: (v) => resolveEvent(v),
   descend: () => descend(),
@@ -623,8 +716,8 @@ function loadCode(text) {
   if (!String(text).trim()) { $("#savecode").focus(); return; }
   if (!confirm("Replace this game?")) return;
   importSave(text).then(() => {
-    plan = { party: [], rations: 6, floor: 1 };
-    tab = "village"; sheet = null; knocked = null; fightBuilt = null; logSeen = Infinity;
+    plan = { party: [], rations: 6, meals: 0, floor: 1 };
+    tab = "village"; sheet = null; knocked = null; landPos = null; fightBuilt = null; logSeen = Infinity;
     render();
     Juice.toast(`📥 Day ${S.day}`, "good");
   }, () => {
@@ -722,6 +815,7 @@ document.addEventListener("change", (e) => {
   if (el.id === "savepick") { const f = el.files[0]; el.value = ""; if (f) f.text().then(loadCode); return; }
   if (!el.dataset.act) return;
   if (el.dataset.act === "equip" && el.value) equip(+el.dataset.v, +el.value);
+  if (el.dataset.act === "tool" && el.value && sheet) fitTool(sheet.i, +el.value);
   if (el.dataset.act === "floor") plan.floor = +el.value;
   render();
 });
