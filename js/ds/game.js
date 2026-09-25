@@ -718,7 +718,7 @@ function onlyEnoughHome() {
   const e = S.expedition;
   const kind = e.rations > 0 ? "food" : e.meals > 0 ? "meals" : null;
   const after = foodLeft() - (kind && e.steps + 1 >= roomsPer(kind) ? 1 : 0);
-  return after <= homeDays(e.moves + 1);
+  return after <= homeDays();
 }
 
 function move(k) {
@@ -904,13 +904,16 @@ function endFight(won) {
 function descend() {
   const e = S.expedition, r = e.map.rooms[e.map.at];
   if (!e || e.fight || !["stairs", "boss"].includes(r.type) || !r.done) return;
+  // Each floor cleared is a day in town.
+  passDays(1);
   e.map = genFloor(e.map.floor + 1, siteOf());
   revealAround();
   log(`Down to floor ${e.map.floor}.`, "story", partyAlive());
   save();
 }
 
-const homeDays = (moves = S.expedition.moves) => Math.max(1, Math.ceil(moves / 5)) + travelDays(siteOf());
+// Floors pass their days as they're cleared; what's left is the road, at least a day.
+const homeDays = () => Math.max(1, travelDays(siteOf()));
 function returnHome() {
   const e = S.expedition;
   if (!e || e.fight || e.event) return;
@@ -921,6 +924,8 @@ function returnHome() {
   const eat = Math.min(e.rations, days), eatMeals = Math.min(e.meals || 0, days - eat), short = days - eat - eatMeals;
   S.res.food += e.rations - eat;
   S.res.meals += (e.meals || 0) - eatMeals;
+  if (e.rations - eat) brought.push(`${e.rations - eat}🍞`);
+  if ((e.meals || 0) - eatMeals) brought.push(`${e.meals - eatMeals}🥪`);
   if (short) party.forEach((s) => (s.hp = Math.max(1, s.hp - Math.ceil(stats(s).hpMax * 0.15 * short))));
   S.expedition = null;
   living().forEach((s) => think(s, "home"));

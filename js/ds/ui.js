@@ -16,6 +16,19 @@ function faceFor(s, hp, hpMax) {
 const bar = (v, max, cls = "") =>
   `<div class="bar ${cls}"><i style="width:${Math.max(0, Math.min(100, (v / max) * 100))}%"></i></div>`;
 
+// Two lanes under the foes. Foes that walk hit the front lane; a sword swung from the back lane is half a swing.
+// Tapping someone moves them to the other lane.
+const rowOf = (s) => s.row || defaultRow(s.cls);
+function formation(list, hp) {
+  const lane = (row) => `<div class="lane ${row}">${list.filter((s) => rowOf(s) === row).map((s) => {
+    const weak = row === "back" && CLASSES[s.cls].range === "melee";
+    return `<button class="pc ${s.dead ? "dead" : ""}" data-act="row" data-v="${s.id}" ${s.dead ? "disabled" : ""}>
+      <span class="face-wrap"><img class="mini" src="${faceFor(s)}" alt="">${weak ? `<em>½</em>` : ""}</span>
+      <small>${esc(s.name)}</small>${hp ? bar(s.dead ? 0 : s.hp, stats(s).hpMax, "hp") : ""}</button>`;
+  }).join("")}</div>`;
+  return `<div class="formation"><div class="foeline">🧟 🧟 🧟</div>${lane("front")}${lane("back")}</div>`;
+}
+
 function render() {
   if (S.expedition) { if (!["dungeon", "people", "log"].includes(tab)) tab = "dungeon"; }
   else if (tab === "dungeon") tab = "village";
@@ -43,10 +56,11 @@ function render() {
 }
 
 function renderTop() {
-  // Food and wood always show; the rest appear once there is some.
+  // Food and wood always show; the rest appear once there is some. Food being packed leaves the counter as you pack it.
+  const packing = !S.expedition && tab === "expedition" ? { food: plan.rations, meals: plan.meals || 0 } : {};
   $("#res").innerHTML = iconize(`<span class="day">Day ${S.day}</span>` + Object.entries(RESOURCES)
     .filter(([k]) => S.res[k] > 0 || k === "food" || k === "wood")
-    .map(([k, r]) => `<span title="${r.name}" data-k="${k}">${r.icon}${S.res[k]}</span>`).join(""));
+    .map(([k, r]) => `<span title="${r.name}" data-k="${k}" class="${packing[k] ? "packed" : ""}">${r.icon}${S.res[k] - (packing[k] || 0)}</span>`).join(""));
   $("#menu").innerHTML = iconize("⚙");
   const log = ["log", "Log", "📖"];
   const tabs = S.expedition ? [["dungeon", "Dungeon", "🪜"], ["people", "People", "👥"], log]
@@ -229,19 +243,33 @@ function settlerCard(s) {
 const jobText = (s) => s.job != null && S.grid[s.job] ? BUILDINGS[S.grid[s.job].type].icon : away(s) ? "🪜" : "";
 const moraleFace = (s) => `<span title="Morale">${s.morale >= 75 ? "😄" : s.morale >= 50 ? "🙂" : s.morale >= 30 ? "😐" : "😠"} ${s.morale}</span>`;
 
+// Two slots. Tapping one opens what the stores hold for it, each with how it changes the stats.
+let gearPick = null; // { id, slot } while a slot's list is open
+const SLOT_ICON = { weapon: "⚔️", armor: "🛡️" };
+const STAT_ICON = { atk: "⚔️", def: "🛡️", hp: "❤️", spd: "💨" };
 function gearRow(s) {
-  const gear = ["weapon", "armor"].map((slot) => {
-    const g = s.gear[slot];
-    return g ? `<button class="chip" data-act="unequip" data-v="${s.id}" data-slot="${slot}">${esc(g.name)} ✕</button>`
-      : `<span class="chip dim">no ${slot}</span>`;
+  const busy = away(s), open = gearPick && gearPick.id === s.id && gearPick.slot;
+  const slots = ["weapon", "armor"].map((slot) => {
+    const g = s.gear[slot], choices = (S.stash || []).some((x) => x.slot === slot);
+    return `<button class="slot ${g ? "" : "empty"} ${open === slot ? "open" : ""}" data-act="gearpick" data-v="${slot}"
+      ${busy || (!g && !choices) ? "disabled" : ""}><i>${SLOT_ICON[slot]}</i><span><b>${g ? esc(g.name) : "—"}</b>${g ? `<small>${gearText(g)}</small>` : ""}</span></button>`;
   }).join("");
-  const stash = S.stash || [];
-  return `<div class="row wrap center">${gear}
-    ${stash.length && !away(s) ? `<select data-act="equip" data-v="${s.id}"><option value="">Equip…</option>${stash.map((g) =>
-      `<option value="${g.uid}">${esc(g.name)} (${gearText(g)})</option>`).join("")}</select>` : ""}
-    <button class="chip" data-act="row" data-v="${s.id}">${(s.row || defaultRow(s.cls)) === "front" ? "Front row" : "Back row"}</button></div>`;
+  return `<div class="slots">${slots}</div>${open && !busy ? gearList(s, open) : ""}
+`;
 }
-const gearText = (g) => ["atk", "def", "hp", "spd"].filter((k) => g[k]).map((k) => `${k} ${g[k] > 0 ? "+" : ""}${g[k]}`).join(", ");
+function gearList(s, slot) {
+  const cur = s.gear[slot];
+  const rows = (S.stash || []).filter((g) => g.slot === slot).map((g) =>
+    `<button class="pick" data-act="equip" data-v="${s.id}" data-uid="${g.uid}"><b>${esc(g.name)}</b><small>${gearDelta(g, cur)}</small></button>`);
+  if (cur) rows.push(`<button class="pick off" data-act="unequip" data-v="${s.id}" data-slot="${slot}">✕</button>`);
+  return `<div class="picker">${rows.join("")}</div>`;
+}
+// "⚔️+3 💨−1" against what's worn now, green for better and red for worse.
+const gearDelta = (g, cur) => Object.keys(STAT_ICON).map((k) => {
+  const d = (g[k] || 0) - ((cur && cur[k]) || 0);
+  return d ? `<span class="${d > 0 ? "up" : "down"}">${STAT_ICON[k]}${d > 0 ? "+" : "−"}${Math.abs(d)}</span>` : "";
+}).filter(Boolean).join(" ") || "=";
+const gearText = (g) => Object.keys(STAT_ICON).filter((k) => g[k]).map((k) => `${STAT_ICON[k]}${g[k] > 0 ? "+" : "−"}${Math.abs(g[k])}`).join(" ");
 
 const moraleChip = (s) => `<span class="thought">${moraleFace(s)}</span>`;
 const thoughtChip = (x) => {
@@ -342,8 +370,9 @@ function viewExpedition() {
       const on = plan.party.includes(s.id), st = stats(s);
       return `<button class="opt ${on ? "on" : ""}" data-act="pick" data-v="${s.id}">
         <img class="mini" src="${faceSrc(s)}" alt=""><span><b>${esc(s.name)}</b> ${CLASSES[s.cls].icon} lv ${s.level}
-        <br><small>HP ${s.hp}/${st.hpMax} · ${(s.row || defaultRow(s.cls))} row${s.job != null ? " · leaves their work" : ""}</small></span></button>`;
+        <br><small>HP ${s.hp}/${st.hpMax}${s.job != null ? " · leaves their work" : ""}</small></span></button>`;
     }).join("")}
+    ${plan.party.length ? formation(plan.party.map(byId), false) : ""}
     ${stepper("rations", "🍞", plan.rations)}${cook ? stepper("meals", "🥪", plan.meals) : ""}
     <div class="row between"><span>Start at floor</span><select data-act="floor">${floors.map((f) =>
       `<option ${f === plan.floor ? "selected" : ""}>${f}</option>`).join("")}</select></div>
@@ -368,8 +397,6 @@ function viewDungeon() {
       ${here ? "🔦" : r.body ? `<span class="mark">🦴</span>` : show ? `<span class="mark">${mark}</span>` : "?"}</button>`;
   }
   const r = m.rooms[m.at];
-  const party = e.party.map(byId).map((s) => `<div class="pc ${s.dead ? "dead" : ""}"><img class="mini" src="${faceFor(s)}" alt="">
-    <small>${esc(s.name)}</small>${bar(s.dead ? 0 : s.hp, stats(s).hpMax, "hp")}</div>`).join("");
   const loot = Object.entries(e.loot).filter(([, n]) => n).map(([k, n]) => `${n}${RESOURCES[k].icon}`).concat(e.gear.map((g) => esc(g.name))).join(" ") || "nothing yet";
   let panel = "";
   if (e.event) {
@@ -382,7 +409,7 @@ function viewDungeon() {
       <button data-act="home">Head home (${homeDays()}d, ${homeDays()}🍞)</button></div>`;
   }
   return `<div class="row between"><b>${SITES[siteOf().kind].icon} ${esc(siteOf().name)} · ${m.floor}</b><small class="${foodLeft() <= homeDays() ? "short" : ""}">🍞 ${e.rations}${e.meals ? ` 🥪 ${e.meals}` : ""} · 🧪 ${S.res.potions}</small></div>
-    <div class="party">${party}</div>
+    ${formation(e.party.map(byId), true)}
     <div class="map" style="--w:${MAP}">${cells}</div>
     <p class="dim small">Carrying: ${loot}</p>${panel}`;
 }
@@ -399,7 +426,7 @@ function renderFight() {
         <span class="ico">${en.icon}</span><small>${esc(en.name)}</small>${bar(en.hp, en.hpMax, "hp")}${bar(0, 100, "atb")}</button>`).join("")}</div>
       <div class="lines" id="flines"></div>
       <div class="heroes">${f.heroes.map((h, i) => { const s = byId(h.id); return `<div class="hero">
-        <img class="face" alt=""><div class="grow"><b>${esc(h.name)}</b> <small class="dim">${h.row}</small>
+        <img class="face" alt=""><div class="grow"><b>${esc(h.name)}</b>
         ${bar(h.hp, h.hpMax, "hp")}${bar(0, 100, "atb")}
         <div class="row"><small class="skill"></small>
         <button class="chip potion" data-act="potion" data-v="${i}"></button></div></div></div>`; }).join("")}</div>
@@ -727,9 +754,11 @@ const ACTS = {
   endday: () => passDays(1),
   visitor: (v) => { welcomeVisitor(v === "1"); sheet = null; },
   knock: () => (sheet = { visitor: true }),
-  person: (v) => (sheet = { person: +v }),
-  unequip: (v, el) => unequip(+v, el.dataset.slot),
-  row: (v) => { const s = byId(+v); s.row = (s.row || defaultRow(s.cls)) === "front" ? "back" : "front"; save(); },
+  person: (v) => { sheet = { person: +v }; gearPick = null; },
+  gearpick: (v) => (gearPick = gearPick && gearPick.id === sheet.person && gearPick.slot === v ? null : { id: sheet.person, slot: v }),
+  equip: (v, el) => { equip(+v, +el.dataset.uid); gearPick = null; },
+  unequip: (v, el) => { unequip(+v, el.dataset.slot); gearPick = null; },
+  row: (v) => { const s = byId(+v); s.row = rowOf(s) === "front" ? "back" : "front"; save(); },
   craft: (v) => craft(v),
   brew: () => brew(),
   research: (v) => doResearch(v),
@@ -889,7 +918,6 @@ document.addEventListener("change", (e) => {
   const el = e.target;
   if (el.id === "savepick") { const f = el.files[0]; el.value = ""; if (f) f.text().then(loadCode); return; }
   if (!el.dataset.act) return;
-  if (el.dataset.act === "equip" && el.value) equip(+el.dataset.v, +el.value);
   if (el.dataset.act === "floor") plan.floor = +el.value;
   render();
 });

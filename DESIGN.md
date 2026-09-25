@@ -33,9 +33,13 @@
 - Sites on the overworld: the old mill, a barrow, a mine, a thornwood and a shrine. Each has its
   own foes, loot and a named keeper.
 - No site is ever cleared. The keeper returns every third floor, stronger each time.
-- Travel to a site and back costs days, by distance from the town hall. The walk home eats 1🍞 a
+- Each floor cleared passes a day in town. Travel to a site and back costs days, by distance from the
+  town hall, at least one. The walk home eats 1🍞 a
   day. The game asks once before a step that leaves only enough food for the walk home.
 - Out of food below, every room costs 15% HP and the party fights at half attack.
+- Packed food leaves the village counter as it's packed; what the walk home doesn't eat comes back.
+- The party stands in two lanes under the foes. Walking foes hit the front lane; a melee fighter in
+  the back lane swings at half (marked ½). Tap someone to move them across.
 - Duty rosters (research) sends a party back to their old jobs when they get home.
 - The dead stay on the floor they fell. Each haunts one living person, a witness if any survived:
   scared face, half work, −25% attack, −2 speed, −2 morale a day. The remains show as 🦴 on that
