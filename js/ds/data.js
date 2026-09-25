@@ -62,7 +62,7 @@ const JOBS = {
   cooking: "Cooking",
 };
 
-// Where someone came from before the mill: a birthplace, a trade, what their class made of
+// Where someone came from before Millhollow: a birthplace, a trade, what their class made of
 // them, and why they took the road. One of each, oldest first.
 const PAST = {
   born: ["Born in a fishing village.", "Grew up on a hill farm.", "Raised by an aunt in the city.",
@@ -72,7 +72,7 @@ const PAST = {
     farming: "Worked harvests.", woodcutting: "Felled timber for shipwrights.",
     quarrying: "Cut stone.", herbalism: "Gathered herbs for a healer.",
     smithing: "Worked a smithy's bellows.", healing: "Set bones.",
-    scholarship: "Copied books at a monastery.",
+    scholarship: "Copied books at a monastery.", cooking: "Cooked at an inn.",
   },
   cls: {
     warrior: ["Two winters at a border fort.", "Pit fighter.", "Caravan guard."],

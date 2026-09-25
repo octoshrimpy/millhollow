@@ -238,6 +238,8 @@ function load() {
     for (const k of Object.keys(RESOURCES)) S.res[k] ??= 0;
     if (S.expedition) S.expedition.meals ??= 0;
     for (const e of [...S.log, ...[...S.settlers, S.visitor].filter(Boolean).flatMap((s) => s.story || [])]) e.text = PAST_WAS[e.text] || e.text;
+    // Cooks arrived with no trade line until cooking had one.
+    for (const s of [...S.settlers, S.visitor].filter(Boolean)) for (const e of s.story || []) if (e.kind === "past" && !e.text) e.text = PAST.trade.cooking;
     // People from older saves get a past, drawn from what they were best at.
     for (const s of [...S.settlers, S.visitor].filter(Boolean)) {
       if ((s.story || []).some((e) => e.kind === "past")) continue;
