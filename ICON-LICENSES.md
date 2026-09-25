@@ -1,6 +1,6 @@
 # Icon sets
 
-`js/ds/sprite.js` is built from two upstream sets by `tools/build_icons.py`. Glyphs are not
+`js/ds/sprite.js` is built from Lucide and RPG Awesome by `tools/build_icons.py`. Glyphs are not
 modified beyond extraction; colour comes from the page.
 
 ## Lucide (`lu-` ids)
@@ -19,6 +19,6 @@ Copyright (c) Daniela Howe and Ivan Montiel.
 
 ## GitHub mark (Octicons)
 
-The source link's mark is from Octicons, MIT licensed. Copyright (c) GitHub Inc.
+Inline in `js/ds/ui.js` for the source link. MIT License. Copyright (c) GitHub Inc.
 
 <https://github.com/primer/octicons>
