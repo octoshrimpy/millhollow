@@ -64,6 +64,10 @@
   .menu h3 { margin-top: 0; }
   .menu .pair button { flex: 1; }
   .saves { margin: 0 0 .9em; }
+  .saves .pair button { display: flex; flex-direction: column; align-items: center; gap: .15em; padding: .5em 0; }
+  .saves .pair small, .menu .src small { font-size: .68rem; color: var(--dim); }
+  .menu .src { display: flex; align-items: center; justify-content: center; gap: .4em; margin-top: 1.2em; padding: .4em; color: var(--dim); text-decoration: none; }
+  .menu .src svg { width: 1.1em; height: 1.1em; }
   .saves textarea { width: 100%; box-sizing: border-box; resize: none; font: .75rem/1.3 ui-monospace, monospace; word-break: break-all;
     background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: .5em .6em; margin-bottom: .5em; }
   .saves textarea.nope { border-color: var(--bad); animation: nope .35s; }

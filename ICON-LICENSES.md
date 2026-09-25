@@ -16,3 +16,9 @@ Font licensed under SIL Open Font License 1.1; CSS/SASS under MIT.
 Copyright (c) Daniela Howe and Ivan Montiel.
 
 <https://github.com/nagoshiashumari/Rpg-Awesome>
+
+## GitHub mark (Octicons)
+
+The source link's mark is from Octicons, MIT licensed. Copyright (c) GitHub Inc.
+
+<https://github.com/primer/octicons>
