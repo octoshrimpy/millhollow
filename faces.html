@@ -1,0 +1,110 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Millhollow — every face</title>
+<style>
+  :root {
+    --bg: #14110e; --ink: #d9cbb4; --dim: #8a7c68;
+    --line: #2e2721; --accent: #c08a4e; --card: #1d1814;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 1.2em; background: var(--bg); color: var(--ink);
+    font: 16px/1.4 ui-serif, Georgia, serif;
+  }
+  h1 { font-size: 1.2em; margin: 0 0 .2em; font-weight: normal; }
+  .sub { color: var(--dim); font-size: .8em; margin: 0 0 1.4em; }
+  /* one person per card: four age rows, five mood columns, plus a label gutter */
+  .who {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: .8em; margin-bottom: 1em;
+  }
+  .id {
+    color: var(--accent); font-size: .8em; text-transform: uppercase;
+    letter-spacing: .12em; margin-bottom: .6em;
+  }
+  /* the name leads and the number follows it — the name is what gets spoken */
+  .id b { font-weight: normal; font-size: 1.15em; }
+  .num { color: var(--dim); letter-spacing: .08em; }
+  .grid { display: grid; grid-template-columns: auto repeat(5, 1fr); gap: 4px; align-items: center; }
+  .grid img { width: 100%; display: block; border-radius: 4px; }
+  /* column headings and row labels are the only text — everything else is faces */
+  .head, .age {
+    color: var(--dim); font-size: .62em; text-transform: uppercase; letter-spacing: .08em;
+  }
+  .age { text-align: right; padding-right: .4em; }
+  /* a missing panel shows as a gap with its name, rather than a broken-image icon */
+  img.gone { visibility: hidden; }
+  .cell { position: relative; }
+  .cell.gone::after {
+    content: "missing"; position: absolute; inset: 0; display: grid; place-items: center;
+    font: .55em ui-sans-serif, sans-serif; color: #7a3b3b; border: 1px dashed #4a2a2a; border-radius: 4px;
+  }
+</style>
+
+<h1>Millhollow — every face</h1>
+<p class="sub" id="sub"></p>
+<div id="all"></div>
+
+<script>
+  // Read the counts straight out of the sim rather than restating them, so this
+  // page cannot drift from FACES when more sheets land.
+  const AGES = ["child", "young", "mid", "old"];
+  const MOODS = ["happy", "neutral", "sad", "angry", "scared"];
+
+  // Handles for talking about a face out loud, nothing the game reads. They run
+  // A–Z for ids 1–26 and wrap to a second A–J for 27–36, so a name says roughly
+  // where its card is. Chosen to be distinct from each other by ear — no two
+  // share an opening sound — and distinct from the NAMES pool the sim rolls
+  // villagers from, so "Xanthe" is always a face and never a person in a log.
+  //
+  // Each name matches how its portrait reads. That matters only here: a label
+  // that fights the picture is a label you have to translate before you can use
+  // it. The sim itself still rolls villager names without looking at the face —
+  // these are for pointing at a drawing, not for the game.
+  const FACE_NAMES = [
+    "Aldith", "Bertram", "Cobb", "Damaris", "Edmund", "Fenella", "Godfrey",
+    "Honora", "Innis", "Jasper", "Kester", "Lucian", "Maud", "Nessa",
+    "Osmund", "Prudence", "Quennel", "Rushton", "Silas", "Tobias", "Ulric",
+    "Vernon", "Winifred", "Xanthe", "Yvette", "Zillah",
+    "Ansel", "Bryn", "Clemence", "Dunstan", "Elowen", "Fletcher", "Giselle",
+    "Halloran", "Isolde", "Jerrold",
+  ];
+
+  fetch("js/sim.js").then((r) => r.text()).then((src) => {
+    const faces = +(src.match(/const FACES = (\d+)/) || [, 0])[1];
+    document.getElementById("sub").textContent =
+      `${faces} people, ${AGES.length} ages, ${MOODS.length} moods — ${faces * 20} panels. `
+      + `Names are labels for talking about a face, not names the game uses.`;
+
+    const all = document.getElementById("all");
+    for (let id = 1; id <= faces; id++) {
+      const card = document.createElement("div");
+      card.className = "who";
+      card.id = `face-${id}`;
+      // a face past the end of the name list is still worth showing, just unnamed
+      const nm = FACE_NAMES[id - 1];
+      const head = nm ? `<b>${nm}</b> <span class="num">face ${id}</span>` : `face ${id}`;
+      const cells = [`<div class="id">${head}</div>`, `<div class="grid">`, `<div></div>`];
+      for (const m of MOODS) cells.push(`<div class="head">${m}</div>`);
+      for (const a of AGES) {
+        cells.push(`<div class="age">${a}</div>`);
+        for (const m of MOODS)
+          cells.push(
+            `<div class="cell"><img loading="lazy" alt="face ${id}, ${a}, ${m}"` +
+            ` src="assets/face-${id}-${a}-${m}.webp"></div>`);
+      }
+      cells.push(`</div>`);
+      card.innerHTML = cells.join("");
+      all.append(card);
+    }
+
+    // ponytail: onerror per image instead of a pre-flight HEAD sweep — 720 HEAD
+    // requests to find the zero that are usually missing is the wrong trade
+    all.addEventListener("error", (e) => {
+      if (e.target.tagName !== "IMG") return;
+      e.target.classList.add("gone");
+      e.target.parentElement.classList.add("gone");
+    }, true);
+  });
+</script>

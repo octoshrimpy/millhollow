@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Millhollow</title>
+<style>
+  :root {
+    --bg: #14110e;
+    --ink: #d9cbb4;
+    --dim: #8a7c68;
+    --line: #2e2721;
+    --accent: #c08a4e;
+    --card: #1d1814;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  /* an author display rule beats the UA's [hidden] rule — restate it */
+  [hidden] { display: none !important; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: Georgia, 'Iowan Old Style', serif;
+    font-size: 19px;
+    line-height: 1.6;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  button {
+    font-family: inherit;
+    font-size: 1rem;
+    color: var(--ink);
+    background: transparent;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: .7em 1em;
+    cursor: pointer;
+  }
+  button:active { background: var(--card); }
+  .wrap { max-width: 34em; margin: 0 auto; width: 100%; padding: 0 1em; }
+
+  /* ---------- start ---------- */
+  /* overflow-x, because a leaving candidate slides past the edge */
+  #start { overflow-y: auto; overflow-x: hidden; flex: 1; padding: 2em 0 3em; }
+  #start h1 { font-size: 2em; font-weight: normal; letter-spacing: .04em; margin: 0 0 .2em; }
+  #start p.sub { color: var(--dim); margin: 0 0 2em; }
+  #start h2 { font-size: .8em; text-transform: uppercase; letter-spacing: .14em;
+              color: var(--dim); font-weight: normal; margin: 1.8em 0 .2em; }
+  .hint { color: var(--dim); font-size: .82em; line-height: 1.5; margin: 0 0 .7em; }
+  .pick { width: 100%; text-align: left; }
+  .pick .t { display: block; }
+  .pick .d { display: block; font-size: .78em; color: var(--dim); line-height: 1.4; }
+  /* every rolled field is tappable and says so with the same glyph */
+  .cyc { float: right; color: var(--dim); }
+  /* the two age buttons flank the face and stay put while it changes */
+  #mug { display: flex; align-items: center; justify-content: center; gap: .6em; }
+  #face { display: block; padding: 5px; line-height: 0;
+          border-radius: 14px; position: relative; }
+  #face img { width: 148px; height: 148px; display: block; border-radius: 10px; }
+  #face .cyc { position: absolute; right: .45em; bottom: .3em; float: none;
+               line-height: 1; font-size: 1.1em; color: var(--accent); }
+  .age { flex: 0 0 auto; font-size: 1.3em; line-height: 1; padding: .45em .65em; }
+  .age:disabled { opacity: .25; }
+  #years { text-align: center; color: var(--dim); font-size: .8em;
+           text-transform: uppercase; letter-spacing: .12em; margin: .5em 0 1em; }
+  #again { width: 100%; margin-top: 1.4em; }
+  /* one candidate leaves to the left, the next arrives from the right */
+  #card.out { animation: leave .18s ease-in forwards; }
+  #card.in { animation: arrive .22s ease-out; }
+  @keyframes leave { to { transform: translateX(-115%); opacity: 0; } }
+  @keyframes arrive { from { transform: translateX(115%); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) {
+    #card.out, #card.in { animation: none; }
+  }
+  .me { display: flex; align-items: center; gap: .8em; margin: 0 0 1.2em; }
+  .me img { width: 58px; height: 58px; border-radius: 8px; flex: 0 0 auto; }
+  .me .n { color: var(--accent); font-size: 1.15em; }
+  .me .d { color: var(--dim); font-size: .8em; text-transform: uppercase; letter-spacing: .12em; }
+  #named { display: flex; align-items: stretch; gap: .5em; margin-bottom: .5em; }
+  #named input {
+    flex: 1; min-width: 0;
+    font-family: inherit; font-size: 1.15em; color: var(--ink);
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 10px; padding: .5em .7em;
+  }
+  #named input:focus { outline: none; border-color: var(--accent); }
+  #name-next { flex: 0 0 auto; font-size: 1.2em; padding: .5em .8em; }
+  #begin { width: 100%; margin-top: .6em; border-color: var(--accent); color: var(--accent); }
+
+  /* ---------- game ---------- */
+  #game { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  #log { flex: 1; overflow-y: auto; padding: 1.2em 0 1em; overscroll-behavior: contain; }
+  #log p { margin: 0 0 .9em; }
+  #log .day { color: var(--dim); font-size: .72em; letter-spacing: .18em;
+              text-transform: uppercase; margin: 1.6em 0 .7em; }
+  #log .day:first-child { margin-top: 0; }
+  #log .past { color: var(--dim); font-style: italic; }
+  #log .ask { border: 1px solid var(--line); border-left: 2px solid var(--accent);
+              border-radius: 10px; padding: .8em; margin: 0 0 .9em; background: var(--card); }
+  #log .ask .acts { display: flex; gap: .5em; margin-top: .7em; }
+  #log .ask .acts button { flex: 1; padding: .5em; font-size: .9em; }
+  /* coming-back picks stack, because each one is a whole thing you did and
+     three of them side by side would be three truncated verbs */
+  #log .ask .opts { display: flex; flex-direction: column; gap: .5em; margin-top: .7em; }
+  #log .ask .opts .opt { display: block; width: 100%; text-align: left; padding: .6em .7em; }
+  #log .ask .opts .opt .d { display: block; font-size: .78em; color: var(--dim); line-height: 1.4; }
+
+  #bar { border-top: 1px solid var(--line); background: var(--bg);
+         padding: .7em 0 max(.7em, env(safe-area-inset-bottom)); }
+  #bar .wrap { display: flex; flex-wrap: wrap; gap: .5em; }
+  #bar button { flex: 1; padding: .6em .4em; font-size: .92em; white-space: nowrap; }
+  /* the day is the one that costs something — own row, own colour */
+  #next { flex: 1 0 100%; border-color: var(--accent); color: var(--accent); font-size: 1rem; }
+
+  #sheet { position: fixed; inset: 0; background: rgba(0,0,0,.6);
+           display: flex; align-items: flex-end; justify-content: center; z-index: 5; }
+  #sheet[hidden] { display: none; }
+  #sheet-box { background: var(--card); border-top: 1px solid var(--line);
+               border-radius: 14px 14px 0 0; width: 100%; max-width: 34em;
+               max-height: 82dvh; overflow-y: auto;
+               padding: 1.2em 1em max(1.2em, env(safe-area-inset-bottom)); }
+  #sheet h2 { font-size: .8em; text-transform: uppercase; letter-spacing: .14em;
+              color: var(--dim); font-weight: normal; margin: 0 0 .8em; }
+  #sheet .opt { display: block; width: 100%; text-align: left; margin-bottom: .5em; }
+  #sheet .opt .d { display: block; font-size: .78em; color: var(--dim); line-height: 1.4; }
+  /* a face beside every name, so the village is people and not a table */
+  #sheet .who { border-bottom: 1px solid var(--line); padding: .8em 0;
+                display: flex; gap: .8em; align-items: flex-start; }
+  #sheet .who:last-child { border-bottom: none; }
+  #sheet .who > img { width: 52px; height: 52px; border-radius: 8px; flex: 0 0 auto; }
+  #sheet .who .txt { min-width: 0; }
+  /* grid, not flex — opt() emits name and detail as siblings, and flex would
+     stand them side by side instead of stacking them next to the face */
+  #sheet .opt.mugged { display: grid; grid-template-columns: 40px 1fr;
+                       column-gap: .7em; align-items: center; }
+  #sheet .opt.mugged > img { grid-row: 1 / 3; width: 40px; height: 40px; border-radius: 6px; }
+  #sheet .who .n { color: var(--accent); }
+  #sheet .who .d { font-size: .82em; color: var(--dim); line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<div id="start" hidden>
+  <div class="wrap">
+    <h1>Millhollow</h1>
+    <p class="sub">New village</p>
+
+    <div id="card">
+      <div id="mug">
+        <button id="younger" class="age" title="younger">−</button>
+        <button id="face" title="another face"><img alt=""><span class="cyc">↻</span></button>
+        <button id="older" class="age" title="older">+</button>
+      </div>
+      <p id="years"></p>
+
+      <div id="named">
+        <input id="leader-name" type="text" maxlength="28" autocomplete="off"
+               spellcheck="false" placeholder="your name">
+        <button id="name-next" title="another name">↻</button>
+      </div>
+
+      <button id="bg" class="pick">
+        <span class="cyc">↻</span><span class="t"></span>
+      </button>
+    </div>
+
+    <button id="again">Someone else</button>
+    <button id="begin">Begin</button>
+  </div>
+</div>
+
+<div id="game" hidden>
+  <div id="log"><div class="wrap" id="log-inner"></div></div>
+  <div id="bar"><div class="wrap">
+    <button id="out">Go out</button>
+    <button id="work">Work</button>
+    <button id="who">Village</button>
+    <button id="next">Another day</button>
+  </div></div>
+</div>
+
+<div id="sheet" hidden><div id="sheet-box"></div></div>
+
+<script src="js/sim.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

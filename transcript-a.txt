@@ -1,0 +1,271 @@
+=== Adrel, Surveyor — ranger ===
+
+-- what is remembered --
+  Year 31. Imre left Millhollow and did not send word.
+  Year 26. The water came up over the birch stand and stayed three weeks.
+  Year 21. Tamsin died at the old mill. Wyn kept the marker after.
+  Year 18. Something old was turned up at the quarry cut. Nobody agreed what it was.
+  Year 16. The water came up over the birch stand and stayed three weeks.
+
+-- turn 1 --
+  Adrel walked out to the flooded grove and found boot-prints that aren't ours. [The ground here was worked once. Not recently.]
+  Tovar fished the flooded grove. Hauled in fair fish.
+  That is some skill at fishing for Tovar.
+  Ulla felled timber at the birch stand. Came back with sound cedar. So it was told, anyway.
+  Yannick foraged the flooded grove. Fair roots, and enough of it.
+  That is some skill at foraging for Yannick.
+
+-- turn 2 --
+  Adrel walked out to the cairn field and found boot-prints that aren't ours. [The ground here was worked once. Not recently.]
+  Bellamy dug at the quarry cut. Came back with fair stone. So it was told, anyway.
+  Heard later: Quenna foraged the birch stand. Fair roots, and enough of it.
+  Quenna has some skill at foraging now. Nobody said so directly.
+  Word came back: Yannick fished the flooded grove and brought back nothing. Lost the line on a snag.
+
+-- turn 3 --
+  Bellamy foraged the cairn field and brought back nothing. Too early in the season for any of it.
+  Ulla hauled stone up to the ridge and brought back nothing. Took three trips to do one trip's worth.
+
+-- turn 4 --
+  Tovar hauled stone up to the ridge. Good enough for now. Nobody said so directly.
+  Quenna felled timber at the birch stand. Brought back fair river oak.
+
+-- turn 5 --
+  Adrel walked out to the quarry cut and found old stakes driven in a line. [The ground here was worked once. Not recently.]
+  Heard later: Tovar hauled stone up to the old mill and brought back nothing. Load shifted and went down the bank.
+  Bellamy foraged the birch stand. Hauled in fair roots. Nobody said so directly.
+  Word came back: Bellamy has some skill at foraging now.
+  Quenna felled timber at the birch stand. Came back with sound black alder. So it was told, anyway.
+
+-- turn 6 --
+  Adrel went as far as the cairn field. Turned around at dusk.
+  Tovar mended the walls of the old mill. It holds. Nobody said so directly.
+  Word came back: Ulla felled timber at the birch stand. Brought back fair birch.
+  Yannick hauled stone up to the ridge. Done properly. So it was told, anyway.
+  Ulla spoke of Tovar to Bellamy, and spoke well.
+
+-- turn 7 --
+  Tovar hauled stone up to the old mill and brought back nothing. The path was washed out.
+  Quenna hauled stone up to the old mill and brought back nothing. Load shifted and went down the bank.
+
+-- turn 8 --
+  Tovar foraged the cairn field. Came back with fair roots.
+  Heard later: Bellamy felled timber at the birch stand and brought back nothing. Picked wrong — the whole stand is green yet.
+  Bellamy was hurt felling timber at the birch stand. Nobody said so directly.
+
+-- turn 9 --
+  Bellamy kept to the house.
+  Quenna foraged the cairn field and brought back nothing. Deer had been through ahead.
+  Bellamy spoke of Ulla to Tovar, and spoke well.
+  Tovar wants a smokehouse at the riverbank. It would take 4 log. Doing it rules out the boathouse there, for good. [The ground will take it.]
+
+-- turn 10 --
+  Adrel agreed to a smokehouse. Tovar was told first.
+  A smokehouse stands at the riverbank, raised from fair birch Ulla brought up from the birch stand and sound black alder Quenna brought up from the birch stand, and 2 more like it. The racks take the whole morning catch now. There will be no boathouse here now.
+  Bellamy kept to the house.
+  Quenna foraged the cairn field and brought back nothing. Found plenty and none of it worth eating. Nobody said so directly.
+
+-- turn 11 --
+  Tovar mended the walls of the old mill and brought back nothing. Ran out of pitch halfway.
+  Ulla hauled stone up to the old mill and brought back nothing. The sled broke a runner.
+  Heard later: Yannick fished the riverbank. Fair fish, and enough of it.
+
+-- turn 12 --
+  Tovar fished the flooded grove. Hauled in good fish.
+  Ulla hauled stone up to the ridge. It holds.
+  Quenna hauled stone up to the old mill and brought back nothing. Took three trips to do one trip's worth.
+
+-- turn 13 --
+  Heard later: Tovar hauled stone up to the ridge and brought back nothing. The sled broke a runner.
+  Quenna dug at the quarry cut. Hauled in sound stone.
+
+-- turn 14 --
+  Adrel walked out to the birch stand and found a birch scarred with a mark. [The ground here was worked once. Not recently.]
+  Bellamy foraged the cairn field. Came back with sound roots. So it was told, anyway.
+  Heard later: Bellamy has a fair bit of skill at foraging now.
+  Ulla hauled stone up to the ridge. Good enough for now. Nobody said so directly.
+  Ulla spoke of Bellamy to Tovar, and spoke poorly.
+  Ulla spoke of Tovar to Yannick, and spoke well.
+
+-- turn 15 --
+  Adrel went as far as the birch stand. Turned around at dusk.
+  Bellamy foraged the fen. Hauled in good roots. Nobody said so directly.
+  Word came back: Yannick hauled stone up to the ridge. It holds.
+
+-- turn 16 --
+  Ulla hauled stone up to the old mill and brought back nothing. The sled broke a runner.
+  Quenna spoke of Ulla to Bellamy, and spoke well.
+
+-- turn 17 --
+  Adrel walked the shallows end to end and found nothing worth the walk.
+  Word came back: Bellamy dug at the quarry cut. Brought back fair stone.
+  Ulla fished the shallows. Came back with fair fish.
+  Heard later: Quenna dug at the quarry cut and brought back nothing. Nothing in it but more of the same.
+  Yannick felled timber at the flooded grove. Hauled in fair river oak. Nobody said so directly.
+
+-- turn 18 --
+  Tovar hauled stone up to the old mill and brought back nothing. The path was washed out.
+  Bellamy fished the shallows and brought back nothing. The shallows had been fished out days ago. So it was told, anyway.
+  Heard later: Ulla dug at the quarry cut. Fair stone, and enough of it.
+  Quenna foraged the flooded grove. Hauled in sound roots. Nobody said so directly.
+  Bellamy wants a stone path at the ridge. It would take 4 stone. [The ground will take it.]
+
+-- turn 19 --
+  Adrel agreed to a stone path. Bellamy was told first.
+  A stone path stands at the ridge, raised from fair stone Ulla brought up from the quarry cut and fair stone Bellamy brought up from the quarry cut, and 2 more like it. The climb is an hour shorter in the wet.
+  Adrel walked the shallows end to end and found nothing worth the walk.
+  Word came back: Bellamy foraged the fen. Brought back good roots.
+  Ulla hauled stone up to the ridge. Done properly. So it was told, anyway.
+  Heard later: Quenna dug at the quarry cut and brought back nothing. Hit shale and stopped.
+  Quenna was hurt dug at the quarry cut. Nobody said so directly.
+
+-- turn 20 --
+  Ulla hauled stone up to the old mill. Done properly.
+  Quenna kept to the house.
+
+-- turn 21 --
+  Adrel walked out to the birch stand and found a bend where the water runs wrong. [The ground here was worked once. Not recently.]
+  Bellamy foraged the birch stand. Hauled in good roots.
+  Word came back: Quenna kept to the house.
+  Yannick foraged the flooded grove. Came back with good roots. So it was told, anyway.
+
+-- turn 22 --
+  Adrel went as far as the fen. Turned around at dusk.
+  Tovar hauled stone up to the ridge. It holds. Nobody said so directly.
+  Word came back: Bellamy foraged the flooded grove. Brought back good roots.
+  Ulla felled timber at the flooded grove. Came back with fair birch. So it was told, anyway.
+  Heard later: Quenna foraged the flooded grove. Good roots, and enough of it.
+  Ulla spoke of Yannick to Quenna, and spoke poorly.
+  Quenna spoke of Ulla to Bellamy, and spoke well.
+
+-- turn 23 --
+  Ulla hauled stone up to the ridge and brought back nothing. The path was washed out.
+
+-- turn 24 --
+  Adrel went as far as the birch stand. Turned around at dusk.
+  Bellamy hauled stone up to the old mill and brought back nothing. The sled broke a runner. Nobody said so directly.
+  Word came back: Ulla fished the riverbank and brought back nothing. Lost the line on a snag.
+  Yannick felled timber at the flooded grove and brought back nothing. Picked wrong — the whole stand is green yet. So it was told, anyway.
+  Ulla spoke of Yannick to Bellamy, and spoke poorly.
+
+-- turn 25 --
+  Tovar hauled stone up to the old mill and brought back nothing. The sled broke a runner.
+  Ulla hauled stone up to the old mill and brought back nothing. Load shifted and went down the bank.
+  Yannick foraged the fen. Came back with sound roots.
+  Bellamy spoke of Quenna to Tovar, and spoke poorly.
+  Ulla spoke of Yannick to Quenna, and spoke poorly. That is not what happened.
+
+-- turn 26 --
+  Ulla hauled stone up to the old mill and brought back nothing. Took three trips to do one trip's worth.
+  Quenna felled timber at the birch stand. Came back with fair birch. So it was told, anyway.
+  Heard later: Quenna is getting a feel for carpentry.
+
+-- turn 27 --
+  Adrel walked the riverbank end to end and found nothing worth the walk.
+  Word came back: Ulla hauled stone up to the old mill and brought back nothing. The path was washed out.
+  Ulla was hurt hauling stone up to the old mill. So it was told, anyway.
+  Heard later: Yannick foraged the fen. Good roots, and enough of it.
+  Ulla spoke of Bellamy to Tovar, and spoke well.
+
+-- turn 28 --
+  Ulla kept to the house.
+  Quenna foraged the cairn field and brought back nothing. Picked over already. So it was told, anyway.
+
+-- turn 29 --
+  Adrel went as far as the fen. Turned around at dusk.
+  Tovar hauled stone up to the ridge. Good enough for now. Nobody said so directly.
+  Word came back: That is some skill at hauling for Tovar.
+  Bellamy foraged the birch stand and brought back nothing. Found plenty and none of it worth eating. So it was told, anyway.
+  Heard later: Ulla kept to the house.
+  Yannick fished the riverbank. Hauled in fair fish. Nobody said so directly.
+  Tovar spoke of Ulla to Yannick, and spoke well.
+
+-- turn 30 --
+  Ulla hauled stone up to the ridge and brought back nothing. The path was washed out. So it was told, anyway.
+  Heard later: Ulla was hurt hauling stone up to the ridge.
+  Quenna mended the walls of the old mill. It holds.
+  Quenna spoke of Yannick to Bellamy, and spoke well. That is not what happened.
+  Quenna wants a drying shed at the birch stand. It would take 3 log. [The ground will take it.]
+
+-- turn 31 --
+  Adrel agreed to a drying shed. Quenna was told first.
+  A drying shed stands at the birch stand, raised from fair birch Quenna brought up from the birch stand and fair birch Ulla brought up from the flooded grove, and 1 more like it. Roots keep a month longer than they did.
+  Tovar hauled stone up to the ridge. Done properly.
+  Ulla kept to the house.
+  Heard later: Quenna foraged the cairn field. Good roots, and enough of it.
+  That is a fair bit of skill at foraging for Quenna. Nobody said so directly.
+  Yannick felled timber at the flooded grove. Brought back sound birch.
+  Yannick is getting a feel for carpentry.
+
+-- turn 32 --
+  Tovar hauled stone up to the old mill. Done properly.
+  Ulla kept to the house.
+  Quenna felled timber at the flooded grove. Brought back good birch.
+  Yannick felled timber at the flooded grove and brought back nothing. Rot all the way through the first two.
+  Ulla spoke of Yannick to Bellamy, and spoke well.
+
+-- turn 33 --
+  Tovar mended the walls of the old mill. Good enough for now.
+  Ulla hauled stone up to the ridge. Done properly.
+
+-- turn 34 --
+  Tovar hauled stone up to the ridge. It holds. So it was told, anyway.
+  Ulla fished the flooded grove and brought back nothing. The water was running too quick.
+  Quenna dug at the quarry cut and brought back nothing. Hit shale and stopped.
+  Word came back: Yannick felled timber at the flooded grove. Brought back sound black alder. [The water is lower there than it was last month.]
+
+-- turn 35 --
+  Tovar foraged the birch stand and brought back nothing. Deer had been through ahead. So it was told, anyway.
+  Bellamy dug at the quarry cut. Fair stone, and enough of it.
+  Ulla hauled stone up to the old mill. It holds.
+
+-- turn 36 --
+  Adrel walked out to the riverbank and back. Nothing in it.
+  Tovar foraged the cairn field. Came back with fair roots. So it was told, anyway.
+  Heard later: Ulla felled timber at the birch stand and brought back nothing. Rot all the way through the first two.
+  Ulla was hurt felling timber at the birch stand. Nobody said so directly.
+  Word came back: Quenna hauled stone up to the ridge. Done properly.
+  Quenna has some skill at hauling now. So it was told, anyway.
+
+-- turn 37 --
+  Bellamy foraged the birch stand. Good roots, and enough of it.
+  That is real skill at foraging for Bellamy.
+  Ulla kept to the house.
+  Quenna dug at the quarry cut. Came back with fair stone.
+  Yannick felled timber at the flooded grove. Good cedar, and enough of it.
+  Tovar spoke of Bellamy to Quenna, and spoke well.
+
+-- turn 38 --
+  Adrel walked out to the shallows and found old stakes driven in a line. [The ground here was worked once. Not recently.]
+  Tovar hauled stone up to the ridge. Done properly. So it was told, anyway.
+  Heard later: Tovar has a fair bit of skill at hauling now.
+  Bellamy felled timber at the birch stand. Hauled in fair cedar. Nobody said so directly.
+  Word came back: Ulla kept to the house.
+  Quenna felled timber at the birch stand. Came back with sound cedar. So it was told, anyway.
+  Heard later: Yannick fished the flooded grove. Fair fish, and enough of it.
+  That is some skill at fishing for Yannick. Nobody said so directly.
+  Bellamy wants props for the cut at the quarry cut. It would take 5 log. [The ground will take it.]
+
+-- turn 39 --
+  Yannick fished the shallows and brought back nothing. The water was running too quick.
+  Bellamy spoke of Tovar to Yannick, and spoke well.
+
+-- turn 40 --
+  Adrel said no. Bellamy took it well enough.
+  Adrel walked out to the cairn field and back. Nothing in it.
+  Bellamy foraged the flooded grove. Came back with fine roots. So it was told, anyway.
+  Heard later: Yannick foraged the flooded grove and brought back nothing. Picked over already.
+
+-- who thinks what of whom (turn 40) --
+  Tovar: Bellamy 1.8  Ulla -0.9  Quenna 0.4  Yannick -0.0
+  Bellamy: Tovar 1.8  Ulla -0.6  Quenna -0.7  Yannick 0.4
+  Ulla: Tovar 1.0  Bellamy 2.2  Quenna -1.0  Yannick -0.1
+  Quenna: Tovar 0.3  Bellamy 2.0  Ulla -0.3  Yannick 0.1
+  Yannick: Tovar 2.3  Bellamy 1.8  Ulla -1.5  Quenna 1.0
+
+-- skills --
+  Tovar Fennimore, 45. likes village, dislikes underground. fishing 1, hauling 2
+  Bellamy Quill, 77. likes dark, dislikes village. foraging 3
+  Ulla Ashdown, 46. likes heights, dislikes quiet. no skill worth naming
+  Quenna Quill, 45. likes underground, dislikes river. foraging 2, carpentry 1, hauling 1
+  Yannick Vane, 78. likes cold, dislikes heights. foraging 1, carpentry 1, fishing 1

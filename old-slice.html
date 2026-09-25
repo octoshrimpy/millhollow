@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Millhollow</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header id="resource-bar"></header>
+
+<main id="layout">
+  <section id="gather-panel">
+    <h2>Gather</h2>
+    <div id="minigame-launchers"></div>
+    <div id="net-status"></div>
+  </section>
+
+  <section id="proposals-panel">
+    <h2>Proposals</h2>
+    <div id="proposals-list"></div>
+  </section>
+
+  <section id="villagers-panel">
+    <h2>Villagers</h2>
+    <div id="villagers-list"></div>
+  </section>
+
+  <section id="town-panel">
+    <h2>Milestones</h2>
+    <div id="town-grid"></div>
+  </section>
+
+  <section id="notes-panel">
+    <h2>Town Notes</h2>
+    <div id="town-notes-list"></div>
+  </section>
+</main>
+
+<div id="charter-overlay" class="hidden">
+  <div id="charter-box">
+    <h2>Chart Millhollow's Course</h2>
+    <p>Pick one direction. The other two are gone for good.</p>
+    <div id="charter-list"></div>
+  </div>
+</div>
+
+<div id="minigame-overlay" class="hidden">
+  <div id="minigame-box">
+    <button id="minigame-close">×</button>
+    <canvas id="minigame-canvas" width="320" height="140"></canvas>
+    <div id="minigame-ui"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="js/data.js"></script>
+<script src="js/state.js"></script>
+<script src="js/minigames.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
