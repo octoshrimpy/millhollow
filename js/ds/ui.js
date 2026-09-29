@@ -100,14 +100,14 @@ function viewVillage() {
   const origin = S.hall ?? MID;
   const tile = (i) => {
     const b = S.grid[i];
-    const at = `data-act="plot" data-v="${i}"` + (newLand.includes(i) ? ` style="--d:${dist(i, origin)}"` : "");
+    const at = `data-i="${i}" data-act="plot" data-v="${i}"` + (newLand.includes(i) ? ` style="--d:${dist(i, origin)}"` : "");
     const cls = newLand.includes(i) ? " fresh" : "";
-    if (!S.seen[i]) return `<div class="tile fog"></div>`;
+    if (!S.seen[i]) return `<div class="tile fog" data-i="${i}"></div>`;
     // Untouched land is ground, not a thing: a few small marks with no card around them.
     const t = S.land[i], site = siteAt(i), ico = scatter(i, TERRAIN[t].icon);
     if (site) return `<button class="tile site t-${t}${cls}" ${at}><span class="ico">${SITES[site.kind].icon}</span><small>${esc(site.name)}</small>${site.deepest ? `<span class="lvl">🪜${site.deepest}</span>` : ""}</button>`;
     if (wild(i)) return `<button class="tile wild t-${t}${cls}" ${at}>${ico}</button>`;
-    if (t !== "meadow") return `<div class="tile still t-${t}${cls}"${newLand.includes(i) ? ` style="--d:${dist(i, origin)}"` : ""}>${ico}</div>`;
+    if (t !== "meadow") return `<div class="tile still t-${t}${cls}" data-i="${i}"${newLand.includes(i) ? ` style="--d:${dist(i, origin)}"` : ""}>${ico}</div>`;
     // Before anything else: the town hall's place, pulsing.
     if (!b) return `<button class="tile empty${cls}${S.hall == null ? " found" : ""}" ${at}>${S.hall == null ? "🏛️" : "＋"}</button>`;
     const def = BUILDINGS[b.type], w = b.worker && byId(b.worker);
@@ -334,16 +334,16 @@ function viewForge() {
   }).join("");
   const potion = has("herbalism") ? `<button class="opt" data-act="brew" ${afford(forgeCost(POTION_COST)) ? "" : "disabled"}><span><b>Potion</b> ${costText(forgeCost(POTION_COST))}<br><small>Heals 20 in a fight.</small></span></button>` : "";
   const stash = (S.stash || []).map((g) => `<span class="chip">${esc(g.name)} (${gearText(g)})</span>`).join("") || `<span class="dim">Empty. Equip from People.</span>`;
-  return recipes + potion + `<h4>Stores</h4><div class="row wrap">${stash}</div>`;
+  return `<p class="dim">Staffed forge: 1🪨/day → chance of ore.</p>` + recipes + potion + `<h4>Stores</h4><div class="row wrap">${stash}</div>`;
 }
 
 function viewResearch() {
   const lib = S.grid.some((b) => b && b.type === "library");
   return `<p class="dim">${lib ? "Staffed library: 1🏺 → research per day." : "Needs a library and relics (🏺) from the dungeon."}</p>` +
     Object.entries(RESEARCH).map(([id, r]) => {
-      const locked = r.after && !has(r.after);
-      return `<button class="opt ${has(id) ? "on" : ""}" data-act="research" data-v="${id}" ${has(id) || locked || S.res.research < r.cost ? "disabled" : ""}>
-      <span><b>${r.name}</b> ${has(id) ? "✓" : costText({ research: r.cost })}<br><small>${locked ? `🔒 📜 ${RESEARCH[r.after].name}` : r.desc}</small></span></button>`;
+      const locked = r.after && !has(r.after), repeat = REPEAT_RESEARCH.includes(id), n = tech(id), cost = researchCost(id);
+      return `<button class="opt ${has(id) ? "on" : ""}" data-act="research" data-v="${id}" ${(!repeat && has(id)) || locked || S.res.research < cost ? "disabled" : ""}>
+      <span><b>${r.name}</b> ${has(id) && !repeat ? "✓" : costText({ research: cost })}${repeat && n ? ` <small>lv ${n}</small>` : ""}<br><small>${locked ? `🔒 📜 ${RESEARCH[r.after].name}` : r.desc}</small></span></button>`;
     }).join("");
 }
 
@@ -383,6 +383,8 @@ const ROOM_ICON = { entrance: "🚪", fight: "⚔️", boss: "☠️", treasure:
 
 function viewDungeon() {
   const e = S.expedition, m = e.map, near = neighbours(m.rooms, m.at);
+  const [fx, fy] = m.from.split(",").map(Number), [ax, ay] = m.at.split(",").map(Number);
+  const dir = ax > fx ? "e" : ax < fx ? "w" : ay > fy ? "s" : ay < fy ? "n" : "";
   let cells = "";
   for (let y = 0; y < MAP; y++) for (let x = 0; x < MAP; x++) {
     const k = `${x},${y}`, r = m.rooms[k];
@@ -393,7 +395,7 @@ function viewDungeon() {
     // The dead show from a room away, so they can be carried home.
     const spent = r.done && !r.body && !["entrance", "stairs", "boss"].includes(r.type);
     const mark = r.done && r.type === "boss" ? ROOM_ICON.stairs : ROOM_ICON[r.type];
-    cells += `<button class="room ${here ? "here" : ""} ${r.done ? "done" : ""} ${spent ? "spent" : ""}" data-k="${k}" ${can ? `data-act="move" data-v="${k}"` : "disabled"}>
+    cells += `<button class="room ${here ? "here" : ""} ${m.from === k && !here ? "from" : ""} ${r.done ? "done" : ""} ${spent ? "spent" : ""}" data-k="${k}" ${can ? `data-act="move" data-v="${k}"` : "disabled"}>
       ${here ? "🔦" : r.body ? `<span class="mark">🦴</span>` : show ? `<span class="mark">${mark}</span>` : "?"}</button>`;
   }
   const r = m.rooms[m.at];
@@ -406,11 +408,11 @@ function viewDungeon() {
   } else {
     const down = ["stairs", "boss"].includes(r.type) && r.done;
     panel = `<div class="row wrap">${down ? `<button class="primary" data-act="descend">Down to floor ${m.floor + 1}</button>` : ""}
-      <button data-act="home">Head home (${homeDays()}d, ${homeDays()}🍞)</button></div>`;
+      <button data-act="home">Head home (${homeDays()}d, ${homeFood()}🍞)</button></div>`;
   }
-  return `<div class="row between"><b>${SITES[siteOf().kind].icon} ${esc(siteOf().name)} · ${m.floor}</b><small class="${foodLeft() <= homeDays() ? "short" : ""}">🍞 ${e.rations}${e.meals ? ` 🥪 ${e.meals}` : ""} · 🧪 ${S.res.potions}</small></div>
-    ${formation(e.party.map(byId), true)}
-    <div class="map" style="--w:${MAP}">${cells}</div>
+  return `<div class="row between"><b>${SITES[siteOf().kind].icon} ${esc(siteOf().name)} · ${m.floor}</b><small class="${foodLeft() <= homeFood() ? "short" : ""}">🍞 ${e.rations}${e.meals ? ` 🥪 ${e.meals}` : ""} · 🧪 ${S.res.potions}</small></div>
+    <details class="lineup"><summary>Lineup</summary>${formation(e.party.map(byId), true)}</details>
+    <div class="map move-${dir}" style="--w:${MAP}">${cells}</div>
     <p class="dim small">Carrying: ${loot}</p>${panel}`;
 }
 
@@ -466,7 +468,7 @@ function tickFight() {
   });
   $("#flines").innerHTML = iconize(f.lines.map((l) => `<p>${esc(l)}</p>`).join(""));
   const ctl = f.over
-    ? `<button class="primary wide" data-act="fightdone">${f.over === "won" ? "Victory. Carry on." : f.over === "fled" ? "Fall back" : "It's over"}</button>`
+    ? `<button class="primary wide" data-act="fightdone">${f.over === "won" ? "Victory" : f.over === "fled" ? "Fall back" : "It's over"}</button>`
     : `<button class="primary" data-act="pause">${f.paused ? "▶ Fight" : "⏸ Pause"}</button>
        <button data-act="speed">${f.speed}×</button>
        <button class="danger" data-act="flee">Flee</button>`;
@@ -554,7 +556,8 @@ function playFx(f) {
       box.classList.add("victory");
       const r = box.getBoundingClientRect();
       Juice.float(r.left + r.width / 2, r.top + r.height / 2, "Victory", "banner");
-      for (let i = 0; i < 5; i++) setTimeout(() => Juice.burst(r.left + r.width * (0.1 + 0.2 * i), r.top + 30,
+      const n = f.enemies.some((x) => x.boss) ? 5 : f.enemies.length;
+      for (let i = 0; i < n; i++) setTimeout(() => Juice.burst(r.left + r.width * ((i + 1) / (n + 1)), r.top + 30,
         { n: 26, colors: [...PAL.gold, "#9fe07a", "#b9a4d6"], speed: 240, up: 240, gravity: 520, life: 1.3, size: 4, drag: 0.95 }), i * 90);
     } else if (e.t === "lost") {
       if (!box) continue;
@@ -775,7 +778,7 @@ const ACTS = {
   move: (v) => {
     const e = S.expedition;
     if (e && !e.warned && canMove(v) && onlyEnoughHome()) {
-      if (!confirm(`Food left only covers the walk home (${homeDays()}d). Keep going?`)) return;
+      if (!confirm(`Food left only covers the walk home (${homeDays()}d, ${homeFood()} rations). Keep going?`)) return;
       e.warned = true;
     }
     move(v);
@@ -786,7 +789,7 @@ const ACTS = {
   focus: (v) => { const f = S.expedition.fight; f.focus = f.enemies[+v].hp > 0 ? +v : null; tickFight(); return "keep"; },
   potion: (v) => { usePotion(+v); tickFight(); renderTop(); playFx(S.expedition.fight); return "keep"; },
   pause: () => { const f = S.expedition.fight; f.paused = !f.paused; tickFight(); return "keep"; },
-  speed: () => { const f = S.expedition.fight; f.speed = f.speed >= 3 ? 1 : f.speed + 1; tickFight(); return "keep"; },
+  speed: () => { const f = S.expedition.fight, speeds = [0.5, 1, 2, 3]; f.speed = speeds[(speeds.indexOf(f.speed) + 1) % speeds.length]; tickFight(); return "keep"; },
   flee: () => { flee(S.expedition.fight); tickFight(); playFx(S.expedition.fight); return "keep"; },
   fightdone: () => { endFight(S.expedition.fight.over); fightBuilt = null; },
   // Save import/export works on the open sheet in place, so none of these re-render it.
@@ -872,10 +875,10 @@ function celebrate(b) {
     Juice.pop(document.querySelector("#res .day"), 1.4);
     const v = $("#view");
     v.classList.remove("dawn"); void v.offsetWidth; v.classList.add("dawn");
-    const tiles = document.querySelectorAll(".grid .tile");
     lastYields.forEach(({ i, got }, n) => Object.entries(got).forEach(([k, amt], j) => setTimeout(() => {
-      if (!tiles[i]) return;
-      const p = Juice.center(tiles[i]);
+      const tile = document.querySelector(`.tile[data-i="${i}"]`);
+      if (!tile) return;
+      const p = Juice.center(tile);
       Juice.float(p.x, p.y - 6, `+${Math.round(amt * 10) / 10}${RESOURCES[k].icon}`, "yield");
       Juice.burst(p.x, p.y, { n: 6, colors: PAL.gold, speed: 60, up: 60, gravity: -30, life: 0.6, size: 2 });
     }, 150 + n * 70 + j * 260)));
@@ -883,7 +886,7 @@ function celebrate(b) {
 
   S.grid.forEach((t, i) => {
     if ((t && t.type) === b.grid[i]) return;
-    const el = document.querySelectorAll(".grid .tile")[i];
+    const el = document.querySelector(`.tile[data-i="${i}"]`);
     if (!el) return;
     const p = Juice.center(el);
     Juice.burst(p.x, p.y + 12, { n: 26, colors: PAL.dust, speed: 150, up: 30, gravity: 120, life: 0.8, size: 5 });

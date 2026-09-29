@@ -206,7 +206,8 @@ const siteAt = (i) => S.sites.find((s) => s.i === i);
 const travelDays = (site) => (site.kind === "mill" ? 0 : 2 * Math.ceil(dist(site.i, S.hall ?? MID) / 3));
 
 // How far from the town hall the land is known. Seen land stays seen.
-const sight = () => 2 + has("scouting") + has("surveying") + 2 * has("cartography");
+const tech = (id) => S.research.filter((x) => x === id).length;
+const sight = () => 2 + has("scouting") + tech("surveying") + 2 * tech("cartography");
 let newLand = []; // tiles just revealed, for ui.js to fade in
 function reveal(at, r) {
   S.seen.forEach((v, i) => { if (!v && dist(i, at) <= r) { S.seen[i] = true; newLand.push(i); } });
@@ -476,6 +477,13 @@ function endDay() {
       spent.relics = (spent.relics || 0) + 1;
       take("research", (2 + skill * 0.5) * fedRate(s) * boost);
     }
+    if (b.type === "forge" && S.res.stone > 0) {
+      S.res.stone--;
+      spent.stone = (spent.stone || 0) + 1;
+      const k = Math.min(0.85, 0.35 * eff);
+      const ore = has("starforging") && chance(k / 8) ? "starmetal" : has("silverwork") && chance(k / 3) ? "silver" : chance(k) ? "ore" : null;
+      if (ore) take(ore, 1);
+    }
     // The smokehouse only cooks food nobody at home needs today.
     if (b.type === "smokehouse") {
       const spare = Math.floor((S.res.food - eaters) / 3);
@@ -560,10 +568,12 @@ function welcomeVisitor(yes) {
   save();
 }
 
+const REPEAT_RESEARCH = ["surveying", "cartography"];
+const researchCost = (id) => Math.ceil(RESEARCH[id].cost * (1 + tech(id) * 0.75));
 function doResearch(id) {
   const r = RESEARCH[id];
-  if (has(id) || S.res.research < r.cost || (r.after && !has(r.after))) return;
-  S.res.research -= r.cost;
+  if (!r || (!REPEAT_RESEARCH.includes(id) && has(id)) || S.res.research < researchCost(id) || (r.after && !has(r.after))) return;
+  S.res.research -= researchCost(id);
   S.research.push(id);
   if (S.hall != null) reveal(S.hall, sight());
   log(`Learned ${r.name}.`, "good");
@@ -718,7 +728,7 @@ function onlyEnoughHome() {
   const e = S.expedition;
   const kind = e.rations > 0 ? "food" : e.meals > 0 ? "meals" : null;
   const after = foodLeft() - (kind && e.steps + 1 >= roomsPer(kind) ? 1 : 0);
-  return after <= homeDays();
+  return after <= homeFood();
 }
 
 function move(k) {
@@ -912,28 +922,31 @@ function descend() {
   save();
 }
 
-// Floors pass their days as they're cleared; what's left is the road, at least a day.
-const homeDays = () => Math.max(1, travelDays(siteOf()));
+// Returning climbs back through the dungeon; fractional half-days do not tick town time.
+const homeDays = () => Math.floor(travelDays(siteOf()) + S.expedition.map.floor * 0.5);
+const homeFood = () => homeDays() * partyAlive().length;
 function returnHome() {
   const e = S.expedition;
   if (!e || e.fight || e.event) return;
   const days = homeDays(), party = partyAlive();
+  // The road home eats one packed ration per person per day; short days cost blood.
+  const need = homeFood(), eat = Math.min(e.rations, need), eatMeals = Math.min(e.meals || 0, need - eat), short = need - eat - eatMeals;
+  const foodBack = e.rations - eat, mealsBack = (e.meals || 0) - eatMeals;
+  if (short) party.forEach((s) => (s.hp = Math.max(1, s.hp - Math.ceil(stats(s).hpMax * 0.15 * Math.ceil(short / Math.max(1, party.length))))));
+  passDays(days);
+  S.res.food += foodBack;
+  S.res.meals += mealsBack;
   const brought = Object.entries(e.loot).filter(([, n]) => n).map(([r, n]) => { S.res[r] += n; return `${n}${RESOURCES[r].icon}`; });
   S.stash = (S.stash || []).concat(e.gear);
-  // The road home eats a day's food a day; short days cost blood.
-  const eat = Math.min(e.rations, days), eatMeals = Math.min(e.meals || 0, days - eat), short = days - eat - eatMeals;
-  S.res.food += e.rations - eat;
-  S.res.meals += (e.meals || 0) - eatMeals;
-  if (e.rations - eat) brought.push(`${e.rations - eat}🍞`);
-  if ((e.meals || 0) - eatMeals) brought.push(`${e.meals - eatMeals}🥪`);
-  if (short) party.forEach((s) => (s.hp = Math.max(1, s.hp - Math.ceil(stats(s).hpMax * 0.15 * short))));
+  if (foodBack) brought.push(`${foodBack}🍞`);
+  if (mealsBack) brought.push(`${mealsBack}🥪`);
   S.expedition = null;
   living().forEach((s) => think(s, "home"));
-  log(`Home after ${days}d: ${[...brought, ...e.gear.map((g) => g.name)].join(" ") || "nothing"}.${short ? ` ${short}d without food.` : ""}`, short ? "bad" : "story", party);
+  log(`Home after ${days}d: ${[...brought, ...e.gear.map((g) => g.name)].join(" ") || "nothing"}.${short ? ` ${short} rations short.` : ""}`, short ? "bad" : "story", party);
   S.remains.forEach((r) => { if (r.at === "carried") r.at = "home"; });
   bury();
-  passDays(days);
   if (has("rosters")) backToWork(party);
+  save();
 }
 
 // Remains brought home go into the graveyard, if there is one, and stop haunting those who saw.
