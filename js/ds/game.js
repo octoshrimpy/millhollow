@@ -14,7 +14,7 @@ let lastYields = []; // what each tile made on the most recent day, for ui.js to
 
 // ---------- log ----------
 // `who` are the people it happened to or around; each keeps the line in their own story.
-function log(text, kind = "", who = []) {
+function gameLog(text, kind = "", who = []) {
   S.log.push({ day: S.day, text, kind, n: (S.logN = (S.logN || 0) + 1) });
   if (S.log.length > 300) S.log.shift();
   who.forEach((s) => note(s, { text, kind }));
@@ -119,7 +119,7 @@ function gainXp(s, n) {
     s.level++;
     s.hpMax += 4;
     s.hp += 4;
-    log(`${s.name} is now level ${s.level}.`, "good", [s]);
+    gameLog(`${s.name} is now level ${s.level}.`, "good", [s]);
     think(s, "levelup");
   }
 }
@@ -225,7 +225,7 @@ function newGame() {
   for (const c of ["warrior", "ranger", "cleric", "mystic"]) S.settlers.push(makeSettler(c));
   reveal(MID, 2);
   newLand = [];
-  log(`Arrived: ${S.settlers.map((s) => s.name).join(", ")}.`, "story", S.settlers);
+  gameLog(`Arrived: ${S.settlers.map((s) => s.name).join(", ")}.`, "story", S.settlers);
   save();
 }
 
@@ -349,7 +349,7 @@ function clearLand(i) {
   S.land[i] = "meadow";
   S.cleared++;
   addCost(S.res, t.clear);
-  log(`Cleared ${t.name.toLowerCase()}. ${gainText(t.clear)}`);
+  gameLog(`Cleared ${t.name.toLowerCase()}. ${gainText(t.clear)}`);
   save();
 }
 const gainText = (got) => Object.entries(got).map(([k, v]) => `+${v}${RESOURCES[k].icon}`).join(" ");
@@ -374,8 +374,8 @@ function build(i, type) {
   if (type === "townhall") {
     S.hall = i;
     reveal(i, sight());
-    log("Built the town hall.", "story", living());
-  } else log(`Built ${b.name.toLowerCase()}.`);
+    gameLog("Built the town hall.", "story", living());
+  } else gameLog(`Built ${b.name.toLowerCase()}.`);
   if (type === "graveyard") bury();
   living().filter((s) => !away(s)).forEach((s) => think(s, "built"));
   save();
@@ -392,7 +392,7 @@ function upgrade(i) {
   pay(up.cost);
   b.spent = addCost(b.spent || { ...BUILDINGS[b.type].cost }, up.cost);
   b.type = up.to;
-  log(`Rebuilt as ${BUILDINGS[b.type].name.toLowerCase()}.`, "good");
+  gameLog(`Rebuilt as ${BUILDINGS[b.type].name.toLowerCase()}.`, "good");
   living().filter((s) => !away(s)).forEach((s) => think(s, "built"));
   save();
 }
@@ -412,7 +412,7 @@ function demolish(i) {
   for (const [k, v] of Object.entries(back)) S.res[k] += v;
   S.grid[i] = null;
   const got = Object.entries(back).map(([k, v]) => `+${v}${RESOURCES[k].icon}`).join(" ");
-  log(`Demolished ${BUILDINGS[b.type].name.toLowerCase()}.${got ? ` ${got}` : ""}`);
+  gameLog(`Demolished ${BUILDINGS[b.type].name.toLowerCase()}.${got ? ` ${got}` : ""}`);
   save();
 }
 
@@ -428,7 +428,7 @@ function improve(i) {
   pay(next.cost);
   b.spent = addCost(b.spent || { ...BUILDINGS[b.type].cost }, next.cost);
   b.lvl = (b.lvl || 0) + 1;
-  log(`Improved the ${BUILDINGS[b.type].name.toLowerCase()}. +${Math.round(next.boost * 100)}%`, "good");
+  gameLog(`Improved the ${BUILDINGS[b.type].name.toLowerCase()}. +${Math.round(next.boost * 100)}%`, "good");
   save();
 }
 
@@ -526,20 +526,20 @@ function endDay() {
     if (r.haunts && !byId(r.haunts).dead) continue;
     const l = living();
     r.haunts = l.length ? pick(l).id : null;
-    if (r.haunts) log(`${byId(r.id).name} haunts ${byId(r.haunts).name}.`, "bad", [byId(r.haunts)]);
+    if (r.haunts) gameLog(`${byId(r.id).name} haunts ${byId(r.haunts).name}.`, "bad", [byId(r.haunts)]);
   }
   home.forEach((s) => { if (haunted(s)) think(s, "haunted"); });
   // Too many people for the beds wears everyone down.
   if (living().length > beds()) home.forEach((s) => think(s, "rough"));
 
-  log(`${tally(got, spent) || "No change."}${hungry ? ` ${hungry} went hungry.` : ""}`, hungry ? "bad" : "day");
+  gameLog(`${tally(got, spent) || "No change."}${hungry ? ` ${hungry} went hungry.` : ""}`, hungry ? "bad" : "day");
 
   // A stranger turns up at the gate now and then: never two within a week, rarer when beds are full.
   const since = S.day - (S.lastVisitor ?? -99);
   if (!S.visitor && since >= 7 && chance(living().length < beds() ? 0.12 : 0.05)) {
     S.lastVisitor = S.day;
     S.visitor = makeSettler();
-    log(`${S.visitor.name} (${CLASSES[S.visitor.cls].name.toLowerCase()}) wants to join.`, "story");
+    gameLog(`${S.visitor.name} (${CLASSES[S.visitor.cls].name.toLowerCase()}) wants to join.`, "story");
   }
   S.day++;
 }
@@ -563,8 +563,8 @@ function welcomeVisitor(yes) {
   S.visitor = null;
   if (yes) {
     S.settlers.push(v);
-    log(`${v.name} joined.`, "good", living());
-  } else log(`${v.name} left.`);
+    gameLog(`${v.name} joined.`, "good", living());
+  } else gameLog(`${v.name} left.`);
   save();
 }
 
@@ -576,7 +576,7 @@ function doResearch(id) {
   S.res.research -= researchCost(id);
   S.research.push(id);
   if (S.hall != null) reveal(S.hall, sight());
-  log(`Learned ${r.name}.`, "good");
+  gameLog(`Learned ${r.name}.`, "good");
   save();
 }
 
@@ -593,7 +593,7 @@ function craft(recipeId) {
   S.stash = S.stash || [];
   const { id, cost, needs, ...item } = r;
   S.stash.push({ ...item, uid: nextId++ });
-  log(`Forged: ${r.name}.`);
+  gameLog(`Forged: ${r.name}.`);
   save();
 }
 
@@ -703,7 +703,7 @@ function depart(partyIds, rations, startFloor, meals = 0, siteIdx = 0) {
     party: party.map((s) => s.id), rations, meals, steps: 0, moves: 0,
     loot: {}, gear: [], site: siteIdx, map: genFloor(startFloor, site), fight: null, event: null,
   };
-  log(`Set out for ${site.name}: ${party.map((s) => s.name).join(", ")}, ${rations}🍞${meals ? ` ${meals}🥪` : ""}.`, "story", party);
+  gameLog(`Set out for ${site.name}: ${party.map((s) => s.name).join(", ")}, ${rations}🍞${meals ? ` ${meals}🥪` : ""}.`, "story", party);
   revealAround();
   save();
 }
@@ -745,7 +745,7 @@ function move(k) {
       e.meals--;
       partyAlive().forEach((s) => (s.hp = Math.min(stats(s).hpMax, s.hp + MEAL_HEAL)));
     }
-    if (kind && !e.rations && !e.meals) log("Out of food. The party is starving.", "bad", partyAlive());
+    if (kind && !e.rations && !e.meals) gameLog("Out of food. The party is starving.", "bad", partyAlive());
   }
   // With nothing to eat, every room costs blood, and they fight at half strength.
   if (!kind) partyAlive().forEach((s) => {
@@ -757,7 +757,7 @@ function move(k) {
   if (r.body) {
     const x = S.remains.find((y) => y.id === r.body);
     if (x) x.at = "carried";
-    log(`Floor ${e.map.floor}: found ${byId(r.body).name}'s remains.`, "story", partyAlive());
+    gameLog(`Floor ${e.map.floor}: found ${byId(r.body).name}'s remains.`, "story", partyAlive());
     delete r.body;
   }
   enterRoom();
@@ -773,13 +773,13 @@ function enterRoom() {
   r.done = true;
   if (r.type === "treasure") {
     const got = lootRoll(f, 2);
-    log(`Floor ${f}: stash. ${got}`, "good", partyAlive());
+    gameLog(`Floor ${f}: stash. ${got}`, "good", partyAlive());
   } else if (r.type === "shrine") {
     partyAlive().forEach((s) => (s.hp = Math.min(stats(s).hpMax, s.hp + Math.ceil(stats(s).hpMax * 0.4))));
-    log(`Floor ${f}: shrine. Party healed.`, "good", partyAlive());
+    gameLog(`Floor ${f}: shrine. Party healed.`, "good", partyAlive());
   } else if (r.type === "stairs") {
     reached(f);
-    log(`Floor ${f}: stairs down.`, "story", partyAlive());
+    gameLog(`Floor ${f}: stairs down.`, "story", partyAlive());
   }
 }
 
@@ -831,27 +831,27 @@ function resolveEvent(act) {
     const s = makeSettler();
     s.hp = Math.ceil(s.hpMax / 2);
     S.settlers.push(s);
-    log(`${s.name} (${CLASSES[s.cls].name.toLowerCase()}) joined.`, "good", [s, ...party]);
+    gameLog(`${s.name} (${CLASSES[s.cls].name.toLowerCase()}) joined.`, "good", [s, ...party]);
   } else if (act === "altar") {
     party.forEach((s) => (s.hp = Math.max(1, s.hp - 5)));
     if (chance(0.6)) {
       const n = 2 + rand(2);
       e.loot.relics = (e.loot.relics || 0) + n;
-      log(`Altar: +${n}🏺.`, "good", party);
-    } else log("Altar: nothing.", "bad", party);
+      gameLog(`Altar: +${n}🏺.`, "good", party);
+    } else gameLog("Altar: nothing.", "bad", party);
   } else if (act === "cart") {
-    if (chance(0.35)) { log("Cart: ambush!", "bad", party); return startFight(rollEnemies(f)); }
+    if (chance(0.35)) { gameLog("Cart: ambush!", "bad", party); return startFight(rollEnemies(f)); }
     const ore = f >= ORE_FLOOR.silver && chance(0.5) ? "silver" : "ore";
     const n = 2 + rand(3);
     e.loot[ore] = (e.loot[ore] || 0) + n;
-    log(`Cart: +${n}${RESOURCES[ore].icon}.`, "good", party);
+    gameLog(`Cart: +${n}${RESOURCES[ore].icon}.`, "good", party);
   } else if (act === "mushrooms") {
     e.loot.herbs = (e.loot.herbs || 0) + 3;
-    if (chance(0.3)) { const s = pick(party); s.hp = Math.max(1, s.hp - 6); log(`Mushrooms: +3🌿. ${s.name} poisoned, −6 HP.`, "bad", party); }
-    else log("Mushrooms: +3🌿.", "good", party);
+    if (chance(0.3)) { const s = pick(party); s.hp = Math.max(1, s.hp - 6); gameLog(`Mushrooms: +3🌿. ${s.name} poisoned, −6 HP.`, "bad", party); }
+    else gameLog("Mushrooms: +3🌿.", "good", party);
   } else if (act === "marker") {
     e.loot.relics = (e.loot.relics || 0) + 1;
-    log("Carving: +1🏺.", "story", party);
+    gameLog("Carving: +1🏺.", "story", party);
   }
   save();
 }
@@ -873,7 +873,7 @@ function endFight(won) {
       s.dead = true;
       fell.push(s.id);
       S.remains.push({ id: s.id, site: e.site, floor: f, at: "below" });
-      log(`${s.name} died on floor ${f}.`, "bad", [s, ...living()]);
+      gameLog(`${s.name} died on floor ${f}.`, "bad", [s, ...living()]);
       living().forEach((o) => think(o, "grief"));
     }
   }
@@ -881,11 +881,11 @@ function endFight(won) {
   for (const id of fell) {
     const r = S.remains.find((x) => x.id === id), seen = partyAlive();
     r.haunts = seen.length ? pick(seen).id : null;
-    if (r.haunts) log(`${byId(id).name} haunts ${byId(r.haunts).name}.`, "bad", [byId(r.haunts)]);
+    if (r.haunts) gameLog(`${byId(id).name} haunts ${byId(r.haunts).name}.`, "bad", [byId(r.haunts)]);
   }
   if (!partyAlive().length) {
     S.remains.forEach((r) => { if (r.at === "carried") r.at = "below"; });
-    log("Party wiped out. All loot lost.", "bad", living());
+    gameLog("Party wiped out. All loot lost.", "bad", living());
     S.expedition = null;
     passDays(1);
     return;
@@ -895,17 +895,17 @@ function endFight(won) {
   if (won === "fled") {
     partyAlive().forEach((s) => think(s, "fled"));
     e.map.at = e.map.from;
-    log("Party fled.", "bad", partyAlive());
+    gameLog("Party fled.", "bad", partyAlive());
   } else {
     r.done = true;
     const xp = fight.enemies.reduce((a, en) => a + (en.boss ? 20 : 3), 0) + f;
     partyAlive().forEach((s) => gainXp(s, xp));
     const got = lootRoll(f, fight.enemies.some((x) => x.boss) ? 5 : 1);
-    log(`Floor ${f}: won. ${got}`, "good", partyAlive());
+    gameLog(`Floor ${f}: won. ${got}`, "good", partyAlive());
     if (r.type === "boss") {
       reached(f);
       partyAlive().forEach((s) => think(s, "victory"));
-      log(`Floor ${f}: boss down. Stairs open.`, "story", partyAlive());
+      gameLog(`Floor ${f}: boss down. Stairs open.`, "story", partyAlive());
     }
   }
   save();
@@ -918,7 +918,7 @@ function descend() {
   passDays(1);
   e.map = genFloor(e.map.floor + 1, siteOf());
   revealAround();
-  log(`Down to floor ${e.map.floor}.`, "story", partyAlive());
+  gameLog(`Down to floor ${e.map.floor}.`, "story", partyAlive());
   save();
 }
 
@@ -942,7 +942,7 @@ function returnHome() {
   if (mealsBack) brought.push(`${mealsBack}🥪`);
   S.expedition = null;
   living().forEach((s) => think(s, "home"));
-  log(`Home after ${days}d: ${[...brought, ...e.gear.map((g) => g.name)].join(" ") || "nothing"}.${short ? ` ${short} rations short.` : ""}`, short ? "bad" : "story", party);
+  gameLog(`Home after ${days}d: ${[...brought, ...e.gear.map((g) => g.name)].join(" ") || "nothing"}.${short ? ` ${short} rations short.` : ""}`, short ? "bad" : "story", party);
   S.remains.forEach((r) => { if (r.at === "carried") r.at = "home"; });
   bury();
   if (has("rosters")) backToWork(party);
@@ -957,7 +957,7 @@ function bury() {
   S.remains = S.remains.filter((r) => r.at !== "home");
   const ids = home.map((r) => r.id);
   ids.forEach((id) => (byId(id).buried = true));
-  log(`Buried ${ids.map((id) => byId(id).name).join(", ")}.`, "story", [...ids.map(byId), ...living()]);
+  gameLog(`Buried ${ids.map((id) => byId(id).name).join(", ")}.`, "story", [...ids.map(byId), ...living()]);
 }
 
 // With rosters, people go back to the job they left if it's still there and still open.
