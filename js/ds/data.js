@@ -61,6 +61,11 @@ const JOBS = {
   herbalism: "Herbalism", smithing: "Smithing", healing: "Healing", scholarship: "Scholarship",
   cooking: "Cooking", fishing: "Fishing",
 };
+// What someone who works at it is called.
+const TRADES = {
+  farming: "Farmer", woodcutting: "Woodcutter", quarrying: "Quarrier", herbalism: "Herbalist", smithing: "Smith",
+  healing: "Healer", scholarship: "Scholar", cooking: "Cook", fishing: "Fisher",
+};
 
 // What a trade taught someone to notice. Below, they read these rooms from next door.
 const LENS = {
