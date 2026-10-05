@@ -137,6 +137,8 @@ function why(s) {
   const mine = S.settlers.flatMap((o) => (o.heard || []).filter((x) => x.about === s.id && x.v < 0 && !o.dead));
   if (has("blamed") && mine.length) say("sad", `They say I ${deed(mine[0], -1)}.`);
   const lost = S.settlers.filter((o) => o.dead && !o.buried).pop() || S.settlers.filter((o) => o.dead).pop();
+  if (has("jilted")) say("sad", "I was left at the altar.");
+  if (has("wed") && s.spouse) say("happy", `I married ${name(s.spouse)}.`);
   if (has("grief") && lost) say("sad", `${lost.name} is dead.`);
   if (s.hp < stats(s).hpMax * 0.7) say("sad", "Still hurting.");
   if (has("victory")) say("happy", "We killed the keeper.");
@@ -168,6 +170,7 @@ const THOUGHTS = {
   farwalk:   { name: "Long walk", icon: "👣", mood: "sad", morale: -2, days: 1 },
   brawl:     { name: "Brawl", icon: "👊", mood: "angry", morale: -4, days: 2 },
   made:      { name: "Made something", icon: "✨", mood: "happy", morale: 12, days: 5 },
+  jilted:    { name: "Jilted", icon: "💔", mood: "sad", morale: -15, days: 6 },
   wed:       { name: "Married", icon: "💍", mood: "happy", morale: 15, days: 6 },
   hungover:  { name: "Sore head", icon: "🍖", mood: "sad", morale: -2, days: 1 },
   feast:     { name: "Feast", icon: "🍖", mood: "happy", morale: 10, days: 3 },
@@ -203,7 +206,8 @@ function mood(s) {
 }
 const faceSrc = (s) => `assets/face-${s.face}-${s.age}-${mood(s)}.webp`;
 const living = () => S.settlers.filter((s) => !s.dead);
-const byId = (id) => S.settlers.find((s) => s.id === id);
+// Those who left the village for good are still remembered, and talked about.
+const byId = (id) => S.settlers.find((s) => s.id === id) || (S.gone || []).find((s) => s.id === id);
 
 function gainXp(s, n) {
   s.xp += n;
@@ -583,6 +587,14 @@ function trouble(home) {
     gameLog(`Bandits at the gate.`, "bad", living());
   }
 }
+// Gone for good: off the books, out of work, and their ghosts find someone else.
+function leave(s) {
+  S.settlers = S.settlers.filter((o) => o !== s);
+  (S.gone ||= []).push(s);
+  S.grid.forEach((b) => { if (b && b.worker === s.id) b.worker = null; });
+  s.job = null;
+  S.remains.forEach((r) => { if (r.haunts === s.id) r.haunts = null; });
+}
 function brawl(a, b, lead = "") {
   hurt(a, 0.1, 0.3); hurt(b, 0.15, 0.35);
   think(a, "brawl"); think(b, "brawl");
@@ -621,6 +633,15 @@ function settle(how) {
   if (t.kind === "wedding") {
     const [a, b] = t.pair.map(byId);
     if (a.dead || b.dead) return;
+    // Someone who ran from a wedding once may run from this one, and this time keep going.
+    const ran = [a, b].find((o) => pastHas(o, "Fled a wedding.") && !away(o) && chance(0.3));
+    if (ran) {
+      const left = ran === a ? b : a;
+      leave(ran);
+      think(left, "jilted");
+      (left.heard ||= []).push({ about: ran.id, death: `jilt${ran.id}`, what: [`left ${left.name} at the altar`, `was right to leave ${left.name}`], v: -1, hops: 0, until: fades() });
+      return gameLog(`${ran.name} ran from the wedding and didn't come back.`, "bad", [left]);
+    }
     a.spouse = b.id; b.spouse = a.id;
     note(a, { text: `Married ${b.name}.` }); note(b, { text: `Married ${a.name}.` });
     think(a, "wed"); think(b, "wed");
