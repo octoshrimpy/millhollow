@@ -47,6 +47,11 @@
     mends the worst hurt, a harvester brings in extra, a copyist finds research, a net-mender
     lands fish.
   - Plenty brings talk of a feast: 3🍞 a head, and everyone lets go of one grudge (🍖).
+  - Two content people with no grudge between them may want to marry (💍). They marry either
+    way; 3🍞 a head buys the whole village a wedding.
+  - Half of feasts and weddings bring something else: a brawl (an old grudge if there is one),
+    loose tongues (two rounds of gossip), a stranger drawn by the music, a turned ankle, sore
+    heads in the morning, or a groom or bride who fled a wedding nearly running again.
   - A trader offers relics, ore, silver or potions for 20 of the biggest pile (🛒).
 
 ## Dungeons

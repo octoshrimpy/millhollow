@@ -168,6 +168,8 @@ const THOUGHTS = {
   farwalk:   { name: "Long walk", icon: "👣", mood: "sad", morale: -2, days: 1 },
   brawl:     { name: "Brawl", icon: "👊", mood: "angry", morale: -4, days: 2 },
   made:      { name: "Made something", icon: "✨", mood: "happy", morale: 12, days: 5 },
+  wed:       { name: "Married", icon: "💍", mood: "happy", morale: 15, days: 6 },
+  hungover:  { name: "Sore head", icon: "🍖", mood: "sad", morale: -2, days: 1 },
   feast:     { name: "Feast", icon: "🍖", mood: "happy", morale: 10, days: 3 },
   mended:    { name: "Mended", icon: "🩹", mood: "happy", morale: 4, days: 2 },
   snapped:   { name: "Snapped", icon: "👻", mood: "scared", morale: -15, days: 4 },
@@ -509,12 +511,7 @@ function trouble(home) {
   for (const a of home) {
     const b = home.find((o) => grudge(a, o));
     if (!b || !chance(0.06)) continue;
-    hurt(a, 0.1, 0.3); hurt(b, 0.15, 0.35);
-    think(a, "brawl"); think(b, "brawl");
-    // Whoever came off worst after a brawl reaches for a potion, if the village has one.
-    const sip = [a, b].filter((o) => o.hp < stats(o).hpMax * 0.5 && S.res.potions > 0 && S.res.potions--);
-    sip.forEach((o) => (o.hp = Math.min(stats(o).hpMax, o.hp + 20)));
-    gameLog(`${a.name} went for ${b.name}.${sip.length ? ` ${sip.map((o) => o.name).join(" and ")} drank a potion 🧪.` : ""}`, "bad", [a, b]);
+    brawl(a, b);
     break;
   }
   // Pasts catch up, once each.
@@ -550,6 +547,14 @@ function trouble(home) {
     break;
   }
   if (S.trouble) return;
+  // Two who get on may want to marry; whether the village throws them a wedding is up to you.
+  const free = home.filter((s) => !s.spouse && s.morale >= 60);
+  const match = free.flatMap((a) => free.filter((b) => a.id < b.id && !grudge(a, b) && !grudge(b, a)).map((b) => [a, b]));
+  if (match.length && chance(0.015)) {
+    const [a, b] = pick(match);
+    S.trouble = { kind: "wedding", pair: [a.id, b.id], take: { food: 3 * home.length } };
+    return gameLog(`${a.name} and ${b.name} want to marry.`, "story", [a, b]);
+  }
   // Plenty asks for a feast; a feast softens grudges.
   const plate = 3 * home.length;
   if (home.length > 2 && S.res.food > plate * 4 && chance(0.04)) {
@@ -578,6 +583,33 @@ function trouble(home) {
     gameLog(`Bandits at the gate.`, "bad", living());
   }
 }
+function brawl(a, b, lead = "") {
+  hurt(a, 0.1, 0.3); hurt(b, 0.15, 0.35);
+  think(a, "brawl"); think(b, "brawl");
+  // Whoever came off worst after a brawl reaches for a potion, if the village has one.
+  const sip = [a, b].filter((o) => o.hp < stats(o).hpMax * 0.5 && S.res.potions > 0 && S.res.potions--);
+  sip.forEach((o) => (o.hp = Math.min(stats(o).hpMax, o.hp + 20)));
+  gameLog(`${lead}${a.name} went for ${b.name}.${sip.length ? ` ${sip.map((o) => o.name).join(" and ")} drank a potion 🧪.` : ""}`, "bad", [a, b]);
+}
+// A party rarely goes exactly to plan.
+function revel(home, couple = []) {
+  if (!chance(0.5)) return;
+  const ran = couple.find((s) => pastHas(s, "Fled a wedding."));
+  const grudged = home.flatMap((a) => home.filter((b) => grudge(a, b)).map((b) => [a, b]));
+  const pair = grudged.length ? pick(grudged) : home.length > 1 ? (() => { const a = pick(home); return [a, pick(home.filter((o) => o !== a))]; })() : null;
+  const r = Math.random();
+  if (ran && r < 0.3) { think(ran, "fled"); return gameLog(`${ran.name} nearly ran again.`, "story", couple); }
+  if (pair && r < 0.45) return brawl(pair[0], pair[1], "Drink ran high. ");
+  if (r < 0.65 && home.some((o) => o.heard?.length)) { gameLog(`Tongues loosened.`, "story", home); return gossip(home), gossip(home); }
+  if (r < 0.8 && !S.visitor) {
+    S.visitor = makeSettler();
+    return gameLog(`${S.visitor.name} heard the music and wants to join.`, "story");
+  }
+  if (r < 0.9) { const s = pick(home); hurt(s, 0.1, 0.2); return gameLog(`${s.name} turned an ankle dancing.`, "bad", [s]); }
+  const sore = home.filter(() => chance(0.4));
+  sore.forEach((s) => think(s, "hungover"));
+  if (sore.length) gameLog(`${sore.map((s) => s.name).join(", ")} woke up sore-headed.`, "story", sore);
+}
 // How trouble ends: "yes" pays or gives, "no" refuses or fights, "ignore" lets it happen.
 function settle(how) {
   const t = S.trouble;
@@ -586,6 +618,19 @@ function settle(how) {
   S.trouble = null;
   const grab = (k) => Object.entries(t.take).forEach(([r, n]) => (S.res[r] = Math.max(0, S.res[r] - n * k)));
   const what = Object.entries(t.take).map(([r, n]) => `${n}${RESOURCES[r].icon}`).join(" ");
+  if (t.kind === "wedding") {
+    const [a, b] = t.pair.map(byId);
+    if (a.dead || b.dead) return;
+    a.spouse = b.id; b.spouse = a.id;
+    note(a, { text: `Married ${b.name}.` }); note(b, { text: `Married ${a.name}.` });
+    think(a, "wed"); think(b, "wed");
+    if (how !== "yes" || !afford(t.take)) return gameLog(`${a.name} and ${b.name} married quietly.`, "good", [a, b]);
+    pay(t.take);
+    const home = living().filter((o) => !away(o));
+    home.forEach((o) => think(o, "feast"));
+    gameLog(`${a.name} and ${b.name} married. The whole village came. −${what}`, "good", home);
+    return revel(home, [a, b]);
+  }
   if (t.kind === "feast" || t.kind === "trader") {
     if (how !== "yes" || !afford(t.take)) return t.kind === "trader" && gameLog(`The trader moved on.`);
     pay(t.take);
@@ -593,7 +638,8 @@ function settle(how) {
     const home = living().filter((o) => !away(o));
     // Each person at the table lets go of one grudge.
     home.forEach((o) => { think(o, "feast"); const x = (o.heard || []).find((x) => x.v < 0 && !(x.until <= S.day)); if (x) x.until = S.day; });
-    return gameLog(`Feast. −${what}`, "good", home);
+    gameLog(`Feast. −${what}`, "good", home);
+    return revel(home);
   }
   if (t.kind === "fey") {
     if (how === "yes" && afford(t.take) && !s.dead) {

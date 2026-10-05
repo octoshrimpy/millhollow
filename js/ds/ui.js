@@ -141,12 +141,13 @@ const goods = (c) => Object.entries(c).map(([r, n]) => `${n}${RESOURCES[r].icon}
 function troubleHead(t) {
   const s = t.who && byId(t.who);
   const face = s ? `<img class="mini" src="${faceSrc(s)}" alt=""><b>${esc(s.name)}</b>` : "";
+  if (t.pair) { const [a, b] = t.pair.map(byId); return `<b class="row"><img class="mini" src="${faceSrc(a)}" alt="">${esc(a.name)} 💍 <img class="mini" src="${faceSrc(b)}" alt="">${esc(b.name)}</b>`; }
   return { bandits: `<b>🗡 ×${t.n}</b>`, debt: `${face} 💰`, fey: `${face} ⚒🔒`, feast: `<b>🍖</b>`, trader: `<b>🛒</b>` }[t.kind];
 }
 function sheetTrouble() {
   const t = S.trouble, ok = afford(t.take);
   // Trouble that comes armed can be fought; the rest is yes or no.
-  const no = t.n ? `⚔ ${Math.round(holds(t.n) * 100)}%` : "✕";
+  const no = t.n ? `⚔ ${Math.round(holds(t.n) * 100)}%` : t.pair ? "💍" : "✕";
   const yes = costText(t.take) + (t.give ? ` ❯ ${goods(t.give)}` : t.n ? "" : " ✓");
   return `<div class="arrival"><div class="row center">${troubleHead(t)}</div>
     <div class="row pair"><button data-act="settle" data-v="no">${no}</button><button class="primary" data-act="settle" data-v="yes" ${ok ? "" : "disabled"}>${yes}</button></div></div>`;
