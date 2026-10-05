@@ -263,8 +263,10 @@
   .controls { justify-content: center; }
 
   /* ---------- juice ---------- */
-  button { transition: transform .08s, border-color .2s, background-color .2s; }
+  button { transition: transform .08s, border-color .2s, background-color .2s, color .2s; }
   @media (hover: hover) {
+    /* icon-only buttons go from dim to full ink: lighter on dark themes, darker on light */
+    #menu:hover, #savebtn:hover, button.ghost:not(:disabled):hover, #tabs button:not(.on):hover { color: var(--ink); }
     :where(button:not(:disabled)):hover { border-color: var(--dim); background-color: color-mix(in srgb, var(--ink) 6%, var(--card)); }
     :where(button.primary:not(:disabled)):hover { background-color: color-mix(in srgb, var(--ink) 15%, var(--accent)); }
   }
