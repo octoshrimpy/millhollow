@@ -359,9 +359,27 @@ function newGame() {
   S.land = genLand(S.seed);
   S.sites = genSites(S.seed, S.land);
   nextId = 1;
-  for (const c of ["warrior", "ranger", "cleric", "mystic"]) S.settlers.push(makeSettler(c));
-  reveal(MID, 2);
+  // Six turn up, one of each class and two more; four stay. Nobody's in S.settlers until then.
+  const cls = Object.keys(CLASSES);
+  for (const c of [...cls, pick(cls), pick(cls)].sort(() => Math.random() - 0.5)) S.settlers.push(makeSettler(c));
+  S.recruits = S.settlers;
+  S.settlers = [];
+  // The town hall stands on the meadow nearest the middle.
+  const k = S.land.map((_, i) => i).filter((i) => S.land[i] === "meadow" && !siteAt(i))
+    .sort((a, b) => dist(a, MID) - dist(b, MID))[0] ?? MID;
+  S.land[k] = "meadow";
+  S.grid[k] = { type: "townhall", worker: null, spent: {} };
+  S.hall = k;
+  reveal(k, sight());
   newLand = [];
+  save();
+}
+
+const STARTERS = 4;
+function settleIn(ids) {
+  if (!S.recruits || ids.length !== STARTERS) return;
+  S.settlers = S.recruits.filter((s) => ids.includes(s.id));
+  S.recruits = null;
   gameLog(`Arrived: ${S.settlers.map((s) => s.name).join(", ")}.`, "story", S.settlers);
   save();
 }

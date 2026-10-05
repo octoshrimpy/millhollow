@@ -36,6 +36,12 @@ function render() {
   if (S.expedition) { if (!["dungeon", "people", "log"].includes(tab)) tab = "dungeon"; }
   else if (tab === "dungeon") tab = "village";
   renderTop();
+  document.body.classList.toggle("founding", !!S.recruits);
+  if (S.recruits) {
+    $("#view").innerHTML = iconize(viewRecruits());
+    $("#fight").hidden = true;
+    return;
+  }
   if (!living().length) {
     $("#view").innerHTML = iconize(`<div class="card event"><p>Everyone is dead. Millhollow is empty.</p>
       <p class="dim">${S.day} days. Deepest floor: ${S.deepest}.</p></div>`);
@@ -62,6 +68,18 @@ function render() {
   renderSheet();
   if (S.expedition && S.expedition.fight) renderFight();
   else $("#fight").hidden = true;
+}
+
+// A new game: six at the gate, tap four, ✓ to start.
+let chosen = [];
+function viewRecruits() {
+  chosen = chosen.filter((id) => S.recruits.some((s) => s.id === id));
+  return `<div class="who">` + S.recruits.map((s) => {
+    const t = tradeOf(s), b = Object.values(BUILDINGS).find((x) => x.job === t);
+    return `<button class="${chosen.includes(s.id) ? "on" : ""}" data-act="recruit" data-v="${s.id}">
+      <em><i>${CLASSES[s.cls].icon}</i></em><img src="${faceSrc(s)}" alt="">
+      <b>${esc(s.name)}</b><small class="st">${b ? b.icon : ""} ${JOBS[t]}</small></button>`;
+  }).join("") + `</div><button class="primary wide" data-act="settlein" ${chosen.length === STARTERS ? "" : "disabled"}>✓ ${chosen.length}/${STARTERS}</button>`;
 }
 
 function renderTop() {
@@ -787,6 +805,12 @@ const ACTS = {
   menu: () => (sheet = { menu: true }),
   theme: (v) => { applyTheme(v); },
   newgame: () => (sheet = { menu: true, sure: true }),
+  recruit: (v) => {
+    const id = +v;
+    if (chosen.includes(id)) chosen = chosen.filter((x) => x !== id);
+    else if (chosen.length < STARTERS) chosen.push(id);
+  },
+  settlein: () => { settleIn(chosen); chosen = []; },
   wipe: () => { newGame(); landPos = null; plan = { party: [], rations: 6, meals: 0, floor: 1 }; tab = "village"; sheet = null; knocked = null; },
   plot: (v) => (sheet = { i: +v }),
   close: () => (sheet = null),
