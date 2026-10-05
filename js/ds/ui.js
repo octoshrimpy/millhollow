@@ -166,12 +166,26 @@ function troubleHead(t) {
   if (t.pair) { const [a, b] = t.pair.map(byId); return `<b class="row"><img class="mini" src="${faceSrc(a)}" alt="">${esc(a.name)} 💍 <img class="mini" src="${faceSrc(b)}" alt="">${esc(b.name)}</b>`; }
   return { bandits: `<b>🗡 ×${t.n}</b>`, debt: `${face} 💰`, fey: `${face} ⚒🔒`, feast: `<b>🍖</b>`, trader: `<b>🛒</b>` }[t.kind];
 }
+// What's at stake, said plainly: what they want, and what each answer and doing nothing costs.
+function troubleStakes(t) {
+  const s = t.who && byId(t.who), want = goods(t.take), twice = goods(Object.fromEntries(Object.entries(t.take).map(([r, n]) => [r, 2 * n])));
+  const armed = [`⚔ Lost: they take ${twice}, everyone home hurt.`, `Left till End day: they take ${twice}.`];
+  const lines = {
+    bandits: [`${t.n} bandits want ${want}.`, ...armed],
+    debt: [`Collectors want ${want} for ${s?.name}'s debts.`, ...armed],
+    fey: [`${s?.name} wants ${want}.`, `Given: gear named for their ghost.`, `Refused or left: they smash where they work.`],
+    feast: [`A feast for everyone home: ${want}.`, `Two side by side may let a grudge go.`],
+    wedding: [`They marry either way.`, `${want} buys the whole village a wedding.`],
+    trader: [`${want} for ${goods(t.give || {})}, until End day.`],
+  }[t.kind] || [];
+  return `<div class="stakes">${lines.map((l) => `<p>${esc(l)}</p>`).join("")}</div>`;
+}
 function sheetTrouble() {
   const t = S.trouble, ok = afford(t.take);
   // Trouble that comes armed can be fought; the rest is yes or no.
   const no = t.n ? `⚔ ${Math.round(holds(t.n) * 100)}%` : t.pair ? "💍" : "✕";
   const yes = costText(t.take) + (t.give ? ` ❯ ${goods(t.give)}` : t.n ? "" : " ✓");
-  return `<div class="arrival"><div class="row center">${troubleHead(t)}</div>
+  return `<div class="arrival"><div class="row center">${troubleHead(t)}</div>${troubleStakes(t)}
     <div class="row pair"><button data-act="settle" data-v="no">${no}</button><button class="primary" data-act="settle" data-v="yes" ${ok ? "" : "disabled"}>${yes}</button></div></div>`;
 }
 
@@ -265,6 +279,7 @@ function sheetVisitor() {
     <div>${c.icon} ${c.name}</div>
     <div class="stats">${statLine(st, "❤️" + st.hpMax)}</div>
     <div class="row wrap">${skills}${full ? `<span class="chip bad">🛏️ ${living().length}/${beds()}</span>` : ""}</div>
+    ${blames(v)}
     <div class="row pair"><button data-act="visitor" data-v="0">Turn away</button><button class="primary" data-act="visitor" data-v="1">Accept</button></div>
   </div>`;
 }

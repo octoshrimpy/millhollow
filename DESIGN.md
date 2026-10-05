@@ -36,7 +36,7 @@
 - Each person at home eats 1🍞 a day. A day without food costs 15% HP (never below 1) and halves
   their work, down to a tenth. From the third day without, they may leave for good: 5%, and 5% more each day after. Whoever has gone longest without eats first.
 - Nights bring things, good and bad, grown from the village itself. Choices wait at the gate (a
-  popup, then a button under the map). They reach a party below as well, on the dungeon screen.
+  popup that says what's wanted and what each answer costs, then a button under the map). They reach a party below as well, on the dungeon screen.
   One person can be kept home on watch (👀): they don't work, count double when the gate is
   fought for, and halve the odds of bandits. Taking a job or going below ends the watch.
   Left until the next End day, trouble goes the worse way and a chance goes by; one that turns up
@@ -44,7 +44,8 @@
   - Someone holding a grudge may go for them (👊, both hurt). Anyone left under half drinks a
     potion, but the last two are kept for the dungeon.
   - Full stores draw bandits (🗡): pay a third of the biggest pile, or fight at the odds shown.
-    Ignored, they take twice that. Losing a fight hurts everyone at home and costs the same.
+    Ignored, they take twice that. Losing a fight hurts everyone at home and costs the same twice
+    over.
   - The haunted sometimes shut the forge door and want relics and more. Given, they come out with
     gear named for their ghost (✨). Refused, they smash where they work.
   - Pasts come back: debt collectors (pay or fight), a jilted ex who wants to join and holds a
