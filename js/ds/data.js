@@ -96,8 +96,8 @@ const PAST = {
   road: ["Lost home to fire.", "Came for work.", "Fled debts.", "Wanted quiet.", "Came for the dungeons.",
     "Lost family to winter.", "Fled a wedding.", "Got lost."],
 };
-// Pasts that come back later, for better or worse.
-const PAST_GOOD = new Set(["Learned how to set bones.", "Worked harvests.", "Copied books at a monastery.", "Mended nets."]);
+// Green: a trade line, which gave the skill (some also come back later). Red: pasts that come back badly.
+const PAST_GOOD = new Set(Object.values(PAST.trade));
 const PAST_BAD = new Set(["Burned down a library.", "Fled a wedding.", "Fled debts."]);
 // Older saves carry the wordier versions of these lines.
 const PAST_WAS = {

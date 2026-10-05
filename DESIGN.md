@@ -15,7 +15,7 @@
 
 ## Village
 
-- A new game opens on six people at the gate, one of each class and two more, each card with their past (green: comes back well, red: comes back badly); tap four to keep.
+- A new game opens on six people at the gate, one of each class and two more, each card with their past (green: where their trade came from, red: comes back badly); tap four to keep.
   The town hall already stands on the meadow nearest the middle.
 - The land is generated from the save's seed: hills, mountains, woods, meadow, water, a river
   and ruins, with fog beyond what's known. The land has no edge: it grows outward as more is
