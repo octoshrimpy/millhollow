@@ -79,8 +79,9 @@ function viewRecruits() {
   return `<div class="who">` + S.recruits.map((s) => {
     const t = tradeOf(s), b = Object.values(BUILDINGS).find((x) => x.job === t);
     return `<button class="${chosen.includes(s.id) ? "on" : ""}" data-act="recruit" data-v="${s.id}">
-      <span class="me"><em class="sk">${b ? b.icon : ""}+${s.skills[t]}</em><em class="cl"><i>${CLASSES[s.cls].icon}</i></em><img src="${faceSrc(s)}" alt="">
-      <b>${esc(s.name)}</b><small class="st">${TRADES[t]}</small></span>
+      <span class="me"><img src="${faceSrc(s)}" alt=""><b>${esc(s.name)}</b>
+      <small class="st">${CLASSES[s.cls].icon} ${CLASSES[s.cls].name}</small>
+      <small class="st">${b ? b.icon : ""} ${TRADES[t]} <u>+${s.skills[t]}</u></small></span>
       <span class="past">${s.story.filter((e) => e.kind === "past").map((e) => `<span class="${PAST_GOOD.has(e.text) ? "good" : PAST_BAD.has(e.text) ? "bad" : ""}">${esc(e.text)}</span>`).join("")}</span></button>`;
   }).join("") + `</div><div class="row pair">
     <button class="reroll${cooling ? " cooling" : ""}" data-act="reroll" ${cooling ? `disabled style="--left:${left}ms"` : ""}>🎲 Reroll</button>
