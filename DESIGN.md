@@ -33,6 +33,20 @@
 - Settlers level up, gain skill by working, and carry thoughts that move morale.
 - Each person at home eats 1🍞 a day. A day without food costs 15% HP (never below 1) and halves
   their work, down to a tenth. Whoever has gone longest without eats first.
+- Nights bring things, good and bad, grown from the village itself. Choices wait at the gate (a
+  popup, then a button under the map). Left until the next End day, trouble goes the worse way
+  and a chance goes by.
+  - Someone holding a grudge may go for them (👊, both hurt).
+  - Full stores draw bandits (🗡): pay a third of the biggest pile, or fight at the odds shown.
+    Ignored, they take twice that. Losing a fight hurts everyone at home and costs the same.
+  - The haunted sometimes shut the forge door and want relics and more. Given, they come out with
+    gear named for their ghost (✨). Refused, they smash where they work.
+  - Pasts come back: debt collectors (pay or fight), a jilted ex who wants to join and holds a
+    grudge, a mystic who burned down a library burning down yours. Good ones too: a bonesetter
+    mends the worst hurt, a harvester brings in extra, a copyist finds research, a net-mender
+    lands fish.
+  - Plenty brings talk of a feast: 3🍞 a head, and everyone lets go of one grudge (🍖).
+  - A trader offers relics, ore, silver or potions for 20 of the biggest pile (🛒).
 
 ## Dungeons
 

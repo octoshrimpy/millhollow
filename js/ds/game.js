@@ -76,7 +76,7 @@ const haunted = (s) => !s.dead && !!S.remains && S.remains.some((r) => r.haunts 
 const fades = () => S.day + 10 + rand(30);
 const believes = (s, t) => (s.heard || []).filter((x) => x.about === t.id && !(x.until <= S.day)).reduce((a, x) => a + x.v, 0);
 // What a story says someone did: a death, or the keeper's crown.
-const deed = (x, v) => x.crown ? (v < 0 ? "lost the keeper's crown" : "tried to hold on to the crown")
+const deed = (x, v) => x.what ? x.what[v < 0 ? 0 : 1] : x.crown ? (v < 0 ? "lost the keeper's crown" : "tried to hold on to the crown")
   : v < 0 ? `got ${byId(x.death).name} killed` : `tried to save ${byId(x.death).name}`;
 const grudge = (s, t) => s.id !== t.id && believes(s, t) <= -0.5;
 
@@ -107,7 +107,7 @@ function gossip(home) {
     }
     b.credulity ??= Math.random();
     v *= 0.4 + 0.6 * b.credulity;
-    (b.heard ||= []).push({ about, death: x.death, crown: x.crown, v, hops: x.hops + 1, from: a.id, until: fades() });
+    (b.heard ||= []).push({ about, death: x.death, crown: x.crown, what: x.what, v, hops: x.hops + 1, from: a.id, until: fades() });
     gameLog(`${a.name} told ${b.name}: ${byId(about).name} ${deed(x, v)}.`, "story", [a, b]);
   }
   // A third of the village blaming you wears you down; in a small village one is enough.
@@ -166,6 +166,11 @@ const THOUGHTS = {
   blamed:    { name: "Blamed", icon: "💬", mood: "sad", morale: -4, days: 2 },
   raided:    { name: "Raided", icon: "👁", mood: "scared", morale: -6, days: 2 },
   farwalk:   { name: "Long walk", icon: "👣", mood: "sad", morale: -2, days: 1 },
+  brawl:     { name: "Brawl", icon: "👊", mood: "angry", morale: -4, days: 2 },
+  made:      { name: "Made something", icon: "✨", mood: "happy", morale: 12, days: 5 },
+  feast:     { name: "Feast", icon: "🍖", mood: "happy", morale: 10, days: 3 },
+  mended:    { name: "Mended", icon: "🩹", mood: "happy", morale: 4, days: 2 },
+  snapped:   { name: "Snapped", icon: "👻", mood: "scared", morale: -15, days: 4 },
 };
 const clampMorale = (n) => Math.max(0, Math.min(100, n));
 function think(s, k) {
@@ -486,6 +491,137 @@ function raid() {
     }
   });
 }
+// Nights aren't all quiet. What happens grows out of the village itself: grudges, ghosts, pasts,
+// full stores. Some of it waits on a choice; left until the next End day, trouble goes the worse
+// way and a chance goes by.
+const pastHas = (s, text) => (s.story || []).some((e) => e.kind === "past" && e.text === text);
+const stock = () => ["food", "wood", "stone", "ore", "herbs"].reduce((a, r) => a + S.res[r], 0);
+const hurt = (s, lo, hi) => (s.hp = Math.max(1, s.hp - Math.ceil(stats(s).hpMax * (lo + Math.random() * (hi - lo)))));
+// Odds that whoever's home holds the gate against n attackers.
+const holds = (n) => {
+  const p = living().filter((s) => !away(s)).reduce((a, s) => a + (stats(s).atk + stats(s).def) * s.hp / stats(s).hpMax, 0);
+  return p / (p + n * 7 * (1 + S.day / 80));
+};
+function trouble(home) {
+  const t = S.trouble;
+  if (t) settle(t.kind === "fey" ? "no" : "ignore");
+  // A grudge comes to blows.
+  for (const a of home) {
+    const b = home.find((o) => grudge(a, o));
+    if (!b || !chance(0.06)) continue;
+    hurt(a, 0.1, 0.3); hurt(b, 0.15, 0.35);
+    think(a, "brawl"); think(b, "brawl");
+    gameLog(`${a.name} went for ${b.name}.`, "bad", [a, b]);
+    break;
+  }
+  // Pasts catch up, once each.
+  for (const s of home) {
+    if (s.caught || !chance(0.01)) continue;
+    if (pastHas(s, "Burned down a library.") && S.grid[s.job]?.type === "library") {
+      s.caught = true;
+      S.grid[s.job] = null; s.job = null;
+      S.res.research = Math.floor(S.res.research / 2);
+      gameLog(`${s.name} burned down the library. Again.`, "bad", living());
+    } else if (pastHas(s, "Fled a wedding.") && !S.visitor) {
+      s.caught = true;
+      S.visitor = makeSettler();
+      S.visitor.heard = [{ about: s.id, death: `jilt${s.id}`, what: [`left ${S.visitor.name} at the altar`, `was right to leave ${S.visitor.name}`], v: -1, hops: 0, until: S.day + 999 }];
+      gameLog(`${S.visitor.name} came looking for ${s.name}. Wants to join.`, "story", [s]);
+    } else if (pastHas(s, "Fled debts.") && !S.trouble) {
+      s.caught = true;
+      S.trouble = { kind: "debt", who: s.id, n: 3, take: S.res.silver >= 3 ? { silver: 3 } : { food: 20 } };
+      gameLog(`Collectors at the gate for ${s.name}'s debts.`, "bad", [s]);
+    }
+  }
+  // Old trades turn up when they're needed.
+  for (const s of home) {
+    if (!chance(0.03)) continue;
+    const job = S.grid[s.job]?.type, worst = home.filter((o) => o !== s).sort((a, b) => a.hp / stats(a).hpMax - b.hp / stats(b).hpMax)[0];
+    if (pastHas(s, "Set bones.") && worst && worst.hp < stats(worst).hpMax * 0.6) {
+      worst.hp = stats(worst).hpMax; think(worst, "mended");
+      gameLog(`${s.name} set ${worst.name}'s bones.`, "good", [s, worst]);
+    } else if (pastHas(s, "Worked harvests.") && job === "farm") { add("food", 10); gameLog(`${s.name} brought in a bumper harvest. +10🍞`, "good", [s]); }
+    else if (pastHas(s, "Copied books at a monastery.") && job === "library") { add("research", 3); gameLog(`${s.name} copied out an old text. +3📜`, "good", [s]); }
+    else if (pastHas(s, "Mended nets.") && job === "dock") { add("food", 8); gameLog(`${s.name} mended the nets. +8🍞`, "good", [s]); }
+    else continue;
+    break;
+  }
+  if (S.trouble) return;
+  // Plenty asks for a feast; a feast softens grudges.
+  const plate = 3 * home.length;
+  if (home.length > 2 && S.res.food > plate * 4 && chance(0.04)) {
+    S.trouble = { kind: "feast", take: { food: plate } };
+    return gameLog(`Talk of a feast.`, "story", home);
+  }
+  // A trader wants the village's biggest pile for something it lacks.
+  if (S.day > 8 && chance(0.03)) {
+    const big = ["food", "wood", "stone", "herbs"].sort((a, b) => S.res[b] - S.res[a])[0];
+    const want = pick(["relics", "ore", "silver", "potions"]);
+    if (S.res[big] >= 20) {
+      S.trouble = { kind: "trader", take: { [big]: 20 }, give: { [want]: want === "silver" ? 2 : 3 } };
+      return gameLog(`A trader at the gate.`, "story");
+    }
+  }
+  // The haunted sometimes shut themselves in the forge and want things for whatever they're making.
+  const fey = home.find((s) => haunted(s) && chance(0.03));
+  if (fey && S.grid.some((b) => b && b.type === "forge")) {
+    S.trouble = { kind: "fey", who: fey.id, take: { relics: 1 + rand(2), [pick(["ore", "herbs", "silver"])]: 3 + rand(3) } };
+    return gameLog(`${fey.name} shut the forge door.`, "story", [fey]);
+  }
+  // Full stores draw bandits.
+  if (S.day > 12 && chance(Math.min(0.06, (stock() - 120) / 2500))) {
+    const r = ["food", "wood", "stone", "ore", "herbs"].sort((a, b) => S.res[b] - S.res[a])[0];
+    S.trouble = { kind: "bandits", n: 2 + Math.floor(stock() / 150), take: { [r]: Math.ceil(S.res[r] / 3) } };
+    gameLog(`Bandits at the gate.`, "bad", living());
+  }
+}
+// How trouble ends: "yes" pays or gives, "no" refuses or fights, "ignore" lets it happen.
+function settle(how) {
+  const t = S.trouble;
+  if (!t) return;
+  const s = t.who && byId(t.who);
+  S.trouble = null;
+  const grab = (k) => Object.entries(t.take).forEach(([r, n]) => (S.res[r] = Math.max(0, S.res[r] - n * k)));
+  const what = Object.entries(t.take).map(([r, n]) => `${n}${RESOURCES[r].icon}`).join(" ");
+  if (t.kind === "feast" || t.kind === "trader") {
+    if (how !== "yes" || !afford(t.take)) return t.kind === "trader" && gameLog(`The trader moved on.`);
+    pay(t.take);
+    if (t.kind === "trader") { addCost(S.res, t.give); return gameLog(`Traded ${what} for ${Object.entries(t.give).map(([r, n]) => `${n}${RESOURCES[r].icon}`).join(" ")}.`, "good"); }
+    const home = living().filter((o) => !away(o));
+    // Each person at the table lets go of one grudge.
+    home.forEach((o) => { think(o, "feast"); const x = (o.heard || []).find((x) => x.v < 0 && !(x.until <= S.day)); if (x) x.until = S.day; });
+    return gameLog(`Feast. −${what}`, "good", home);
+  }
+  if (t.kind === "fey") {
+    if (how === "yes" && afford(t.take) && !s.dead) {
+      pay(t.take);
+      const ghost = byId(S.remains.find((x) => x.haunts === s.id)?.id ?? s.id), slot = pick(["weapon", "armor"]);
+      const k = 2 + Math.floor(S.day / 30);
+      const g = slot === "weapon" ? { name: `${ghost.name}'s ${pick(["Lament", "Grief", "Due"])}`, slot, atk: 3 + k, spd: 1 }
+        : { name: `${ghost.name}'s ${pick(["Shroud", "Vigil", "Keepsake"])}`, slot, def: 2 + k, hp: 4 * k };
+      (S.stash ||= []).push({ ...g, uid: nextId++ });
+      think(s, "made");
+      return gameLog(`${s.name} came out of the forge with ${g.name}.`, "good", [s]);
+    }
+    think(s, "snapped");
+    const b = S.grid[s.job];
+    if (b) { gameLog(`${s.name} smashed the ${BUILDINGS[b.type].name.toLowerCase()}.`, "bad", living()); S.grid[s.job] = null; s.job = null; }
+    else gameLog(`${s.name} came out of the forge with nothing.`, "bad", [s]);
+    return;
+  }
+  const who = t.kind === "debt" ? "The collectors" : "The bandits";
+  if (how === "yes") { grab(1); return gameLog(`Paid ${what}. ${who} left.`, "bad"); }
+  if (how === "ignore") { grab(2); return gameLog(`Nobody went to the gate. ${who} took ${what} twice over.`, "bad", living()); }
+  const guard = living().filter((o) => !away(o));
+  if (chance(holds(t.n))) {
+    guard.forEach((o) => { hurt(o, 0.05, 0.25); gainXp(o, t.n * 3); });
+    gameLog(`Drove off ${who.toLowerCase()}.`, "good", guard);
+  } else {
+    guard.forEach((o) => { hurt(o, 0.3, 0.6); think(o, "neardeath"); });
+    grab(2);
+    gameLog(`${who} won at the gate and took ${what} twice over.`, "bad", guard);
+  }
+}
 // Work far from any bed is a long walk each way.
 const commute = (s) => Math.min(...S.grid.map((b, i) => (b && BUILDINGS[b.type].beds ? dist(i, s.job) : Infinity)));
 
@@ -688,6 +824,7 @@ function endDay() {
   if (living().length > beds()) home.forEach((s) => think(s, "rough"));
   home.forEach((s) => { if (s.job != null && commute(s) > 4) think(s, "farwalk"); });
   raid();
+  trouble(home);
 
   gameLog(`${tally(got, spent) || "No change."}${hungry ? ` ${hungry} went hungry.` : ""}`, hungry ? "bad" : "day");
 

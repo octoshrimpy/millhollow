@@ -108,6 +108,7 @@ const ICONS = {
   "❔": ["lu-circle-question-mark", "purple"],
   "🪜": ["lu-door-stairwell", "gray"],
   "🌬": ["mh-windmill", "brown"], "👑": ["lu-crown", "yellow"],
+  "👊": ["lu-hand-fist", "red"], "✨": ["lu-sparkles", "yellow"], "🗡": ["ra-plain-dagger", "red"],
   "🔦": ["ra-torch", "orange"],
 };
 

@@ -6,6 +6,7 @@ const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 let tab = "village";
 let sheet = null; // open modal: { i } for a plot, { visitor: true } for someone at the gate
 let knocked = null; // the visitor whose popup already opened by itself
+let alarmed = null; // the night's trouble whose popup already opened by itself
 let plan = { party: [], rations: 6, meals: 0, floor: 1 };
 
 function faceFor(s, hp, hpMax) {
@@ -46,6 +47,11 @@ function render() {
     sheet = { visitor: true };
   }
   if (sheet && sheet.visitor && !S.visitor) sheet = null;
+  if (S.trouble && S.trouble !== alarmed && tab === "village" && !sheet && !S.expedition) {
+    alarmed = S.trouble;
+    sheet = { trouble: true };
+  }
+  if (sheet && sheet.trouble && !S.trouble) sheet = null;
   const view = { village: viewVillage, people: viewPeople, forge: viewForge, research: viewResearch, expedition: viewExpedition, dungeon: viewDungeon, log: viewLog }[tab];
   $("#view").innerHTML = iconize(view());
   placeLand();
@@ -93,6 +99,8 @@ function viewVillage() {
   // Someone at the gate whose popup was swiped away: tap to see them again.
   const visitor = v ? `<button class="knock" data-act="knock"><img class="mini" src="${faceSrc(v)}" alt="">
     <b>${esc(v.name)}</b> ${CLASSES[v.cls].icon} <span class="dim">❯</span></button>` : "";
+  const t = S.trouble;
+  const alarm = t ? `<button class="knock" data-act="alarm">${troubleHead(t)} <span class="dim">❯</span></button>` : "";
   // Only the known land is drawn, with a ring of fog around it.
   const known = S.seen.map((v, i) => v && xy(i)).filter(Boolean);
   const x0 = Math.max(0, Math.min(...known.map(([x]) => x)) - 1), x1 = Math.min(LAND - 1, Math.max(...known.map(([x]) => x)) + 1);
@@ -125,7 +133,23 @@ function viewVillage() {
     <div class="row between"><span class="row"><span class="housing ${over ? "bad" : ""}">🛏️ ${n}/${beds()}</span>
     ${S.hall != null ? `<button class="small ghost" data-act="center" aria-label="Centre">🎯</button>` : ""}</span>
     <button class="primary" data-act="endday">End day ▸</button></div>
-    ${visitor}`;
+    ${visitor}${alarm}`;
+}
+
+// The night's trouble, or chance: who or what, what it costs, and two ways to answer.
+const goods = (c) => Object.entries(c).map(([r, n]) => `${n}${RESOURCES[r].icon}`).join(" ");
+function troubleHead(t) {
+  const s = t.who && byId(t.who);
+  const face = s ? `<img class="mini" src="${faceSrc(s)}" alt=""><b>${esc(s.name)}</b>` : "";
+  return { bandits: `<b>🗡 ×${t.n}</b>`, debt: `${face} 💰`, fey: `${face} ⚒🔒`, feast: `<b>🍖</b>`, trader: `<b>🛒</b>` }[t.kind];
+}
+function sheetTrouble() {
+  const t = S.trouble, ok = afford(t.take);
+  // Trouble that comes armed can be fought; the rest is yes or no.
+  const no = t.n ? `⚔ ${Math.round(holds(t.n) * 100)}%` : "✕";
+  const yes = costText(t.take) + (t.give ? ` ❯ ${goods(t.give)}` : t.n ? "" : " ✓");
+  return `<div class="arrival"><div class="row center">${troubleHead(t)}</div>
+    <div class="row pair"><button data-act="settle" data-v="no">${no}</button><button class="primary" data-act="settle" data-v="yes" ${ok ? "" : "disabled"}>${yes}</button></div></div>`;
 }
 
 // Three marks at spots of the tile's own, so a stretch of woods doesn't look stamped.
@@ -632,7 +656,7 @@ function renderSheet() {
     box.classList.add("open");
   }
   // A built plot's sheet is one tap (pick a worker) or a tap outside; only the long build list keeps Close.
-  inner.innerHTML = iconize(sheet.menu ? sheetMenu() : sheet.visitor ? sheetVisitor() : sheet.person ? sheetPerson()
+  inner.innerHTML = iconize(sheet.menu ? sheetMenu() : sheet.visitor ? sheetVisitor() : sheet.trouble ? sheetTrouble() : sheet.person ? sheetPerson()
     : sheetPlot(sheet.i) + (S.grid[sheet.i] || wild(sheet.i) ? "" : `<button class="wide" data-act="close">Close</button>`));
 }
 
@@ -766,6 +790,8 @@ const ACTS = {
   endday: () => passDays(1),
   visitor: (v) => { welcomeVisitor(v === "1"); sheet = null; },
   knock: () => (sheet = { visitor: true }),
+  alarm: () => (sheet = { trouble: true }),
+  settle: (v) => { settle(v); save(); sheet = null; },
   person: (v) => { sheet = { person: +v }; gearPick = null; },
   why: () => { sheet.why = !sheet.why; },
   gearpick: (v) => (gearPick = gearPick && gearPick.id === sheet.person && gearPick.slot === v ? null : { id: sheet.person, slot: v }),
