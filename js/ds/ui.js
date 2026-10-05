@@ -939,6 +939,15 @@ function loadCode(text) {
   });
 }
 
+// On the arrival cards the face turns a little toward the pointer.
+const still = matchMedia("(prefers-reduced-motion: reduce)");
+document.addEventListener("pointermove", (e) => {
+  const card = e.target.closest?.(".founding .who button"), img = card?.querySelector("img");
+  document.querySelectorAll(".founding .who img[style]").forEach((o) => { if (o !== img) o.removeAttribute("style"); });
+  if (!img || still.matches) return;
+  const r = card.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
+  img.style.transform = `perspective(300px) rotateY(${x * 24}deg) rotateX(${-y * 24}deg)`;
+});
 document.addEventListener("click", (e) => {
   const el = e.target.closest("[data-act]");
   if (!el || el.tagName === "SELECT" || el.disabled) return;
