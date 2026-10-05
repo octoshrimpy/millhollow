@@ -84,7 +84,7 @@ function viewRecruits() {
       <b>${esc(s.name)}</b><span class="tags"><small>${CLASSES[s.cls].icon} ${CLASSES[s.cls].name}</small><small>${b ? b.icon : ""} ${TRADES[t]} <u>+${s.skills[t]}</u></small></span></button>`;
   }).join("") + `</div><div class="row pair">${(shine = 0, "")}
     <button class="reroll${cooling ? " cooling" : ""}" data-act="reroll" ${cooling ? `disabled style="--left:${left}ms"` : ""}>🎲 Reroll</button>
-    <button class="primary go" data-act="settlein" ${chosen.length === STARTERS ? "" : "disabled"}><i>✓</i> ${chosen.length}/${STARTERS}</button></div>`;
+    <button class="primary go" data-act="settlein" ${chosen.length === STARTERS ? "" : "disabled"}><i>✓</i> ${chosen.length === STARTERS ? "Embark! " : ""}${chosen.length}/${STARTERS}</button></div>`;
 }
 
 function renderTop() {
