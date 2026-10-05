@@ -107,6 +107,8 @@ function step(f, dt) {
   f.heroes.forEach((h, i) => {
     if (h.hp <= 0 || f.over) return;
     h.cd = Math.max(0, h.cd - dt);
+    // Below a quarter, anyone with a potion to hand drinks it.
+    if (h.hp < h.hpMax * 0.25 && S.res.potions > 0) usePotion(i);
     if (h.cd === 0 && wantsSkill(f, h)) useSkill(f, i);
     h.gauge += h.spd * GAUGE_RATE * dt;
     if (h.gauge < 100 || f.over) return;

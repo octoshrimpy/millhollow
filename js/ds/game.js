@@ -511,7 +511,10 @@ function trouble(home) {
     if (!b || !chance(0.06)) continue;
     hurt(a, 0.1, 0.3); hurt(b, 0.15, 0.35);
     think(a, "brawl"); think(b, "brawl");
-    gameLog(`${a.name} went for ${b.name}.`, "bad", [a, b]);
+    // Whoever came off worst after a brawl reaches for a potion, if the village has one.
+    const sip = [a, b].filter((o) => o.hp < stats(o).hpMax * 0.5 && S.res.potions > 0 && S.res.potions--);
+    sip.forEach((o) => (o.hp = Math.min(stats(o).hpMax, o.hp + 20)));
+    gameLog(`${a.name} went for ${b.name}.${sip.length ? ` ${sip.map((o) => o.name).join(" and ")} drank a potion 🧪.` : ""}`, "bad", [a, b]);
     break;
   }
   // Pasts catch up, once each.

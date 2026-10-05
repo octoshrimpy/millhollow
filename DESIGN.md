@@ -36,7 +36,8 @@
 - Nights bring things, good and bad, grown from the village itself. Choices wait at the gate (a
   popup, then a button under the map). Left until the next End day, trouble goes the worse way
   and a chance goes by.
-  - Someone holding a grudge may go for them (👊, both hurt).
+  - Someone holding a grudge may go for them (👊, both hurt). Anyone left under half drinks a
+    potion if the village has one.
   - Full stores draw bandits (🗡): pay a third of the biggest pile, or fight at the odds shown.
     Ignored, they take twice that. Losing a fight hurts everyone at home and costs the same.
   - The haunted sometimes shut the forge door and want relics and more. Given, they come out with
@@ -85,7 +86,7 @@
 - Tap a face to ask why. They answer with their own account, rumours as they believe them and who
   told them, so a story can be traced back through the village. Nothing says which version is true.
 - Floors are random room maps. Fights are real-time auto-battles with pause, speed, potions and
-  retreat. Death is permanent.
+  retreat. A hero under a quarter HP drinks a potion by themselves; tapping 🧪 still drinks one any time. Death is permanent.
 
 ## Names
 
