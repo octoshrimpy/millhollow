@@ -93,6 +93,7 @@ const ICONS = {
   "☠": ["ra-death-skull", "ink"],
   "🌳": ["ra-dead-tree", "brown"],
   "👁": ["ra-eye-monster", "red"],
+  "👀": ["lu-eye", "blue"],
   "🐺": ["ra-wolf-head", "gray"],
   "🕷": ["ra-spider-face", "purple"],
   "👻": ["lu-ghost", "teal"],

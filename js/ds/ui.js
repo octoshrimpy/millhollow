@@ -7,6 +7,8 @@ let tab = "village";
 let sheet = null; // open modal: { i } for a plot, { visitor: true } for someone at the gate
 let knocked = null; // the visitor whose popup already opened by itself
 let alarmed = null; // the night's trouble whose popup already opened by itself
+// Ask the browser not to clear the save when it tidies up storage (Safari does after a week away).
+navigator.storage?.persist?.().catch(() => {});
 let plan = { party: [], rations: 6, meals: 0, floor: 1 };
 
 function faceFor(s, hp, hpMax) {
@@ -69,6 +71,7 @@ function renderTop() {
     .filter(([k]) => S.res[k] > 0 || k === "food" || k === "wood")
     .map(([k, r]) => `<span title="${r.name}" data-k="${k}" class="${packing[k] ? "packed" : ""}">${r.icon}${S.res[k] - (packing[k] || 0)}</span>`).join(""));
   $("#menu").innerHTML = iconize("⚙");
+  $("#savebtn").innerHTML = iconize("💾");
   const log = ["log", "Log", "📖"];
   const tabs = S.expedition ? [["dungeon", "Dungeon", "🪜"], ["people", "People", "👥"], log]
     : [["village", "Village", "🏘"], ["people", "People", "👥"], ["forge", "Forge", "⚒"], ["research", "Research", "📚"], log, ["expedition", "Expedition", "🧭"]];
@@ -266,7 +269,7 @@ function settlerCard(s) {
     </div></div>`;
 }
 // Where they are: the building they work, the dungeon, or nothing when idle.
-const jobText = (s) => below(s) ? "🪜" : s.wander?.seen ? "👣" : s.job != null && S.grid[s.job] ? BUILDINGS[S.grid[s.job].type].icon : "";
+const jobText = (s) => below(s) ? "🪜" : s.wander?.seen ? "👣" : guard() === s ? "👀" : s.job != null && S.grid[s.job] ? BUILDINGS[S.grid[s.job].type].icon : "";
 const moraleFace = (s) => `<span title="Morale">${s.morale >= 75 ? "😄" : s.morale >= 50 ? "🙂" : s.morale >= 30 ? "😐" : "😠"} ${s.morale}</span>`;
 
 // Two slots. Tapping one opens what the stores hold for it, each with how it changes the stats.
@@ -344,7 +347,8 @@ function sheetPerson() {
     ${s.dead ? `<img class="face" src="${faceSrc(s)}" alt="">` : `<button class="ask" data-act="why" aria-label="Why?"><img class="face" src="${faceSrc(s)}" alt=""></button>`}
     ${sheet.why && !s.dead ? `<p class="said">“${esc(why(s))}”</p>` : ""}
     <h3>${esc(s.name)}</h3>
-    <div>${c.icon} ${c.name} · lv ${s.level}${jobText(s) ? ` · ${jobText(s)}` : ""}</div>
+    <div class="row center">${c.icon} ${c.name} · lv ${s.level}${jobText(s) && guard() !== s ? ` · ${jobText(s)}` : ""}
+    ${s.dead || away(s) ? "" : `<button class="small ${guard() === s ? "on" : "ghost"}" data-act="guard" aria-label="Guard">👀</button>`}</div>
     ${s.dead ? restText(s) : ""}
     ${s.dead ? "" : `<div class="hpline">${bar(s.hp, st.hpMax, "hp")}</div>
     <div class="stats">${statLine(st, `❤️${s.hp}/${st.hpMax}`)}</div>
@@ -796,6 +800,7 @@ const ACTS = {
   settle: (v) => { settle(v); save(); sheet = null; },
   person: (v) => { sheet = { person: +v }; gearPick = null; },
   why: () => { sheet.why = !sheet.why; },
+  guard: () => setGuard(sheet.person),
   gearpick: (v) => (gearPick = gearPick && gearPick.id === sheet.person && gearPick.slot === v ? null : { id: sheet.person, slot: v }),
   equip: (v, el) => { equip(+v, +el.dataset.uid); gearPick = null; },
   unequip: (v, el) => { unequip(+v, el.dataset.slot); gearPick = null; },

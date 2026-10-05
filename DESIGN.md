@@ -35,6 +35,8 @@
   their work, down to a tenth. Whoever has gone longest without eats first.
 - Nights bring things, good and bad, grown from the village itself. Choices wait at the gate (a
   popup, then a button under the map). They reach a party below as well, on the dungeon screen.
+  One person can be kept home on watch (👀): they don't work, count double when the gate is
+  fought for, and halve the odds of bandits. Taking a job or going below ends the watch.
   Left until the next End day, trouble goes the worse way and a chance goes by; one that turns up
   partway through days on the road waits to be answered.
   - Someone holding a grudge may go for them (👊, both hurt). Anyone left under half drinks a
@@ -98,6 +100,12 @@
   told them, so a story can be traced back through the village. Nothing says which version is true.
 - Floors are random room maps. Fights are real-time auto-battles with pause, speed, potions and
   retreat. A hero under a quarter HP drinks a potion by themselves; tapping 🧪 still drinks one any time. Death is permanent.
+
+## Saves
+
+The save lives in the browser, which is asked to keep it (`navigator.storage.persist`) so Safari
+doesn't clear it after a week away. 💾 beside the gear downloads it as a file; the gear menu
+copies, opens and loads it as a code.
 
 ## Names
 

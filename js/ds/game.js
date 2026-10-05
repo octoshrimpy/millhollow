@@ -505,9 +505,18 @@ function raid() {
 const pastHas = (s, text) => (s.story || []).some((e) => e.kind === "past" && e.text === text);
 const stock = () => ["food", "wood", "stone", "ore", "herbs"].reduce((a, r) => a + S.res[r], 0);
 const hurt = (s, lo, hi) => (s.hp = Math.max(1, s.hp - Math.ceil(stats(s).hpMax * (lo + Math.random() * (hi - lo)))));
-// Odds that whoever's home holds the gate against n attackers.
+// Someone kept home on watch instead of working. Going below or taking a job ends it.
+const guard = () => { const g = S.guard && byId(S.guard); return g && !g.dead && !away(g) && g.job == null ? g : null; };
+function setGuard(id) {
+  const s = byId(id);
+  if (!s || s.dead || away(s)) return;
+  if (S.guard === id) S.guard = null;
+  else { if (s.job != null && S.grid[s.job]) S.grid[s.job].worker = null; s.job = null; S.guard = id; }
+  save();
+}
+// Odds that whoever's home holds the gate against n attackers. A guard counts twice.
 const holds = (n) => {
-  const p = living().filter((s) => !away(s)).reduce((a, s) => a + (stats(s).atk + stats(s).def) * s.hp / stats(s).hpMax, 0);
+  const p = living().filter((s) => !away(s)).reduce((a, s) => a + (s === guard() ? 2 : 1) * (stats(s).atk + stats(s).def) * s.hp / stats(s).hpMax, 0);
   return p / (p + n * 7 * (1 + S.day / 80));
 };
 function trouble(home, hold) {
@@ -599,7 +608,7 @@ function trouble(home, hold) {
     return gameLog(`${fey.name} shut the forge door.`, "story", [fey]);
   }
   // Full stores draw bandits.
-  if (S.day > 12 && chance(Math.min(0.06, (stock() - 120) / 2500))) {
+  if (S.day > 12 && chance(Math.min(0.06, (stock() - 120) / 2500) * (guard() ? 0.5 : 1))) {
     const r = ["food", "wood", "stone", "ore", "herbs"].sort((a, b) => S.res[b] - S.res[a])[0];
     S.trouble = { kind: "bandits", n: 2 + Math.floor(stock() / 150), take: { [r]: Math.ceil(S.res[r] / 3) } };
     gameLog(`Bandits at the gate.`, "bad", living());
@@ -836,6 +845,7 @@ function assign(i, settlerId) {
     if (s.job != null && S.grid[s.job]) S.grid[s.job].worker = null;
     s.job = i;
     b.worker = s.id;
+    if (S.guard === s.id) S.guard = null;
   }
   save();
 }
