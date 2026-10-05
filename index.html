@@ -279,13 +279,15 @@
     background: conic-gradient(from var(--a), transparent, var(--g) 30deg, transparent 60deg);
     mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
   }
-  /* portraits get a ring just outside the picture that brightens and fades */
-  img.face, img.mini, .who img { outline: 2px solid var(--g); outline-offset: 1px; }
   @media (hover: hover) {
     .who button:hover::after, .tile:not(.wild):not(.still):not(.fog):hover::after, .room:not(:disabled):hover::after { animation: sheen .9s ease-in-out; }
-    img.face:hover, img.mini:hover, .who button:hover img { animation: ring .9s ease-in-out; }
+    img.face:hover, img.mini:hover, .who button:hover img { animation: gleam .8s ease-in-out; }
   }
-  @keyframes ring { 30% { --g: color-mix(in srgb, var(--ink) 60%, transparent); } }
+  /* a light band crosses a portrait: brightened, and held back everywhere but the band */
+  @keyframes gleam {
+    from { filter: var(--face-filter) brightness(1.45); mask-image: linear-gradient(115deg, #000b 42%, #000 50%, #000b 58%); mask-size: 300% 100%; mask-position: 100% 0; }
+    to { filter: var(--face-filter) brightness(1.45); mask-image: linear-gradient(115deg, #000b 42%, #000 50%, #000b 58%); mask-size: 300% 100%; mask-position: 0 0; }
+  }
   @keyframes sheen { from { --a: 195deg; --g: color-mix(in srgb, var(--ink) 75%, transparent); } 85% { --g: color-mix(in srgb, var(--ink) 75%, transparent); } to { --a: 465deg; --g: transparent; } }
   .tile:not(.empty):hover, .room:not(:disabled):hover { border-color: var(--dim); }
   #fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 25; }
