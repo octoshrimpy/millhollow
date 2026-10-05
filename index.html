@@ -160,15 +160,17 @@
   .who .st.free { color: var(--good); }
   .who .st.here { color: var(--accent); }
   .founding .who { grid-template-columns: repeat(auto-fill, minmax(19em, 1fr)); }
-  .founding .who button { flex-direction: row; align-items: flex-start; gap: .9em; padding: .7em .9em; text-align: left; }
-  .who .me { position: relative; flex: none; width: 9em; display: flex; flex-direction: column; align-items: center; gap: .15em; }
+  .founding .who button { display: grid; grid-template-columns: auto 1fr; grid-template-rows: 1fr auto; gap: .3em .9em; padding: .7em .9em; text-align: left; }
+  .who .me { grid-row: span 2; display: flex; flex-direction: column; align-items: center; gap: .15em; }
+  .founding .who .me img { width: 96px; height: 96px; }
   .who .past .good { color: var(--good); } .who .past .bad { color: var(--bad); }
   .reroll .i { margin-right: .35em; }
   .founding .go { margin-left: auto; }
   .founding .go i { font-style: normal; }
   .founding .go:disabled { background: none; border-color: transparent; color: var(--ink); opacity: 1; }
   .founding .go:disabled i { visibility: hidden; }
-  .who .me u { text-decoration: none; color: var(--accent); font-weight: bold; }
+  .who .tags { display: flex; justify-content: space-between; gap: .5em; font-size: .85rem; color: var(--ink); }
+  .who .tags u { text-decoration: none; color: var(--accent); font-weight: bold; }
   .who .past { min-width: 0; display: flex; flex-direction: column; gap: .3em; padding-top: .2em; font-size: .8rem; line-height: 1.35; color: var(--dim); }
   .who button.on { background: color-mix(in srgb, var(--accent) 14%, var(--card)); box-shadow: 0 0 0 2px var(--accent) inset; }
   .opt:disabled { opacity: .6; } .opt:disabled .bad { font-weight: bold; }
