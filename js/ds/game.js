@@ -375,6 +375,16 @@ function newGame() {
   save();
 }
 
+// New faces for everyone not yet picked.
+function reroll(keep) {
+  if (!S.recruits) return;
+  S.settlers = S.recruits.filter((s) => keep.includes(s.id)); // so names don't repeat
+  while (S.settlers.length < 6) S.settlers.push(makeSettler());
+  S.recruits = S.settlers;
+  S.settlers = [];
+  save();
+}
+
 const STARTERS = 4;
 function settleIn(ids) {
   if (!S.recruits || ids.length !== STARTERS) return;

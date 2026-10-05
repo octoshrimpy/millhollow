@@ -40,6 +40,7 @@ function render() {
   if (S.recruits) {
     $("#view").innerHTML = iconize(viewRecruits());
     $("#fight").hidden = true;
+    renderSheet();
     return;
   }
   if (!living().length) {
@@ -71,15 +72,18 @@ function render() {
 }
 
 // A new game: six at the gate, tap four, ✓ to start.
-let chosen = [];
+let chosen = [], cooled = 0; // a reroll needs 3s before the next, shown filling the button
 function viewRecruits() {
   chosen = chosen.filter((id) => S.recruits.some((s) => s.id === id));
+  const left = cooled - Date.now(), cooling = left > 0;
   return `<div class="who">` + S.recruits.map((s) => {
     const t = tradeOf(s), b = Object.values(BUILDINGS).find((x) => x.job === t);
     return `<button class="${chosen.includes(s.id) ? "on" : ""}" data-act="recruit" data-v="${s.id}">
       <em><i>${CLASSES[s.cls].icon}</i></em><img src="${faceSrc(s)}" alt="">
       <b>${esc(s.name)}</b><small class="st">${b ? b.icon : ""} ${JOBS[t]}</small></button>`;
-  }).join("") + `</div><button class="primary wide" data-act="settlein" ${chosen.length === STARTERS ? "" : "disabled"}>✓ ${chosen.length}/${STARTERS}</button>`;
+  }).join("") + `</div><div class="row pair">
+    <button class="reroll${cooling ? " cooling" : ""}" data-act="reroll" ${cooling ? `disabled style="--left:${left}ms"` : ""}>🎲</button>
+    <button class="primary" data-act="settlein" ${chosen.length === STARTERS ? "" : "disabled"}>✓ ${chosen.length}/${STARTERS}</button></div>`;
 }
 
 function renderTop() {
@@ -680,8 +684,8 @@ function sheetMenu() {
       <button data-act="saveopen">📂<small>Open file</small></button><button data-act="saveload">📥<small>Load</small></button>
     </div><input id="savepick" type="file" accept=".txt,.json,text/plain,application/json" hidden></div>`;
   return `<div class="menu"><div class="themes">${THEMES.map(swatch).join("")}</div>${saves}` + (sheet.sure
-    ? `<div class="row pair"><button data-act="close">Keep playing</button><button class="danger" data-act="wipe">Delete save</button></div>`
-    : `<button class="danger wide" data-act="newgame">New game</button>`)
+    ? `<div class="row pair"><button data-act="close">Keep playing</button><button class="danger" data-act="wipe" ${S.recruits ? "disabled" : ""}>Delete save</button></div>`
+    : `<button class="danger wide" data-act="newgame" ${S.recruits ? "disabled" : ""}>New game</button>`)
     + (installer ? `<button class="wide install" data-act="install">📲 Install</button>` : "") + `<a class="src" href="https://github.com/octoshrimpy/millhollow" target="_blank" rel="noopener">${GITHUB_MARK}<small>Source</small></a></div>`;
 }
 
@@ -824,6 +828,12 @@ const ACTS = {
     const id = +v;
     if (chosen.includes(id)) chosen = chosen.filter((x) => x !== id);
     else if (chosen.length < STARTERS) chosen.push(id);
+  },
+  reroll: () => {
+    if (cooled > Date.now()) return "keep";
+    reroll(chosen);
+    cooled = Date.now() + 3000;
+    setTimeout(() => { if (S.recruits) render(); }, 3000);
   },
   settlein: () => { settleIn(chosen); chosen = []; },
   wipe: () => { newGame(); landPos = null; plan = { party: [], rations: 6, meals: 0, floor: 1 }; tab = "village"; sheet = null; knocked = null; },
