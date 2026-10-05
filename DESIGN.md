@@ -37,10 +37,12 @@
 ## Dungeons
 
 - Sites on the overworld: the old mill, a barrow, a mine, a thornwood and a shrine. Each has its
-  own foes, loot and a named keeper.
+  own foes, loot and a named keeper. As the land grows, new sites turn up in it, about one per 200
+  new tiles; the further out, the longer the walk.
 - No site is ever cleared. The keeper returns every third floor, stronger each time.
 - Beat a keeper on floor 3 or deeper and the party takes their crown (👑). Carried home, it widens
   the ward by a ring; the next crown has to come from 3 floors deeper (6, 9, 12…). A wipe loses it.
+  One of the party carries it; fleeing a fight drops it half the time, and the rest blame the carrier.
 - Foes grow steadily with depth until about floor 10, then compound: +15% a floor. The way-down
   button shows 💀 once the next floor is past that point, one more 💀 for each doubling.
 - Heading home climbs back through every floor of the trip. Each one rolls once for an ambush,

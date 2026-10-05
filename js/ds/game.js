@@ -75,6 +75,9 @@ const haunted = (s) => !s.dead && !!S.remains && S.remains.some((r) => r.haunts 
 // A story fades from someone after a while of its own; hearing it again brings it back.
 const fades = () => S.day + 10 + rand(30);
 const believes = (s, t) => (s.heard || []).filter((x) => x.about === t.id && !(x.until <= S.day)).reduce((a, x) => a + x.v, 0);
+// What a story says someone did: a death, or the keeper's crown.
+const deed = (x, v) => x.crown ? (v < 0 ? "lost the keeper's crown" : "tried to hold on to the crown")
+  : v < 0 ? `got ${byId(x.death).name} killed` : `tried to save ${byId(x.death).name}`;
 const grudge = (s, t) => s.id !== t.id && believes(s, t) <= -0.5;
 
 // Whoever stood in the same lane and walked out least hurt takes the blame.
@@ -104,9 +107,8 @@ function gossip(home) {
     }
     b.credulity ??= Math.random();
     v *= 0.4 + 0.6 * b.credulity;
-    (b.heard ||= []).push({ about, death: x.death, v, hops: x.hops + 1, from: a.id, until: fades() });
-    const t = byId(about), d = byId(x.death);
-    gameLog(`${a.name} told ${b.name}: ${t.name} ${v < 0 ? "got" : "tried to save"} ${d.name}${v < 0 ? " killed" : ""}.`, "story", [a, b]);
+    (b.heard ||= []).push({ about, death: x.death, crown: x.crown, v, hops: x.hops + 1, from: a.id, until: fades() });
+    gameLog(`${a.name} told ${b.name}: ${byId(about).name} ${deed(x, v)}.`, "story", [a, b]);
   }
   // A third of the village blaming you wears you down; in a small village one is enough.
   home.forEach((t) => { if (home.filter((o) => grudge(o, t)).length >= Math.max(1, Math.ceil((home.length - 1) / 3))) think(t, "blamed"); });
@@ -126,14 +128,14 @@ function why(s) {
   if (has("fled")) say("scared", "We ran.");
   for (const t of living()) {
     const xs = (s.heard || []).filter((x) => x.about === t.id).sort((a, b) => a.v - b.v);
-    if (grudge(s, t)) say("angry", `${t.name} got ${name(xs[0].death)} killed. ${told(xs[0])}`);
-    else if (xs.length && xs[xs.length - 1].v > 0) say("happy", `${t.name} tried to save ${name(xs[xs.length - 1].death)}. ${told(xs[xs.length - 1])}`);
+    if (grudge(s, t)) say("angry", `${t.name} ${deed(xs[0], -1)}. ${told(xs[0])}`);
+    else if (xs.length && xs[xs.length - 1].v > 0) say("happy", `${t.name} ${deed(xs[xs.length - 1], 1)}. ${told(xs[xs.length - 1])}`);
   }
   if (has("hungry") || has("starving")) say("angry", "I haven't eaten.");
   if (has("rough")) say("angry", "There's no bed for me.");
   if (s.morale < 30) say("angry", "I've had enough of this place.");
   const mine = S.settlers.flatMap((o) => (o.heard || []).filter((x) => x.about === s.id && x.v < 0 && !o.dead));
-  if (has("blamed") && mine.length) say("sad", `They say I got ${name(mine[0].death)} killed.`);
+  if (has("blamed") && mine.length) say("sad", `They say I ${deed(mine[0], -1)}.`);
   const lost = S.settlers.filter((o) => o.dead && !o.buried).pop() || S.settlers.filter((o) => o.dead).pop();
   if (has("grief") && lost) say("sad", `${lost.name} is dead.`);
   if (s.hp < stats(s).hpMax * 0.7) say("sad", "Still hurting.");
@@ -291,23 +293,35 @@ function grow(pad = 8) {
   newLand = newLand.map(to);
   setLand(S.size = n);
   S.land = genLand(S.seed).map((t, i) => kept[i] ?? t);
+  // New land brings new sites: about one per 200 new tiles, apart from the old ones.
+  const rng = seeded(S.seed ^ n), fresh = S.land.map((_, j) => j).filter((j) => kept[j] == null);
+  for (let k = Math.round(fresh.length / 200); k > 0; k--) {
+    const kind = ["barrow", "mine", "thornwood", "shrine"][Math.floor(rng() * 4)];
+    const i = siteSpot(kind, fresh, S.land, S.grid, S.sites, 4, rng);
+    if (i != null) S.sites.push(makeSite(kind, i, rng));
+  }
+}
+const siteSpot = (kind, from, land, grid, sites, gap, rng) => {
+  const d = SITES[kind], free = from.filter((j) => !grid[j] && land[j] !== "water" && land[j] !== "mountain" && sites.every((s) => dist(s.i, j) >= gap));
+  const fits = free.filter((j) => d.on.includes(land[j]) && (!d.by || around(j).some((k) => d.by.includes(land[k]))));
+  const xs = fits.length ? fits : free;
+  return xs.length ? xs[Math.floor(rng() * xs.length)] : null;
+};
+function makeSite(kind, i, rng) {
+  const d = SITES[kind], pickR = (xs) => xs[Math.floor(rng() * xs.length)];
+  const who = () => makeName(rng() < 0.5 ? "f" : "m", new Set(), rng);
+  const name = rng() < 0.5 ? `${who()}'s ${pickR(d.nouns)}` : `The ${pickR(d.adj)} ${pickR(d.nouns)}`;
+  return { kind, i, name, boss: `${who()} the ${pickR(d.epithet)}`, deepest: 0 };
 }
 // The mill sits by the clearing; the other sites lie further out, each on its own kind of land,
 // named by the world's seed.
 function genSites(seed, land, grid = []) {
   const rng = seeded(seed ^ 0x5173), pickR = (xs) => xs[Math.floor(rng() * xs.length)];
   const all = land.map((_, j) => j), sites = [];
-  const free = (j) => !grid[j] && land[j] !== "water" && land[j] !== "mountain" && sites.every((s) => dist(s.i, j) >= 3);
   const millAt = all.filter((j) => !grid[j] && land[j] === "meadow" && dist(j, MID) >= 1 && dist(j, MID) <= 2).sort((a, b) => dist(a, MID) - dist(b, MID));
   sites.push({ kind: "mill", i: millAt.length ? pickR(millAt.filter((j) => dist(j, MID) === dist(millAt[0], MID))) : MID + 1, name: SITES.mill.name, deepest: 0 });
-  for (const kind of ["barrow", "mine", "thornwood", "shrine"]) {
-    const d = SITES[kind], out = (j) => dist(j, MID) >= 3 && dist(j, MID) <= 6 && free(j);
-    const fits = all.filter((j) => out(j) && d.on.includes(land[j]) && (!d.by || around(j).some((k) => d.by.includes(land[k]))));
-    const i = pickR(fits.length ? fits : all.filter(out));
-    const who = () => makeName(rng() < 0.5 ? "f" : "m", new Set(), rng);
-    const name = rng() < 0.5 ? `${who()}'s ${pickR(d.nouns)}` : `The ${pickR(d.adj)} ${pickR(d.nouns)}`;
-    sites.push({ kind, i, name, boss: `${who()} the ${pickR(d.epithet)}`, deepest: 0 });
-  }
+  const ring = all.filter((j) => dist(j, MID) >= 3 && dist(j, MID) <= 6);
+  for (const kind of ["barrow", "mine", "thornwood", "shrine"]) sites.push(makeSite(kind, siteSpot(kind, ring, land, grid, sites, 3, rng), rng));
   return sites;
 }
 const siteAt = (i) => S.sites.find((s) => s.i === i);
@@ -1047,6 +1061,13 @@ function endFight(won) {
   }
   // Walking out of a fight on almost nothing stays with you.
   partyAlive().forEach((s) => { if (s.hp < stats(s).hpMax * 0.3) think(s, "neardeath"); });
+  // Running with the crown can drop it; whoever carried it takes the blame.
+  if (won === "fled" && e.crown && chance(0.5)) {
+    const by = partyAlive().find((s) => s.id === e.crownBy) || pick(partyAlive());
+    e.crown = null;
+    gameLog(`${by.name} dropped the keeper's crown 👑 running.`, "bad", partyAlive());
+    for (const w of partyAlive()) if (w !== by) (w.heard ||= []).push({ about: by.id, death: `crown${S.day}`, crown: true, v: -1, hops: 0, until: fades() });
+  }
   if (e.homing) {
     if (won === "fled") partyAlive().forEach((s) => think(s, "fled"));
     else partyAlive().forEach((s) => gainXp(s, fight.enemies.length * 3));
@@ -1068,6 +1089,7 @@ function endFight(won) {
       gameLog(`Floor ${f}: boss down. Stairs open.`, "story", partyAlive());
       if (f >= crownFloor() && !(e.crown >= f)) {
         e.crown = f;
+        e.crownBy = pick(partyAlive()).id;
         gameLog(`Floor ${f}: took the keeper's crown 👑.`, "good", partyAlive());
       }
     }
