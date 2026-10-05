@@ -524,6 +524,7 @@ setInterval(() => {
 }, 100);
 
 // ---------- fight juice ----------
+const EGG_FLOOR = 6;
 const elFor = (u) => document.querySelectorAll(u.side === "h" ? ".hero" : ".foe")[u.idx];
 
 function playFx(f) {
@@ -595,8 +596,12 @@ function playFx(f) {
       // Bigger the upset, bigger the party: odds from the start, and more again for a keeper or a deep floor.
       const heat = Math.min(4, Math.max(0.15, f.odds) * (f.enemies.some((x) => x.boss) ? 1.6 : 1) * (1 + 0.04 * (S.expedition.map.floor - 1)));
       const r = box.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-      const ms = 1200 + 900 * heat, big = Juice.float(cx, cy, "Victory", "banner", ms);
-      if (big) big.style.fontSize = `${1.4 + 0.6 * heat}rem`;
+      const ms = 1200 + 900 * heat, deep = f.enemies.some((x) => x.boss) && S.expedition.map.floor >= EGG_FLOOR;
+      // Easter egg: now and then a deep keeper's fall gets the old solitaire send-off.
+      if (!(deep && chance(0.02) && Juice.solitaire("Victory", cx, cy))) {
+        const big = Juice.float(cx, cy, "Victory", "banner", ms);
+        if (big) big.style.fontSize = `${1.4 + 0.6 * heat}rem`;
+      }
       const n = Math.max(1, Math.round(1 + 2 * heat)), waves = heat > 1.5 ? 3 : heat > 0.7 ? 2 : 1;
       for (let w = 0; w < waves; w++) for (let i = 0; i < n; i++) setTimeout(() => Juice.burst(r.left + r.width * ((i + 1) / (n + 1)), r.top + 30,
         { n: Math.round(8 + 10 * heat), colors: [...PAL.gold, "#9fe07a", "#b9a4d6"], speed: 160 + 60 * heat, up: 160 + 80 * heat, gravity: 520, life: 1 + 0.3 * heat, size: 3 + heat / 2, drag: 0.95 }), w * 500 + i * 90);

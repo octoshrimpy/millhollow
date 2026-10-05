@@ -160,7 +160,44 @@ const Juice = (() => {
     setTimeout(() => v.remove(), calm ? 400 : 1300);
   }
 
-  return { center, burst, shot, float, shake, lunge, pop, toast, veil };
+  // The old solitaire win: copies of the word thrown off one after another, bouncing along the
+  // floor and never wiped, so each leaves a smear of itself behind. On its own canvas, untouchable.
+  function solitaire(text, x, y) {
+    if (calm || !ctx) return false;
+    const c = document.createElement("canvas"), g = c.getContext("2d");
+    c.style.cssText = "position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:24;transition:opacity 1s";
+    c.width = innerWidth * dpr; c.height = innerHeight * dpr;
+    g.scale(dpr, dpr);
+    g.font = "bold 40px Georgia, serif";
+    g.textAlign = "center"; g.textBaseline = "middle"; g.lineWidth = 3;
+    const w = g.measureText(text).width, h = 40, cards = [];
+    let thrown = 0, prev = performance.now();
+    const throwOne = () => {
+      const dir = thrown++ % 2 ? -1 : 1;
+      cards.push({ x, y, vx: dir * (120 + Math.random() * 160), vy: -150 - Math.random() * 250 });
+      if (thrown < 6) setTimeout(throwOne, 700);
+    };
+    throwOne();
+    const tick = (now) => {
+      const dt = Math.min(0.05, (now - prev) / 1000);
+      prev = now;
+      for (const k of cards) {
+        k.vy += 900 * dt; k.x += k.vx * dt; k.y += k.vy * dt;
+        if (k.y > innerHeight - h / 2) { k.y = innerHeight - h / 2; k.vy *= -0.82; }
+        k.out = k.x < -w || k.x > innerWidth + w;
+        if (k.out) continue;
+        g.strokeStyle = "#3a2a10"; g.fillStyle = "#ffe08a";
+        g.strokeText(text, k.x, k.y); g.fillText(text, k.x, k.y);
+      }
+      if (thrown < 6 || cards.some((k) => !k.out)) return requestAnimationFrame(tick);
+      setTimeout(() => { c.style.opacity = 0; setTimeout(() => c.remove(), 1000); }, 1500);
+    };
+    document.body.append(c);
+    requestAnimationFrame(tick);
+    return true;
+  }
+
+  return { center, burst, shot, float, solitaire, shake, lunge, pop, toast, veil };
 })();
 
 const PAL = {
