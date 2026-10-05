@@ -49,8 +49,12 @@ function makeSettler(cls) {
   s.story = pastOf(s, trade);
   return s;
 }
-const pastOf = (s, trade) => [pick(PAST.born), PAST.trade[trade], pick(PAST.cls[s.cls]), pick(PAST.road)]
-  .map((text) => ({ text, kind: "past" }));
+// The trade could have been picked up at any point in a life, so its line lands anywhere.
+const pastOf = (s, trade) => {
+  const lines = [pick(PAST.born), pick(PAST.cls[s.cls]), pick(PAST.road)];
+  lines.splice(rand(4), 0, PAST.trade[trade]);
+  return lines.map((text) => ({ text, kind: "past" }));
+};
 
 function stats(s) {
   const c = CLASSES[s.cls];
