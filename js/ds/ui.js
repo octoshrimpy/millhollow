@@ -84,7 +84,7 @@ function viewRecruits() {
       <span class="past">${s.story.filter((e) => e.kind === "past").map((e) => `<span class="${PAST_GOOD.has(e.text) ? "good" : PAST_BAD.has(e.text) ? "bad" : ""}">${esc(e.text)}</span>`).join("")}</span></button>`;
   }).join("") + `</div><div class="row pair">
     <button class="reroll${cooling ? " cooling" : ""}" data-act="reroll" ${cooling ? `disabled style="--left:${left}ms"` : ""}>🎲 Reroll</button>
-    ${chosen.length === STARTERS ? `<button class="primary go" data-act="settlein">✓ ${STARTERS}/${STARTERS}</button>` : `<span class="go">${chosen.length}/${STARTERS}</span>`}</div>`;
+    <button class="primary go" data-act="settlein" ${chosen.length === STARTERS ? "" : "disabled"}><i>✓</i> ${chosen.length}/${STARTERS}</button></div>`;
 }
 
 function renderTop() {
