@@ -6,6 +6,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.WindowInsets;
+import android.widget.FrameLayout;
 import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -67,8 +68,12 @@ public class MainActivity extends Activity {
         return true;
       }
     });
-    // Keep the page clear of the status and navigation bars.
-    web.setOnApplyWindowInsetsListener((v, in) -> {
+    // Keep the page clear of the status and navigation bars. A WebView ignores its own padding,
+    // so the frame around it takes the insets.
+    FrameLayout frame = new FrameLayout(this);
+    frame.setBackgroundColor(0xff14110e);
+    frame.addView(web);
+    frame.setOnApplyWindowInsetsListener((v, in) -> {
       if (Build.VERSION.SDK_INT >= 30) {
         android.graphics.Insets i = in.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.ime());
         v.setPadding(i.left, i.top, i.right, i.bottom);
@@ -77,7 +82,7 @@ public class MainActivity extends Activity {
       }
       return in;
     });
-    setContentView(web);
+    setContentView(frame);
     if (state != null) web.restoreState(state);
     else web.loadUrl("https://" + HOST + "/index.html");
   }
