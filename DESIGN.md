@@ -32,7 +32,7 @@
   crafting and brewing costs instead (−20%, −33%, −44%).
 - Settlers level up, gain skill by working, and carry thoughts that move morale.
 - Each person at home eats 1🍞 a day. A day without food costs 15% HP (never below 1) and halves
-  their work, down to a tenth. Whoever has gone longest without eats first.
+  their work, down to a tenth. From the third day without, they may leave for good: 5%, and 5% more each day after. Whoever has gone longest without eats first.
 - Nights bring things, good and bad, grown from the village itself. Choices wait at the gate (a
   popup, then a button under the map). They reach a party below as well, on the dungeon screen.
   One person can be kept home on watch (👀): they don't work, count double when the gate is

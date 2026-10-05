@@ -537,6 +537,12 @@ function trouble(home, hold) {
     else if (r < 0.35) { add("relics", 1); gameLog(`${s.name} came back with a relic from who knows where. +1🏺`, "good", [s]); }
     else { hurt(s, 0.1, 0.3); think(s, "hungover"); gameLog(`${s.name} came back, muddy and sore.`, "story", [s]); }
   }
+  // Three days hungry and people start looking elsewhere: 5% the third day, 5% more each day after.
+  for (const s of home.filter((o) => o.unfed >= 3)) {
+    if (!chance(0.05 * (s.unfed - 2))) continue;
+    leave(s);
+    gameLog(`${s.name} left to find food elsewhere.`, "bad", living());
+  }
   if (t && !hold) settle(t.kind === "fey" ? "no" : "ignore");
   // A grudge comes to blows.
   for (const a of home) {
