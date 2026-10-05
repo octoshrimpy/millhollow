@@ -34,7 +34,10 @@ function note(s, entry) {
 // ---------- settlers ----------
 let nextId = 1;
 function makeSettler(cls) {
-  const face = 1 + rand(FACES);
+  // Nobody shares a face with anyone in the village or at the gate, until all of them are used.
+  const used = new Set(S ? [...S.settlers, S.visitor].filter(Boolean).map((s) => s.face) : []);
+  const free = Array.from({ length: FACES }, (_, i) => i + 1).filter((f) => !used.has(f));
+  const face = free.length ? pick(free) : 1 + rand(FACES);
   const taken = new Set(S ? S.settlers.map((s) => s.name) : []);
   const c = CLASSES[cls || pick(Object.keys(CLASSES))];
   const s = {
