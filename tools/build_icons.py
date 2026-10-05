@@ -73,6 +73,10 @@ CUSTOM = {
     # a cut log lying on its side: ring-marked end face, bark body
     "mh-log": '<ellipse cx="6" cy="12" rx="3" ry="6"/><circle cx="6" cy="12" r="1.2"/>'
               '<path d="M6 6h12a3 6 0 0 1 0 12H6"/><path d="M11 9.5h4M13 14.5h3"/>',
+    # a windmill: tapered tower and door, four sails crossed at the hub
+    "mh-windmill": '<path d="M9 22l1.5-10h3L15 22"/><path d="M6 22h12"/><path d="M12 22v-3"/>'
+                   '<circle cx="12" cy="9" r="1"/><path d="M11.3 8.3L5 2l-2 2 6.5 4.5M12.7 8.3L19 2l2 2-6.5 4.5'
+                   'M11.3 9.7L5 16l-2-2 6.5-4.5M12.7 9.7L19 16l2-2-6.5-4.5"/>',
 }
 
 

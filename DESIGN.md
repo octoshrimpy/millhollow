@@ -16,7 +16,13 @@
 ## Village
 
 - The land is generated from the save's seed: hills, mountains, woods, meadow, water, a river
-  and ruins, on a 17×17 grid with fog beyond the town hall's sight.
+  and ruins, with fog beyond what's known. The land has no edge: it grows outward as more is
+  seen, the same land for the same seed. The town hall's sight reveals it, and clearing or
+  building reveals one ring around that tile.
+- The town hall wards 3 rings around it. Land past the ward is greyed and contested: each night,
+  a building out there may be raided, with odds rising 3% per ring past the ward (at most 50%).
+  A worker on site is hurt and drives it off (👁); an unwatched building is wrecked.
+- Work more than 4 tiles from any bed is a long walk (👣).
 - Untouched land is flat ground. Buildings and sites are raised cards. Open meadow is a dashed
   slot, the only place to build. Woods, hills and ruins clear to meadow for their yield; water and
   mountains stay.
@@ -33,6 +39,12 @@
 - Sites on the overworld: the old mill, a barrow, a mine, a thornwood and a shrine. Each has its
   own foes, loot and a named keeper.
 - No site is ever cleared. The keeper returns every third floor, stronger each time.
+- Beat a keeper on floor 3 or deeper and the party takes their crown (👑). Carried home, it widens
+  the ward by a ring; the next crown has to come from 3 floors deeper (6, 9, 12…). A wipe loses it.
+- Foes grow steadily with depth until about floor 10, then compound: +15% a floor. The way-down
+  button shows 💀 once the next floor is past that point, one more 💀 for each doubling.
+- Heading home climbs back through every floor of the trip. Each one rolls once for an ambush,
+  7% for every room left unexplored on it. A fight on the way up carries on home after.
 - Each floor cleared passes a day in town. Travel to a site and back costs days, by distance from the
   town hall, at least one. The walk home eats 1🍞 a
   day. The game asks once before a step that leaves only enough food for the walk home.
@@ -45,6 +57,17 @@
   scared face, half work, −25% attack, −2 speed, −2 morale a day. The remains show as 🦴 on that
   floor on the next dive; carried home and put in a graveyard, they rest and the haunting ends.
   Unburied dead look angry, buried ones at peace.
+- A settler's trade (their best skill) shows them some rooms from next door: woodcutters and
+  fishers see fights, smiths and cooks treasure, healers and herbalists shrines, quarriers the way
+  down, scholars and farmers events. Deep lanterns show every room next door.
+- Survivors blame whoever stood in the dead's lane and walked out least hurt. The blame spreads as gossip at home: a gullible
+  listener believes it from one telling, a sceptic needs two, nobody believes someone they blame,
+  and each retelling can flip it or pin it on someone else. Holding a grudge against someone in
+  the party sours the trip and shows on their face (😠); a third of the village blaming you (one,
+  in a small village) wears you down (💬). A story fades from each person after 10–40 days. Burial ends the
+  talk about that death.
+- Tap a face to ask why. They answer with their own account, rumours as they believe them and who
+  told them, so a story can be traced back through the village. Nothing says which version is true.
 - Floors are random room maps. Fights are real-time auto-battles with pause, speed, potions and
   retreat. Death is permanent.
 

@@ -101,7 +101,7 @@ function viewVillage() {
   const tile = (i) => {
     const b = S.grid[i];
     const at = `data-i="${i}" data-act="plot" data-v="${i}"` + (newLand.includes(i) ? ` style="--d:${dist(i, origin)}"` : "");
-    const cls = newLand.includes(i) ? " fresh" : "";
+    const cls = (newLand.includes(i) ? " fresh" : "") + (S.hall != null && contested(i) ? " out" : "");
     if (!S.seen[i]) return `<div class="tile fog" data-i="${i}"></div>`;
     // Untouched land is ground, not a thing: a few small marks with no card around them.
     const t = S.land[i], site = siteAt(i), ico = scatter(i, TERRAIN[t].icon);
@@ -297,6 +297,11 @@ function restText(s) {
 }
 
 // Someone's own story: how they feel now, then what happened to and around them, newest first.
+// Whoever this person blames for a death, as faces.
+const blames = (s) => {
+  const ts = living().filter((t) => grudge(s, t));
+  return ts.length ? `<div class="row wrap center">😠 ${ts.map((t) => `<img class="mini" src="${faceSrc(t)}" alt="${esc(t.name)}" title="${esc(t.name)}">`).join("")}</div>` : "";
+};
 function sheetPerson() {
   const s = byId(sheet.person), c = CLASSES[s.cls];
   const days = (e) => e.to > e.day ? `d${e.day}–${e.to}` : `d${e.day}`;
@@ -310,7 +315,8 @@ function sheetPerson() {
   const skills = Object.entries(s.skills).filter(([, x]) => x >= 0.1)
     .map(([k, x]) => `<span class="chip">${jobIcon(k)} ${x.toFixed(1)}</span>`).join("");
   return `<div class="arrival ${s.dead ? "gone" : ""}">
-    <img class="face" src="${faceSrc(s)}" alt="">
+    ${s.dead ? `<img class="face" src="${faceSrc(s)}" alt="">` : `<button class="ask" data-act="why" aria-label="Why?"><img class="face" src="${faceSrc(s)}" alt=""></button>`}
+    ${sheet.why && !s.dead ? `<p class="said">“${esc(why(s))}”</p>` : ""}
     <h3>${esc(s.name)}</h3>
     <div>${c.icon} ${c.name} · lv ${s.level}${jobText(s) ? ` · ${jobText(s)}` : ""}</div>
     ${s.dead ? restText(s) : ""}
@@ -318,6 +324,7 @@ function sheetPerson() {
     <div class="stats">${statLine(st, `❤️${s.hp}/${st.hpMax}`)}</div>
     <div class="thoughts">${moraleChip(s)}${fresh(s).sort((x, y) => y.n - x.n).map(thoughtChip).join("")}</div>
     <div class="row wrap center">${skills}</div>
+    ${blames(s)}
     ${gearRow(s)}`}
   </div>
   <div class="lifelog">${(s.story || []).slice().reverse().map(line).join("")}</div>`;
@@ -369,7 +376,7 @@ function viewExpedition() {
     ${ready.map((s) => {
       const on = plan.party.includes(s.id), st = stats(s);
       return `<button class="opt ${on ? "on" : ""}" data-act="pick" data-v="${s.id}">
-        <img class="mini" src="${faceSrc(s)}" alt=""><span><b>${esc(s.name)}</b> ${CLASSES[s.cls].icon} lv ${s.level}
+        <img class="mini" src="${faceSrc(s)}" alt=""><span><b>${esc(s.name)}</b>${plan.party.some((id) => grudge(s, byId(id)) || grudge(byId(id), s)) ? " 😠" : ""} ${CLASSES[s.cls].icon} lv ${s.level}${lensOf(s).length ? ` <span class="chip">${[...new Set(lensOf(s).map((t) => ROOM_ICON[t === "boss" ? "stairs" : t]))].join("")}</span>` : ""}
         <br><small>HP ${s.hp}/${st.hpMax}${s.job != null ? " · leaves their work" : ""}</small></span></button>`;
     }).join("")}
     ${plan.party.length ? formation(plan.party.map(byId), false) : ""}
@@ -389,7 +396,7 @@ function viewDungeon() {
   for (let y = 0; y < MAP; y++) for (let x = 0; x < MAP; x++) {
     const k = `${x},${y}`, r = m.rooms[k];
     if (!r || !r.seen) { cells += `<div class="room none"></div>`; continue; }
-    const show = r.done || r.type === "entrance" || (has("lanterns") && near.includes(k)) || r.type === "stairs" && r.done;
+    const show = r.done || r.type === "entrance" || (near.includes(k) && (has("lanterns") || partyReads(r.type))) || r.type === "stairs" && r.done;
     const here = m.at === k, can = !here && canMove(k);
     // A room that's been dealt with fades its mark; a beaten keeper leaves the way down.
     // The dead show from a room away, so they can be carried home.
@@ -399,7 +406,7 @@ function viewDungeon() {
       ${here ? "🔦" : r.body ? `<span class="mark">🦴</span>` : show ? `<span class="mark">${mark}</span>` : "?"}</button>`;
   }
   const r = m.rooms[m.at];
-  const loot = Object.entries(e.loot).filter(([, n]) => n).map(([k, n]) => `${n}${RESOURCES[k].icon}`).concat(e.gear.map((g) => esc(g.name))).join(" ") || "nothing yet";
+  const loot = Object.entries(e.loot).filter(([, n]) => n).map(([k, n]) => `${n}${RESOURCES[k].icon}`).concat(e.gear.map((g) => esc(g.name)), e.crown ? ["👑"] : []).join(" ") || "nothing yet";
   let panel = "";
   if (e.event) {
     const ev = EVENTS.find((x) => x.id === e.event);
@@ -407,7 +414,7 @@ function viewDungeon() {
       `<button data-act="event" data-v="${c.act}">${c.label}</button>`).join("")}</div></div>`;
   } else {
     const down = ["stairs", "boss"].includes(r.type) && r.done;
-    panel = `<div class="row wrap">${down ? `<button class="primary" data-act="descend">Down to floor ${m.floor + 1}</button>` : ""}
+    panel = `<div class="row wrap">${down ? `<button class="primary" data-act="descend">Down to floor ${m.floor + 1}${grim(m.floor + 1) > 1 ? " " + "💀".repeat(1 + Math.floor(Math.log2(grim(m.floor + 1)))) : ""}</button>` : ""}
       <button data-act="home">Head home (${homeDays()}d, ${homeFood()}🍞)</button></div>`;
   }
   return `<div class="row between"><b>${SITES[siteOf().kind].icon} ${esc(siteOf().name)} · ${m.floor}</b><small class="${foodLeft() <= homeFood() ? "short" : ""}">🍞 ${e.rations}${e.meals ? ` 🥪 ${e.meals}` : ""} · 🧪 ${S.res.potions}</small></div>
@@ -661,17 +668,19 @@ function renderSheet() {
 
 // ---------- land ----------
 // The land keeps its place between renders as the map spot at the middle of the window, so
-// newly revealed rows don't shift it. The first look is at the town hall.
+// newly revealed rows don't shift it. The first look is at the town hall. It's counted from the
+// middle of the land, which stays put when the land grows.
 let landPos = null;
 const landGeo = (land) => {
   const g = land.firstElementChild, [a, b] = g.children;
   const step = b.offsetLeft - a.offsetLeft;
-  return step > 0 && { step, ox: a.offsetLeft, oy: a.offsetTop, x0: +g.dataset.x0, y0: +g.dataset.y0 };
+  const c = LAND >> 1;
+  return step > 0 && { step, ox: a.offsetLeft, oy: a.offsetTop, x0: +g.dataset.x0 - c, y0: +g.dataset.y0 - c };
 };
 function placeLand(smooth) {
   const land = $("#land"), geo = land && landGeo(land);
   if (!geo) return;
-  const [hx, hy] = xy(S.hall ?? MID);
+  const [hx, hy] = xy(S.hall ?? MID).map((v) => v - (LAND >> 1));
   const [mx, my] = smooth || !landPos ? [hx + 0.5, hy + 0.5] : landPos;
   land.scrollTo({ left: geo.ox + (mx - geo.x0) * geo.step - land.clientWidth / 2,
     top: geo.oy + (my - geo.y0) * geo.step - land.clientHeight / 2, behavior: smooth ? "smooth" : "instant" });
@@ -758,6 +767,7 @@ const ACTS = {
   visitor: (v) => { welcomeVisitor(v === "1"); sheet = null; },
   knock: () => (sheet = { visitor: true }),
   person: (v) => { sheet = { person: +v }; gearPick = null; },
+  why: () => { sheet.why = !sheet.why; },
   gearpick: (v) => (gearPick = gearPick && gearPick.id === sheet.person && gearPick.slot === v ? null : { id: sheet.person, slot: v }),
   equip: (v, el) => { equip(+v, +el.dataset.uid); gearPick = null; },
   unequip: (v, el) => { unequip(+v, el.dataset.slot); gearPick = null; },

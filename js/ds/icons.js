@@ -81,6 +81,7 @@ const ICONS = {
   "🙂": ["lu-smile", "teal"],
   "😐": ["lu-meh", "gray"],
   "😠": ["lu-angry", "red"],
+  "💬": ["lu-message-circle-warning", "red"],
   // enemies
   "🐀": ["lu-rat", "brown"],
   "🟢": ["ra-gloop", "green"],
@@ -106,6 +107,7 @@ const ICONS = {
   "⛲": ["ra-ankh", "teal"],
   "❔": ["lu-circle-question-mark", "purple"],
   "🪜": ["lu-door-stairwell", "gray"],
+  "🌬": ["mh-windmill", "brown"], "👑": ["lu-crown", "yellow"],
   "🔦": ["ra-torch", "orange"],
 };
 

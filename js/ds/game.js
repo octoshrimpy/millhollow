@@ -1,8 +1,11 @@
 // Millhollow — game state and rules. No DOM in here: ui.js reads and calls.
 
 const SAVE_KEY = "millhollow-ds-v1";
-const LAND = 17; // the overworld is LAND×LAND, mostly unseen at first
-const MID = (LAND >> 1) * LAND + (LAND >> 1);
+// The overworld is LAND×LAND, mostly unseen at first. It grows outward whenever the known land
+// nears its edge, so it never runs out.
+let LAND, MID;
+const setLand = (n) => { LAND = n; MID = (n >> 1) * LAND + (n >> 1); };
+setLand(17);
 const MAP = 5; // dungeon floors are MAP×MAP
 
 const rand = (n) => Math.floor(Math.random() * n);
@@ -66,6 +69,82 @@ function stats(s) {
 // Each unburied dead haunts one of the living until they're laid to rest.
 const haunted = (s) => !s.dead && !!S.remains && S.remains.some((r) => r.haunts === s.id);
 
+// ---------- talk ----------
+// Survivors come home blaming someone for each death. The story spreads as gossip, and each
+// telling can flip it or pin it on someone else. Burial ends the talk about that death.
+// A story fades from someone after a while of its own; hearing it again brings it back.
+const fades = () => S.day + 10 + rand(30);
+const believes = (s, t) => (s.heard || []).filter((x) => x.about === t.id && !(x.until <= S.day)).reduce((a, x) => a + x.v, 0);
+const grudge = (s, t) => s.id !== t.id && believes(s, t) <= -0.5;
+
+// Whoever stood in the same lane and walked out least hurt takes the blame.
+function blameDeath(dead, survivors, beside = () => true) {
+  if (survivors.length < 2) return; // ponytail: a lone survivor blames nobody
+  const frac = (s) => s.hp / stats(s).hpMax;
+  const near = survivors.filter(beside);
+  const about = (near.length ? near : survivors).slice().sort((a, b) => frac(b) - frac(a))[0];
+  for (const w of survivors) if (w !== about) (w.heard ||= []).push({ about: about.id, death: dead.id, v: -1, hops: 0, until: fades() });
+  const by = survivors.filter((w) => w !== about);
+  gameLog(`${by.map((w) => w.name).join(", ")} blame${by.length > 1 ? "" : "s"} ${about.name} for ${dead.name}.`, "bad", survivors);
+}
+
+function gossip(home) {
+  living().forEach((o) => o.heard && (o.heard = o.heard.filter((x) => (x.until ??= fades()) > S.day)));
+  for (let n = 1 + rand(2); n > 0; n--) {
+    const a = pick(home), b = pick(home);
+    if (!a || a === b || grudge(b, a)) continue; // nobody believes someone they blame
+    const told = (a.heard || []).filter((x) => x.hops < 4 && x.about !== b.id && !byId(x.about).dead
+      && !(b.heard || []).some((y) => y.death === x.death));
+    if (!told.length) continue;
+    const x = pick(told);
+    let about = x.about, v = x.v;
+    if (chance(0.1 + 0.06 * x.hops)) {
+      const other = home.filter((o) => o !== a && o !== b && o.id !== about);
+      if (chance(0.5) || !other.length) v = -v; else about = pick(other).id;
+    }
+    b.credulity ??= Math.random();
+    v *= 0.4 + 0.6 * b.credulity;
+    (b.heard ||= []).push({ about, death: x.death, v, hops: x.hops + 1, from: a.id, until: fades() });
+    const t = byId(about), d = byId(x.death);
+    gameLog(`${a.name} told ${b.name}: ${t.name} ${v < 0 ? "got" : "tried to save"} ${d.name}${v < 0 ? " killed" : ""}.`, "story", [a, b]);
+  }
+  // A third of the village blaming you wears you down; in a small village one is enough.
+  home.forEach((t) => { if (home.filter((o) => grudge(o, t)).length >= Math.max(1, Math.ceil((home.length - 1) / 3))) think(t, "blamed"); });
+}
+
+// What someone says when asked why they look the way they do: their own account, rumours as
+// they believe them, true or not. Reasons for the face they're wearing come first.
+function why(s) {
+  const name = (id) => byId(id).name, has = (k) => fresh(s).some((x) => x.k === k);
+  const told = (x) => (!x.hops ? "I was there." : x.from ? `${name(x.from)} told me.` : "I heard.");
+  const said = [];
+  const say = (m, text) => said.push([m, text]);
+  const ghost = S.remains.find((r) => r.haunts === s.id);
+  if (ghost) say("scared", `${name(ghost.id)} won't leave me be.`);
+  if (s.hp < stats(s).hpMax * 0.3) say("scared", "I can barely stand.");
+  if (has("neardeath")) say("scared", "I nearly died down there.");
+  if (has("fled")) say("scared", "We ran.");
+  for (const t of living()) {
+    const xs = (s.heard || []).filter((x) => x.about === t.id).sort((a, b) => a.v - b.v);
+    if (grudge(s, t)) say("angry", `${t.name} got ${name(xs[0].death)} killed. ${told(xs[0])}`);
+    else if (xs.length && xs[xs.length - 1].v > 0) say("happy", `${t.name} tried to save ${name(xs[xs.length - 1].death)}. ${told(xs[xs.length - 1])}`);
+  }
+  if (has("hungry") || has("starving")) say("angry", "I haven't eaten.");
+  if (has("rough")) say("angry", "There's no bed for me.");
+  if (s.morale < 30) say("angry", "I've had enough of this place.");
+  const mine = S.settlers.flatMap((o) => (o.heard || []).filter((x) => x.about === s.id && x.v < 0 && !o.dead));
+  if (has("blamed") && mine.length) say("sad", `They say I got ${name(mine[0].death)} killed.`);
+  const lost = S.settlers.filter((o) => o.dead && !o.buried).pop() || S.settlers.filter((o) => o.dead).pop();
+  if (has("grief") && lost) say("sad", `${lost.name} is dead.`);
+  if (s.hp < stats(s).hpMax * 0.7) say("sad", "Still hurting.");
+  if (has("victory")) say("happy", "We killed the keeper.");
+  if (has("levelup")) say("happy", "I'm getting stronger.");
+  if (has("home")) say("happy", "Good to be home.");
+  if (has("built")) say("happy", "The village is growing.");
+  const m = mood(s);
+  return [...said.filter(([x]) => x === m), ...said.filter(([x]) => x !== m)].slice(0, 2).map(([, t]) => t).join(" ") || "Nothing much.";
+}
+
 // ---------- thoughts ----------
 // Things that just happened to someone. Each moves morale once, when it lands; while it's fresh
 // it also sets the face, strongest feeling first and the newest breaking ties.
@@ -81,6 +160,10 @@ const THOUGHTS = {
   home:      { name: "Home again", icon: "🏘", mood: "happy", morale: 5, days: 2 },
   levelup:   { name: "Grew stronger", icon: "⭐", mood: "happy", morale: 5, days: 2 },
   built:     { name: "The village grows", icon: "🔨", mood: "happy", morale: 3, days: 1 },
+  grudge:    { name: "Grudge", icon: "😠", mood: "angry", morale: -6, days: 3 },
+  blamed:    { name: "Blamed", icon: "💬", mood: "sad", morale: -4, days: 2 },
+  raided:    { name: "Raided", icon: "👁", mood: "scared", morale: -6, days: 2 },
+  farwalk:   { name: "Long walk", icon: "👣", mood: "sad", morale: -2, days: 1 },
 };
 const clampMorale = (n) => Math.max(0, Math.min(100, n));
 function think(s, k) {
@@ -104,6 +187,7 @@ function mood(s) {
   if (s.hp < st.hpMax * 0.3) return "scared";
   const f = feeling(s);
   if (f) return THOUGHTS[f.k].mood;
+  if (living().some((t) => grudge(s, t))) return "angry";
   if (s.morale < 30) return "angry";
   if (s.hp < st.hpMax * 0.7) return "sad";
   return s.morale >= 75 ? "happy" : "neutral";
@@ -138,13 +222,15 @@ const seeded = (seed) => () => {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 };
 
+// One fixed number per spot and seed, so land beyond the edge is the same whenever it's grown.
+const hash = (seed, x, y) => seeded(seed ^ Math.imul(x, 73856093) ^ Math.imul(y, 19349663))();
+
 // Smooth noise over the land: random heights on a coarse lattice, eased between.
-function noise(rng, step) {
-  const n = Math.ceil(LAND / step) + 2, lat = Array.from({ length: n * n }, rng);
+function noise(seed, step) {
   const ease = (t) => t * t * (3 - 2 * t);
   return (x, y) => {
     const gx = x / step, gy = y / step, x0 = Math.floor(gx), y0 = Math.floor(gy), tx = ease(gx - x0), ty = ease(gy - y0);
-    const at = (a, b) => lat[b * n + a];
+    const at = (a, b) => hash(seed, a, b);
     const top = at(x0, y0) + (at(x0 + 1, y0) - at(x0, y0)) * tx, bot = at(x0, y0 + 1) + (at(x0 + 1, y0 + 1) - at(x0, y0 + 1)) * tx;
     return top + (bot - top) * ty;
   };
@@ -152,36 +238,59 @@ function noise(rng, step) {
 
 // Hills and mountains where it's high, lakes where it's low, woods where it's wet, one river
 // across, a few ruins, and open meadow around the middle where the settlers stop.
+// Spots are counted from the middle, so a bigger land grown from the same seed only adds to the edges.
 function genLand(seed) {
   const rng = seeded(seed);
-  const h1 = noise(rng, 6), h2 = noise(rng, 3), m1 = noise(rng, 5), m2 = noise(rng, 2.5);
-  const [cx, cy] = xy(MID);
+  const h1 = noise(seed + 1, 6), h2 = noise(seed + 2, 3), m1 = noise(seed + 3, 5), m2 = noise(seed + 4, 2.5);
+  const c = LAND >> 1;
   const land = Array.from({ length: LAND * LAND }, (_, i) => {
-    const [x, y] = xy(i), d = dist(i, MID);
-    const h = 0.65 * h1(x, y) + 0.35 * h2(x, y), m = 0.6 * m1(x, y) + 0.4 * m2(x, y);
+    const [x, y] = xy(i), d = dist(i, MID), X = x - c, Y = y - c;
+    const h = 0.65 * h1(X, Y) + 0.35 * h2(X, Y), m = 0.6 * m1(X, Y) + 0.4 * m2(X, Y);
     if (d <= 1) return "meadow";
     if (h > 0.72 && d > 2) return "mountain";
     if (h > 0.62) return "hills";
     if (h < 0.21 && d > 2) return "water";
+    if (d >= 3 && hash(seed + 5, X, Y) < 0.012) return "ruins";
     return m > 0.45 ? "forest" : "meadow";
   });
-  // The river runs edge to edge, never through the clearing.
-  const across = rng() < 0.5, side = rng() < 0.5 ? -1 : 1;
-  let r = (across ? cx : cy) + side * (2 + Math.floor(rng() * 4));
-  const put = (a, b) => { const i = across ? b * LAND + a : a * LAND + b; if (dist(i, MID) > 1) land[i] = "water"; };
-  for (let t = 0; t < LAND; t++) {
-    put(r, t);
-    const was = r;
-    r += Math.floor(rng() * 3) - 1;
-    r = Math.max(0, Math.min(LAND - 1, r));
-    if (Math.abs(r - (across ? cx : cy)) < 2 && Math.abs(t - (across ? cy : cx)) < 3) r = was;
-    if (r !== was) put(r, t);
-  }
-  for (let k = 0; k < 3; k++) {
-    const spots = land.map((_, i) => i).filter((i) => dist(i, MID) >= 3 && ["meadow", "forest", "hills"].includes(land[i]));
-    land[spots[Math.floor(rng() * spots.length)]] = "ruins";
+  // The river runs edge to edge, never through the clearing. It wanders out from the middle
+  // both ways, each step its own, so it carries on the same when the land grows.
+  const across = rng() < 0.5, side = rng() < 0.5 ? -1 : 1, r0 = side * (2 + Math.floor(rng() * 4));
+  const put = (a, b) => {
+    if (Math.abs(a) > c || Math.abs(b) > c) return;
+    const i = across ? (b + c) * LAND + a + c : (a + c) * LAND + b + c;
+    if (dist(i, MID) > 1) land[i] = "water";
+  };
+  for (const dir of [1, -1]) {
+    let r = r0;
+    for (let t = 0; Math.abs(t) <= c; t += dir) {
+      put(r, t);
+      const was = r;
+      r += Math.floor(hash(seed + 6, t, dir) * 3) - 1;
+      if (Math.abs(r) < 2 && Math.abs(t) < 3) r = was;
+      if (r !== was) put(r, t);
+    }
   }
   return land;
+}
+
+// Pads the land on every side, keeping what's there; everything that names a spot moves with it.
+function grow(pad = 8) {
+  const old = LAND, n = old + 2 * pad;
+  const to = (i) => (Math.floor(i / old) + pad) * n + (i % old) + pad;
+  const move = (xs, fill) => { const out = Array(n * n).fill(fill); xs.forEach((v, i) => (out[to(i)] = v)); return out; };
+  const kept = move(S.land, null);
+  S.grid = move(S.grid, null);
+  S.seen = move(S.seen, false);
+  if (S.hall != null) S.hall = to(S.hall);
+  S.sites.forEach((x) => (x.i = to(x.i)));
+  for (const s of [...S.settlers, S.visitor].filter(Boolean)) {
+    if (s.job != null) s.job = to(s.job);
+    if (s.was) s.was.i = to(s.was.i);
+  }
+  newLand = newLand.map(to);
+  setLand(S.size = n);
+  S.land = genLand(S.seed).map((t, i) => kept[i] ?? t);
 }
 // The mill sits by the clearing; the other sites lie further out, each on its own kind of land,
 // named by the world's seed.
@@ -210,14 +319,17 @@ const tech = (id) => S.research.filter((x) => x === id).length;
 const sight = () => 2 + has("scouting") + tech("surveying") + 2 * tech("cartography");
 let newLand = []; // tiles just revealed, for ui.js to fade in
 function reveal(at, r) {
+  const edge = () => { const [x, y] = xy(at); return Math.min(x, y, LAND - 1 - x, LAND - 1 - y) <= r; };
+  while (edge()) { const pad = 8, k = LAND; grow(pad); at = (Math.floor(at / k) + pad) * LAND + (at % k) + pad; }
   S.seen.forEach((v, i) => { if (!v && dist(i, at) <= r) { S.seen[i] = true; newLand.push(i); } });
 }
 
 function newGame() {
+  setLand(17);
   S = {
     day: 1, res: { food: 20, wood: 12, stone: 4, ore: 0, herbs: 0, relics: 0, research: 0, potions: 0, meals: 0, silver: 0, starmetal: 0 },
     seed: rand(2 ** 31), carry: {}, grid: Array(LAND * LAND).fill(null), seen: Array(LAND * LAND).fill(false), hall: null, cleared: 0, settlers: [], research: [],
-    deepest: 0, visitor: null, expedition: null, log: [], remains: [],
+    deepest: 0, visitor: null, expedition: null, log: [], remains: [], size: LAND, claim: 0,
   };
   S.land = genLand(S.seed);
   S.sites = genSites(S.seed, S.land);
@@ -235,6 +347,8 @@ function load() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return false;
     ({ S, nextId } = JSON.parse(raw));
+    setLand(S.size ||= 17);
+    S.claim ??= 0;
     if (S.expedition && S.expedition.fight) S.expedition.fight = null; // a fight restarts on reload
     if (!S.seen) widenLand();
     if (!S.land) landFromWild();
@@ -339,6 +453,28 @@ const staffed = (type) => S.grid.some((b) => b && b.type === type && b.worker &&
 const away = (s) => S.expedition && S.expedition.party.includes(s.id);
 const available = (s) => s && !s.dead && !away(s);
 
+// The keeper's crowns set in the hall ward the land around it. Past the ward, things come up from
+// below at night: they hurt whoever's working there, and wreck what's left unwatched.
+const claimR = () => 3 + S.claim;
+const contested = (i) => dist(i, S.hall ?? MID) > claimR();
+function raid() {
+  S.grid.forEach((b, i) => {
+    if (!b || !contested(i) || !chance(Math.min(0.5, 0.03 * (dist(i, S.hall ?? MID) - claimR())))) return;
+    const w = b.worker && byId(b.worker), def = BUILDINGS[b.type];
+    if (available(w)) {
+      w.hp = Math.max(1, w.hp - Math.ceil(stats(w).hpMax * (0.3 + Math.random() * 0.3)));
+      think(w, "raided");
+      gameLog(`Something came up in the night at the ${def.name.toLowerCase()}. ${w.name} drove it off.`, "bad", [w]);
+    } else {
+      if (w) w.job = null;
+      S.grid[i] = null;
+      gameLog(`Something came up in the night and wrecked the ${def.name.toLowerCase()}.`, "bad", living());
+    }
+  });
+}
+// Work far from any bed is a long walk each way.
+const commute = (s) => Math.min(...S.grid.map((b, i) => (b && BUILDINGS[b.type].beds ? dist(i, s.job) : Infinity)));
+
 // Clearing is labour, paid in food; what stood there comes back as materials.
 const clearCost = () => ({ food: 6 + 4 * S.cleared });
 
@@ -349,6 +485,7 @@ function clearLand(i) {
   S.land[i] = "meadow";
   S.cleared++;
   addCost(S.res, t.clear);
+  reveal(i, 1);
   gameLog(`Cleared ${t.name.toLowerCase()}. ${gainText(t.clear)}`);
   save();
 }
@@ -375,7 +512,10 @@ function build(i, type) {
     S.hall = i;
     reveal(i, sight());
     gameLog("Built the town hall.", "story", living());
-  } else gameLog(`Built ${b.name.toLowerCase()}.`);
+  } else {
+    reveal(i, 1);
+    gameLog(`Built ${b.name.toLowerCase()}.`);
+  }
   if (type === "graveyard") bury();
   living().filter((s) => !away(s)).forEach((s) => think(s, "built"));
   save();
@@ -529,8 +669,11 @@ function endDay() {
     if (r.haunts) gameLog(`${byId(r.id).name} haunts ${byId(r.haunts).name}.`, "bad", [byId(r.haunts)]);
   }
   home.forEach((s) => { if (haunted(s)) think(s, "haunted"); });
+  gossip(home);
   // Too many people for the beds wears everyone down.
   if (living().length > beds()) home.forEach((s) => think(s, "rough"));
+  home.forEach((s) => { if (s.job != null && commute(s) > 4) think(s, "farwalk"); });
+  raid();
 
   gameLog(`${tally(got, spent) || "No change."}${hungry ? ` ${hungry} went hungry.` : ""}`, hungry ? "bad" : "day");
 
@@ -703,10 +846,16 @@ function depart(partyIds, rations, startFloor, meals = 0, siteIdx = 0) {
     party: party.map((s) => s.id), rations, meals, steps: 0, moves: 0,
     loot: {}, gear: [], site: siteIdx, map: genFloor(startFloor, site), fight: null, event: null,
   };
+  party.forEach((s) => { if (party.some((o) => grudge(s, o))) think(s, "grudge"); });
   gameLog(`Set out for ${site.name}: ${party.map((s) => s.name).join(", ")}, ${rations}🍞${meals ? ` ${meals}🥪` : ""}.`, "story", party);
   revealAround();
   save();
 }
+
+// A settler's trade is whatever they're best at; it sets what they notice below.
+const tradeOf = (s) => Object.keys(s.skills).sort((a, b) => s.skills[b] - s.skills[a])[0];
+const lensOf = (s) => LENS[tradeOf(s)] || [];
+const partyReads = (type) => partyAlive().some((s) => lensOf(s).includes(type));
 
 function revealAround() {
   const m = S.expedition.map;
@@ -734,6 +883,8 @@ function onlyEnoughHome() {
 function move(k) {
   const e = S.expedition;
   if (!canMove(k)) return;
+  e.homing = false; // a reloaded ambush left behind: walking on means not going home yet
+  delete e.up;
   e.map.from = e.map.at;
   e.map.at = k;
   e.moves++;
@@ -783,8 +934,10 @@ function enterRoom() {
   }
 }
 
+// Danger climbs steadily, then past floor ten it compounds: there's always a floor too deep.
+const grim = (floor) => Math.max(1, 1.15 ** (floor - 1) / (1 + 0.3 * (floor - 1)));
 function scaleEnemy(base, floor, boss = false) {
-  const k = boss ? 1 : 1 + 0.3 * (floor - 1);
+  const k = (boss ? 1 : 1 + 0.3 * (floor - 1)) * grim(floor);
   const hp = Math.round(base.hp * k);
   return {
     name: base.name, icon: base.icon, flying: !!base.flying, ranged: !!base.ranged, aoeEvery: base.aoeEvery || 0, boss,
@@ -882,6 +1035,8 @@ function endFight(won) {
     const r = S.remains.find((x) => x.id === id), seen = partyAlive();
     r.haunts = seen.length ? pick(seen).id : null;
     if (r.haunts) gameLog(`${byId(id).name} haunts ${byId(r.haunts).name}.`, "bad", [byId(r.haunts)]);
+    const rowOf = (sid) => fight.heroes.find((u) => u.id === sid).row;
+    blameDeath(byId(id), partyAlive(), (s) => rowOf(s.id) === rowOf(id));
   }
   if (!partyAlive().length) {
     S.remains.forEach((r) => { if (r.at === "carried") r.at = "below"; });
@@ -892,6 +1047,11 @@ function endFight(won) {
   }
   // Walking out of a fight on almost nothing stays with you.
   partyAlive().forEach((s) => { if (s.hp < stats(s).hpMax * 0.3) think(s, "neardeath"); });
+  if (e.homing) {
+    if (won === "fled") partyAlive().forEach((s) => think(s, "fled"));
+    else partyAlive().forEach((s) => gainXp(s, fight.enemies.length * 3));
+    return returnHome();
+  }
   if (won === "fled") {
     partyAlive().forEach((s) => think(s, "fled"));
     e.map.at = e.map.from;
@@ -906,14 +1066,21 @@ function endFight(won) {
       reached(f);
       partyAlive().forEach((s) => think(s, "victory"));
       gameLog(`Floor ${f}: boss down. Stairs open.`, "story", partyAlive());
+      if (f >= crownFloor() && !(e.crown >= f)) {
+        e.crown = f;
+        gameLog(`Floor ${f}: took the keeper's crown 👑.`, "good", partyAlive());
+      }
     }
   }
   save();
 }
 
+// Rooms left alone are where things wait for the way back up.
+const untouched = (m) => Object.values(m.rooms).filter((r) => !r.done).length;
 function descend() {
   const e = S.expedition, r = e.map.rooms[e.map.at];
   if (!e || e.fight || !["stairs", "boss"].includes(r.type) || !r.done) return;
+  (e.left ||= {})[e.map.floor] = untouched(e.map);
   // Each floor cleared is a day in town.
   passDays(1);
   e.map = genFloor(e.map.floor + 1, siteOf());
@@ -922,12 +1089,24 @@ function descend() {
   save();
 }
 
+// Each crown carried home widens the ward by a ring; the next one has to come from three floors deeper.
+const crownFloor = () => 3 * (S.claim + 1);
+
 // Returning climbs back through the dungeon; fractional half-days do not tick town time.
 const homeDays = () => Math.floor(travelDays(siteOf()) + S.expedition.map.floor * 0.5);
 const homeFood = () => homeDays() * partyAlive().length;
 function returnHome() {
   const e = S.expedition;
   if (!e || e.fight || e.event) return;
+  // Climbing back, each floor rolls once for an ambush: more for every room left unexplored.
+  e.up ??= Object.entries({ ...e.left, [e.map.floor]: untouched(e.map) });
+  while (e.up.length) {
+    const [f, n] = e.up.pop();
+    if (!chance(1 - 0.93 ** n)) continue;
+    e.homing = true;
+    gameLog(`Floor ${f}: ambushed on the way up.`, "bad", partyAlive());
+    return startFight(rollEnemies(+f));
+  }
   const days = homeDays(), party = partyAlive();
   // The road home eats one packed ration per person per day; short days cost blood.
   const need = homeFood(), eat = Math.min(e.rations, need), eatMeals = Math.min(e.meals || 0, need - eat), short = need - eat - eatMeals;
@@ -941,6 +1120,10 @@ function returnHome() {
   if (foodBack) brought.push(`${foodBack}🍞`);
   if (mealsBack) brought.push(`${mealsBack}🥪`);
   S.expedition = null;
+  if (e.crown) {
+    S.claim++;
+    gameLog(`Set the keeper's crown 👑 in the hall. The ward reaches further.`, "good", living());
+  }
   living().forEach((s) => think(s, "home"));
   gameLog(`Home after ${days}d: ${[...brought, ...e.gear.map((g) => g.name)].join(" ") || "nothing"}.${short ? ` ${short} rations short.` : ""}`, short ? "bad" : "story", party);
   S.remains.forEach((r) => { if (r.at === "carried") r.at = "home"; });
@@ -957,6 +1140,7 @@ function bury() {
   S.remains = S.remains.filter((r) => r.at !== "home");
   const ids = home.map((r) => r.id);
   ids.forEach((id) => (byId(id).buried = true));
+  S.settlers.forEach((s) => s.heard && (s.heard = s.heard.filter((x) => !ids.includes(x.death))));
   gameLog(`Buried ${ids.map((id) => byId(id).name).join(", ")}.`, "story", [...ids.map(byId), ...living()]);
 }
 

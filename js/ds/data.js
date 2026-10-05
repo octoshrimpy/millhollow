@@ -62,6 +62,13 @@ const JOBS = {
   cooking: "Cooking", fishing: "Fishing",
 };
 
+// What a trade taught someone to notice. Below, they read these rooms from next door.
+const LENS = {
+  woodcutting: ["fight"], fishing: ["fight"], farming: ["event"], cooking: ["treasure"],
+  quarrying: ["stairs", "boss"], smithing: ["treasure"], healing: ["shrine"], herbalism: ["shrine"],
+  scholarship: ["event"],
+};
+
 // Where someone came from before Millhollow: a birthplace, a trade, what their class made of
 // them, and why they took the road. One of each, oldest first.
 const PAST = {
@@ -215,7 +222,7 @@ const BOSSES = {
 // Places with a way down. None of them end: each goes as deep as anyone dares, and its keeper
 // is waiting again every third floor. `on` is the land a site sits on, `by` land it must touch.
 const SITES = {
-  mill: { name: "The old mill", icon: "🪜", foes: ["rat", "slime", "skeleton", "bat", "cultist", "ghoul", "root"], loot: [] },
+  mill: { name: "The old mill", icon: "🌬", foes: ["rat", "slime", "skeleton", "bat", "cultist", "ghoul", "root"], loot: [] },
   barrow: { icon: "🪦", on: ["hills"], foes: ["skeleton", "ghoul", "bat", "cultist"], loot: ["relics", "relics", "stone"],
     nouns: ["Barrow", "Howe", "Cairn"], adj: ["Cold", "Grey", "Crooked"], epithet: ["Unburied", "Pale", "Grey"], boss: "☠️" },
   mine: { icon: "🛒", on: ["hills"], by: ["mountain"], foes: ["rat", "spider", "bat", "ghoul"], loot: ["ore", "ore", "silver", "stone"],

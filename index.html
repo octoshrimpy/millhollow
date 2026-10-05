@@ -88,6 +88,7 @@
   .tile.hall { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
   .tile.found { border-color: var(--accent); border-style: solid; color: var(--accent); font-size: 1.4rem; animation: found 1.6s ease-in-out infinite; }
   @keyframes found { 50% { box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 45%, transparent); } }
+  .tile.out { filter: saturate(.45) brightness(.82); }
   .tile.fresh { animation: reveal .45s calc(var(--d, 0) * 90ms) both; }
   button.ghost { background: transparent; border-color: transparent; color: var(--dim); }
   .pips, .tile .lvl { color: var(--accent); letter-spacing: .1em; }
@@ -129,6 +130,8 @@
   .knock .mini { width: 36px; height: 36px; }
   .arrival { display: flex; flex-direction: column; align-items: center; gap: .35em; text-align: center; }
   .arrival .face { width: 110px; height: 110px; border-radius: 12px; }
+  .arrival .ask { padding: 0; border: 0; background: none; border-radius: 12px; cursor: help; }
+  .arrival .said { margin: .3em 0 0; max-width: 32ch; font-style: italic; }
   .arrival h3 { margin: .2em 0 0; }
   .arrival .row { justify-content: center; }
   .arrival .chip { font-size: .9rem; }
