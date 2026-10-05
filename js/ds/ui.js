@@ -850,6 +850,8 @@ const ACTS = {
   install: () => { installer.prompt(); installer.userChoice.then(() => { installer = null; if (sheet) renderSheet(); }); return "keep"; },
   savefile: () => {
     exportSave().then((code) => {
+      // Inside the Android app the page can't download; the app asks where to put it.
+      if (window.Android) return Android.saveFile(`millhollow-day${S.day}.txt`, code);
       const a = document.createElement("a");
       a.href = URL.createObjectURL(new Blob([code], { type: "text/plain" }));
       a.download = `millhollow-day${S.day}.txt`;
@@ -997,7 +999,7 @@ function checkUpdate(now) {
     reloadIfSafe(now);
   }).catch(() => {});
 }
-if (location.protocol.startsWith("http")) {
+if (location.protocol.startsWith("http") && !window.Android) {
   checkUpdate();
   setInterval(() => (updates.ready ? reloadIfSafe() : checkUpdate()), 10 * 60 * 1000);
   setInterval(() => updates.ready && reloadIfSafe(), 5000);

@@ -377,6 +377,6 @@
 <script src="js/ds/icons.js"></script>
 <script src="js/ds/juice.js"></script>
 <script src="js/ds/ui.js"></script>
-<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");</script>
+<script>if ("serviceWorker" in navigator && !window.Android) navigator.serviceWorker.register("sw.js");</script>
 </body>
 </html>

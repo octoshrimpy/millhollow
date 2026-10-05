@@ -1,0 +1,50 @@
+plugins { id "com.android.application" }
+
+// The game ships as it is served: the page, its scripts, styles, faces and icons.
+def site = layout.buildDirectory.dir("web/site").get().asFile
+def copyWeb = tasks.register("copyWeb", Sync) {
+  from(rootProject.file("..")) {
+    include "index.html", "style.css", "manifest.webmanifest", "js/ds/**", "assets/face-*", "icons/**"
+  }
+  into site
+}
+
+// Release signing comes from keystore.properties beside this project (never committed).
+def keys = new Properties()
+def keysFile = rootProject.file("keystore.properties")
+if (keysFile.exists()) keysFile.withInputStream { keys.load(it) }
+
+android {
+  namespace "sh.octo.millhollow"
+  compileSdk 36
+  defaultConfig {
+    applicationId "sh.octo.millhollow"
+    minSdk 24
+    targetSdk 36
+    versionCode 1
+    versionName "1.0"
+  }
+  signingConfigs {
+    release {
+      if (keys.storeFile) {
+        storeFile rootProject.file(keys.storeFile)
+        storePassword keys.storePassword
+        keyAlias keys.keyAlias
+        keyPassword keys.keyPassword
+      }
+    }
+  }
+  buildTypes {
+    release {
+      minifyEnabled true
+      vcsInfo { include false }
+      shrinkResources true
+      proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+      signingConfig signingConfigs.release
+    }
+  }
+  sourceSets { main { assets.srcDirs += site } }
+  packaging { resources { excludes += ["META-INF/**", "kotlin/**", "**/*.kotlin_builtins", "DebugProbesKt.bin"] } }
+  dependenciesInfo { includeInApk false; includeInBundle false }
+}
+tasks.named("preBuild") { dependsOn copyWeb }
