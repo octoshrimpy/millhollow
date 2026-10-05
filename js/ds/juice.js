@@ -108,14 +108,16 @@ const Juice = (() => {
     d.innerHTML = iconize(d.innerHTML);
   }
 
-  function float(x, y, text, cls = "") {
+  function float(x, y, text, cls = "", ms = 1200) {
     const d = document.createElement("div");
     d.className = "float " + cls;
     setText(d, text);
     d.style.left = `${x + (Math.random() - 0.5) * 16}px`;
     d.style.top = `${y}px`;
+    if (ms !== 1200) d.style.animationDuration = `${ms}ms`;
     layer.append(d);
-    setTimeout(() => d.remove(), 1200);
+    setTimeout(() => d.remove(), ms);
+    return d;
   }
 
   const anim = (el, frames, opts) => el && el.animate && !calm ? el.animate(frames, opts) : null;

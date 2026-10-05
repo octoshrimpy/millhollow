@@ -504,8 +504,9 @@ function tickFight() {
     if (pot.dataset.n !== n) { pot.innerHTML = iconize(`🧪${n}`); pot.dataset.n = n; }
   });
   $("#flines").innerHTML = iconize(f.lines.map((l) => `<p>${esc(l)}</p>`).join(""));
-  const ctl = f.over
-    ? `<button class="primary wide" data-act="fightdone">${f.over === "won" ? "Victory" : f.over === "fled" ? "Fall back" : "It's over"}</button>`
+  const ctl = f.over === "won" ? ""
+    : f.over
+    ? `<button class="primary wide" data-act="fightdone">${f.over === "fled" ? "Fall back" : "It's over"}</button>`
     : `<button class="primary" data-act="pause">${f.paused ? "▶ Fight" : "⏸ Pause"}</button>
        <button data-act="speed">${f.speed}×</button>
        <button class="danger" data-act="flee">Flee</button>`;
@@ -591,11 +592,16 @@ function playFx(f) {
     } else if (e.t === "won") {
       if (!box) continue;
       box.classList.add("victory");
-      const r = box.getBoundingClientRect();
-      Juice.float(r.left + r.width / 2, r.top + r.height / 2, "Victory", "banner");
-      const n = f.enemies.some((x) => x.boss) ? 5 : f.enemies.length;
-      for (let i = 0; i < n; i++) setTimeout(() => Juice.burst(r.left + r.width * ((i + 1) / (n + 1)), r.top + 30,
-        { n: 26, colors: [...PAL.gold, "#9fe07a", "#b9a4d6"], speed: 240, up: 240, gravity: 520, life: 1.3, size: 4, drag: 0.95 }), i * 90);
+      // Bigger the upset, bigger the party: odds from the start, and more again for a keeper or a deep floor.
+      const heat = Math.min(4, Math.max(0.15, f.odds) * (f.enemies.some((x) => x.boss) ? 1.6 : 1) * (1 + 0.04 * (S.expedition.map.floor - 1)));
+      const r = box.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      const ms = 1200 + 900 * heat, big = Juice.float(cx, cy, "Victory", "banner", ms);
+      if (big) big.style.fontSize = `${1.4 + 0.6 * heat}rem`;
+      const n = Math.max(1, Math.round(1 + 2 * heat)), waves = heat > 1.5 ? 3 : heat > 0.7 ? 2 : 1;
+      for (let w = 0; w < waves; w++) for (let i = 0; i < n; i++) setTimeout(() => Juice.burst(r.left + r.width * ((i + 1) / (n + 1)), r.top + 30,
+        { n: Math.round(8 + 10 * heat), colors: [...PAL.gold, "#9fe07a", "#b9a4d6"], speed: 160 + 60 * heat, up: 160 + 80 * heat, gravity: 520, life: 1 + 0.3 * heat, size: 3 + heat / 2, drag: 0.95 }), w * 500 + i * 90);
+      // No button: the fight closes itself once the last blow lands, and the party goes on under the confetti.
+      setTimeout(() => { if (S.expedition?.fight === f) run("fightdone"); }, 600);
     } else if (e.t === "lost") {
       if (!box) continue;
       box.classList.add("defeat");

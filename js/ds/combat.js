@@ -5,8 +5,11 @@ const GAUGE_RATE = 8; // gauge per second per point of speed; 100 gauge = one at
 
 const defaultRow = (cls) => (CLASSES[cls].range === "ranged" ? "back" : "front");
 
+// Rough fighting weight of a side: what it can deal times what it can take.
+const might = (us) => us.reduce((a, u) => a + u.atk * u.hp, 0);
+
 function newFight(settlers, enemies) {
-  return {
+  const f = {
     heroes: settlers.map((s, i) => {
       const st = stats(s);
       return {
@@ -18,8 +21,10 @@ function newFight(settlers, enemies) {
     enemies: enemies.map((e, i) => ({ ...e, side: "e", idx: i, gauge: rand(40), swings: 0 })),
     focus: null, taunt: 0, paused: true, speed: 1, lines: [], over: false,
     fx: [], // what just happened, for ui.js to animate; drained every frame
-
   };
+  // How lopsided it started, foes over party: a stomp is ~0.2, an even fight 1, an upset more.
+  f.odds = might(f.enemies) / Math.max(1, might(f.heroes));
+  return f;
 }
 
 function fightLog(f, text) {

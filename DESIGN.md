@@ -100,6 +100,9 @@
   told them, so a story can be traced back through the village. Nothing says which version is true.
 - Floors are random room maps. Fights are real-time auto-battles with pause, speed, potions and
   retreat. A hero under a quarter HP drinks a potion by themselves; tapping 🧪 still drinks one any time. Death is permanent.
+- A won fight closes itself. The celebration scales with how lopsided the fight was against the
+  party at the start, more for a keeper and for depth: a stomp gets a faint word, an upset fills
+  the screen. It plays over the dungeon and doesn't block the next move.
 
 ## Saves
 
