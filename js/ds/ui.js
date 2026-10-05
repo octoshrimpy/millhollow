@@ -265,7 +265,7 @@ function settlerCard(s) {
     </div></div>`;
 }
 // Where they are: the building they work, the dungeon, or nothing when idle.
-const jobText = (s) => s.job != null && S.grid[s.job] ? BUILDINGS[S.grid[s.job].type].icon : away(s) ? "🪜" : "";
+const jobText = (s) => below(s) ? "🪜" : s.wander?.seen ? "👣" : s.job != null && S.grid[s.job] ? BUILDINGS[S.grid[s.job].type].icon : "";
 const moraleFace = (s) => `<span title="Morale">${s.morale >= 75 ? "😄" : s.morale >= 50 ? "🙂" : s.morale >= 30 ? "😐" : "😠"} ${s.morale}</span>`;
 
 // Two slots. Tapping one opens what the stores hold for it, each with how it changes the stats.
@@ -305,10 +305,10 @@ const thoughtChip = (x) => {
 function viewPeople() {
   const dead = S.settlers.filter((s) => s.dead);
   // During an expedition: the party under the site, then who stayed home.
-  const below = S.expedition ? living().filter(away) : [];
-  const cards = !below.length ? living().map(settlerCard).join("")
-    : `<h4>${SITES[siteOf().kind].icon} ${esc(siteOf().name)}</h4>${below.map(settlerCard).join("")}
-      <h4 class="split">🏘 Millhollow</h4>${living().filter((s) => !away(s)).map(settlerCard).join("")}`;
+  const down = living().filter(below);
+  const cards = !down.length ? living().map(settlerCard).join("")
+    : `<h4>${SITES[siteOf().kind].icon} ${esc(siteOf().name)}</h4>${down.map(settlerCard).join("")}
+      <h4 class="split">🏘 Millhollow</h4>${living().filter((s) => !below(s)).map(settlerCard).join("")}`;
   return cards + (dead.length ? `<h4>🪦</h4><div class="remembered">${dead.map((s) =>
     `<button data-act="person" data-v="${s.id}"><img class="mini" src="${faceSrc(s)}" alt="">${esc(s.name)}</button>`).join("")}</div>` : "");
 }

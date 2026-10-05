@@ -475,7 +475,9 @@ const pay = (cost) => Object.entries(cost).forEach(([k, v]) => (S.res[k] -= v));
 const costText = (cost) => Object.entries(cost).map(([k, v]) => S.res[k] >= v ? `${v}${RESOURCES[k].icon}`
   : `<span class="bad">${Math.floor(S.res[k])}/${v}${RESOURCES[k].icon}</span>`).join(" ");
 const staffed = (type) => S.grid.some((b) => b && b.type === type && b.worker && available(byId(b.worker)));
-const away = (s) => S.expedition && S.expedition.party.includes(s.id);
+const below = (s) => !!S.expedition && S.expedition.party.includes(s.id);
+// Away is anywhere but home: down a dungeon, or wandered off after a party.
+const away = (s) => below(s) || !!s.wander;
 const available = (s) => s && !s.dead && !away(s);
 
 // The keeper's crowns set in the hall ward the land around it. Past the ward, things come up from
@@ -510,6 +512,16 @@ const holds = (n) => {
 };
 function trouble(home) {
   const t = S.trouble;
+  // Wandered off after a party: missed the next day, back a few days later, mostly.
+  for (const s of living().filter((o) => o.wander)) {
+    if (!s.wander.seen) { s.wander.seen = true; gameLog(`Nobody has seen ${s.name} since the party.`, "bad", [s]); continue; }
+    if (S.day < s.wander.back) continue;
+    s.wander = null;
+    const r = Math.random();
+    if (r < 0.1) { leave(s); gameLog(`${s.name} never came back.`, "bad", living()); }
+    else if (r < 0.35) { add("relics", 1); gameLog(`${s.name} came back with a relic from who knows where. +1🏺`, "good", [s]); }
+    else { hurt(s, 0.1, 0.3); think(s, "hungover"); gameLog(`${s.name} came back, muddy and sore.`, "story", [s]); }
+  }
   if (t) settle(t.kind === "fey" ? "no" : "ignore");
   // A grudge comes to blows.
   for (const a of home) {
@@ -613,6 +625,7 @@ function revel(home, couple = []) {
   if (ran && r < 0.3) { think(ran, "fled"); return gameLog(`${ran.name} nearly ran again.`, "story", couple); }
   if (pair && r < 0.45) return brawl(pair[0], pair[1], "Drink ran high. ");
   if (r < 0.65 && home.some((o) => o.heard?.length)) { gameLog(`Tongues loosened.`, "story", home); return gossip(home), gossip(home); }
+  if (r < 0.72) { pick(home).wander = { back: S.day + 2 + rand(4) }; return; }
   if (r < 0.8 && !S.visitor) {
     S.visitor = makeSettler();
     return gameLog(`${S.visitor.name} heard the music and wants to join.`, "story");
@@ -633,8 +646,8 @@ function settle(how) {
   if (t.kind === "wedding") {
     const [a, b] = t.pair.map(byId);
     if (a.dead || b.dead) return;
-    // Someone who ran from a wedding once may run from this one, and this time keep going.
-    const ran = [a, b].find((o) => pastHas(o, "Fled a wedding.") && !away(o) && chance(0.3));
+    // Anyone might run from their own wedding and keep going; someone who did it once, far likelier.
+    const ran = [a, b].find((o) => !away(o) && chance(pastHas(o, "Fled a wedding.") ? 0.3 : 0.02));
     if (ran) {
       const left = ran === a ? b : a;
       leave(ran);

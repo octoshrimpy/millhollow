@@ -48,11 +48,12 @@
     lands fish.
   - Plenty brings talk of a feast: 3🍞 a head, and everyone lets go of one grudge (🍖).
   - Two content people with no grudge between them may want to marry (💍). They marry either
-    way; 3🍞 a head buys the whole village a wedding. Anyone who once fled a wedding may run from this one
-    too, and leave the village for good; the one left at the altar is jilted (💔), and the story
+    way; 3🍞 a head buys the whole village a wedding. Anyone may run from their own wedding and leave the
+    village for good (2%; 30% for someone who fled one before); the one left at the altar is jilted (💔), and the story
     goes round.
   - Half of feasts and weddings bring something else: a brawl (an old grudge if there is one),
-    loose tongues (two rounds of gossip), a stranger drawn by the music, a turned ankle, sore
+    loose tongues (two rounds of gossip), someone wandering off drunk (missed the next day, back
+    in a few, sometimes with a relic, one time in ten never), a stranger drawn by the music, a turned ankle, sore
     heads in the morning, or a groom or bride who fled a wedding nearly running again.
   - A trader offers relics, ore, silver or potions for 20 of the biggest pile (🛒).
 
