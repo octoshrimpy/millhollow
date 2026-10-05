@@ -602,7 +602,7 @@ function trouble(home, hold) {
   for (const s of home) {
     if (!chance(0.03)) continue;
     const job = S.grid[s.job]?.type, worst = home.filter((o) => o !== s).sort((a, b) => a.hp / stats(a).hpMax - b.hp / stats(b).hpMax)[0];
-    if (pastHas(s, "Set bones.") && worst && worst.hp < stats(worst).hpMax * 0.6) {
+    if (pastHas(s, "Learned how to set bones.") && worst && worst.hp < stats(worst).hpMax * 0.6) {
       worst.hp = stats(worst).hpMax; think(worst, "mended");
       gameLog(`${s.name} set ${worst.name}'s bones.`, "good", [s, worst]);
     } else if (pastHas(s, "Worked harvests.") && job === "farm") { add("food", 10); gameLog(`${s.name} brought in a bumper harvest. +10🍞`, "good", [s]); }

@@ -78,7 +78,7 @@ const PAST = {
   trade: {
     farming: "Worked harvests.", woodcutting: "Felled timber for shipwrights.",
     quarrying: "Cut stone.", herbalism: "Gathered herbs for a healer.",
-    smithing: "Worked a smithy's bellows.", healing: "Set bones.",
+    smithing: "Worked a smithy's bellows.", healing: "Learned how to set bones.",
     scholarship: "Copied books at a monastery.", cooking: "Cooked at an inn.",
     fishing: "Mended nets.",
   },
@@ -91,13 +91,16 @@ const PAST = {
   road: ["Lost home to fire.", "Came for work.", "Fled debts.", "Wanted quiet.", "Came for the dungeons.",
     "Lost family to winter.", "Fled a wedding.", "Got lost."],
 };
+// Pasts that come back later, for better or worse.
+const PAST_GOOD = new Set(["Learned how to set bones.", "Worked harvests.", "Copied books at a monastery.", "Mended nets."]);
+const PAST_BAD = new Set(["Burned down a library.", "Fled a wedding.", "Fled debts."]);
 // Older saves carry the wordier versions of these lines.
 const PAST_WAS = {
   "Born on the road, to traders.": "Born to traders.", "Orphaned young, raised at a temple.": "Orphan, raised at a temple.",
   "Born to a miller's family.": "Born to millers.", "Worked the fields every harvest.": "Worked harvests.",
   "Felled timber for the shipwrights.": "Felled timber for shipwrights.", "Cut stone in a flooded quarry.": "Cut stone.",
   "Gathered herbs for a village healer.": "Gathered herbs for a healer.", "Worked the bellows in a smithy.": "Worked a smithy's bellows.",
-  "Set bones for anyone who asked.": "Set bones.", "Copied books for a monastery.": "Copied books at a monastery.",
+  "Set bones for anyone who asked.": "Learned how to set bones.", "Set bones.": "Learned how to set bones.", "Copied books for a monastery.": "Copied books at a monastery.",
   "Served two winters in a border fort.": "Two winters at a border fort.", "Fought in the pits for coin.": "Pit fighter.",
   "Guarded caravans on the salt road.": "Caravan guard.", "Hunted deer for a lord's table.": "Hunted for a lord.",
   "Tracked poachers in the king's wood.": "Tracked poachers.", "Set a library on fire. Mostly by accident.": "Burned down a library.",
