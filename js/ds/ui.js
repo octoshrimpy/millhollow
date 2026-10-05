@@ -80,7 +80,8 @@ function viewRecruits() {
     const t = tradeOf(s), b = Object.values(BUILDINGS).find((x) => x.job === t);
     return `<button class="${chosen.includes(s.id) ? "on" : ""}" data-act="recruit" data-v="${s.id}">
       <em><i>${CLASSES[s.cls].icon}</i></em><img src="${faceSrc(s)}" alt="">
-      <b>${esc(s.name)}</b><small class="st">${b ? b.icon : ""} ${JOBS[t]}</small></button>`;
+      <b>${esc(s.name)}</b><small class="st">${b ? b.icon : ""} ${JOBS[t]}</small>
+      <small class="past">${s.story.filter((e) => e.kind === "past").map((e) => esc(e.text)).join(" ")}</small></button>`;
   }).join("") + `</div><div class="row pair">
     <button class="reroll${cooling ? " cooling" : ""}" data-act="reroll" ${cooling ? `disabled style="--left:${left}ms"` : ""}>🎲</button>
     <button class="primary" data-act="settlein" ${chosen.length === STARTERS ? "" : "disabled"}>✓ ${chosen.length}/${STARTERS}</button></div>`;
