@@ -826,9 +826,9 @@ const ACTS = {
   theme: (v) => { applyTheme(v); },
   newgame: () => (sheet = { menu: true, sure: true }),
   recruit: (v) => {
-    const id = shine = +v;
+    const id = +v;
     if (chosen.includes(id)) chosen = chosen.filter((x) => x !== id);
-    else if (chosen.length < STARTERS) chosen.push(id);
+    else if (chosen.length < STARTERS) chosen.push(shine = id);
   },
   reroll: () => {
     if (cooled > Date.now()) return "keep";
