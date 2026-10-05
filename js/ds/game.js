@@ -510,8 +510,14 @@ const holds = (n) => {
   const p = living().filter((s) => !away(s)).reduce((a, s) => a + (stats(s).atk + stats(s).def) * s.hp / stats(s).hpMax, 0);
   return p / (p + n * 7 * (1 + S.day / 80));
 };
-function trouble(home) {
+function trouble(home, hold) {
   const t = S.trouble;
+  // What a runaway left behind turns up the morning after.
+  if (S.dropped) {
+    const d = S.dropped; S.dropped = null;
+    (S.stash ||= []).push(...d.gear);
+    gameLog(`${d.name}'s ${d.gear.map((g) => g.name).join(" and ")} found by the road.`, "story");
+  }
   // Wandered off after a party: missed the next day, back a few days later, mostly.
   for (const s of living().filter((o) => o.wander)) {
     if (!s.wander.seen) { s.wander.seen = true; gameLog(`Nobody has seen ${s.name} since the party.`, "bad", [s]); continue; }
@@ -522,7 +528,7 @@ function trouble(home) {
     else if (r < 0.35) { add("relics", 1); gameLog(`${s.name} came back with a relic from who knows where. +1🏺`, "good", [s]); }
     else { hurt(s, 0.1, 0.3); think(s, "hungover"); gameLog(`${s.name} came back, muddy and sore.`, "story", [s]); }
   }
-  if (t) settle(t.kind === "fey" ? "no" : "ignore");
+  if (t && !hold) settle(t.kind === "fey" ? "no" : "ignore");
   // A grudge comes to blows.
   for (const a of home) {
     const b = home.find((o) => grudge(a, o));
@@ -582,7 +588,7 @@ function trouble(home) {
     const big = ["food", "wood", "stone", "herbs"].sort((a, b) => S.res[b] - S.res[a])[0];
     const want = pick(["relics", "ore", "silver", "potions"]);
     if (S.res[big] >= 20) {
-      S.trouble = { kind: "trader", take: { [big]: 20 }, give: { [want]: want === "silver" ? 2 : 3 } };
+      S.trouble = { kind: "trader", take: { [big]: 20 }, give: { [want]: { silver: 2, relics: 1 }[want] || 3 } };
       return gameLog(`A trader at the gate.`, "story");
     }
   }
@@ -610,10 +616,20 @@ function leave(s) {
 function brawl(a, b, lead = "") {
   hurt(a, 0.1, 0.3); hurt(b, 0.15, 0.35);
   think(a, "brawl"); think(b, "brawl");
-  // Whoever came off worst after a brawl reaches for a potion, if the village has one.
-  const sip = [a, b].filter((o) => o.hp < stats(o).hpMax * 0.5 && S.res.potions > 0 && S.res.potions--);
+  // Whoever came off worst after a brawl reaches for a potion, but the last two are kept for below.
+  const sip = [a, b].filter((o) => o.hp < stats(o).hpMax * 0.5 && S.res.potions > 2 && S.res.potions--);
   sip.forEach((o) => (o.hp = Math.min(stats(o).hpMax, o.hp + 20)));
   gameLog(`${lead}${a.name} went for ${b.name}.${sip.length ? ` ${sip.map((o) => o.name).join(" and ")} drank a potion 🧪.` : ""}`, "bad", [a, b]);
+}
+// One long table in no order: a grudge only softens if the two end up side by side.
+function seat(home) {
+  const row = [...home].sort(() => Math.random() - 0.5);
+  row.forEach((o, i) => [row[i - 1], row[i + 1]].filter(Boolean).forEach((n) => {
+    const xs = (o.heard || []).filter((x) => x.about === n.id && x.v < 0 && !(x.until <= S.day));
+    if (!xs.length) return;
+    xs.forEach((x) => (x.until = S.day));
+    gameLog(`${o.name} sat beside ${n.name} and let it go.`, "good", [o, n]);
+  }));
 }
 // A party rarely goes exactly to plan.
 function revel(home, couple = []) {
@@ -647,9 +663,13 @@ function settle(how) {
     const [a, b] = t.pair.map(byId);
     if (a.dead || b.dead) return;
     // Anyone might run from their own wedding and keep going; someone who did it once, far likelier.
-    const ran = [a, b].find((o) => !away(o) && chance(pastHas(o, "Fled a wedding.") ? 0.3 : 0.02));
+    // Happy people run less.
+    const ran = [a, b].find((o) => !away(o) && chance((pastHas(o, "Fled a wedding.") ? 0.3 : 0.02) - (mood(o) === "happy" ? 0.1 : 0)));
     if (ran) {
       const left = ran === a ? b : a;
+      // Running, they mostly leave their gear behind.
+      const gear = [ran.gear.weapon, ran.gear.armor].filter(Boolean);
+      if (gear.length && chance(0.8)) { S.dropped = { name: ran.name, gear }; ran.gear = { weapon: null, armor: null }; }
       leave(ran);
       think(left, "jilted");
       (left.heard ||= []).push({ about: ran.id, death: `jilt${ran.id}`, what: [`left ${left.name} at the altar`, `was right to leave ${left.name}`], v: -1, hops: 0, until: fades() });
@@ -663,6 +683,7 @@ function settle(how) {
     const home = living().filter((o) => !away(o));
     home.forEach((o) => think(o, "feast"));
     gameLog(`${a.name} and ${b.name} married. The whole village came. −${what}`, "good", home);
+    seat(home);
     return revel(home, [a, b]);
   }
   if (t.kind === "feast" || t.kind === "trader") {
@@ -670,9 +691,9 @@ function settle(how) {
     pay(t.take);
     if (t.kind === "trader") { addCost(S.res, t.give); return gameLog(`Traded ${what} for ${Object.entries(t.give).map(([r, n]) => `${n}${RESOURCES[r].icon}`).join(" ")}.`, "good"); }
     const home = living().filter((o) => !away(o));
-    // Each person at the table lets go of one grudge.
-    home.forEach((o) => { think(o, "feast"); const x = (o.heard || []).find((x) => x.v < 0 && !(x.until <= S.day)); if (x) x.until = S.day; });
+    home.forEach((o) => think(o, "feast"));
     gameLog(`Feast. −${what}`, "good", home);
+    seat(home);
     return revel(home);
   }
   if (t.kind === "fey") {
@@ -831,7 +852,7 @@ function add(res, n) {
   return whole;
 }
 
-function endDay() {
+function endDay(hold) {
   const got = {}, spent = {};
   lastYields = [];
   const eaters = living().filter((s) => !away(s)).length;
@@ -907,7 +928,7 @@ function endDay() {
   if (living().length > beds()) home.forEach((s) => think(s, "rough"));
   home.forEach((s) => { if (s.job != null && commute(s) > 4) think(s, "farwalk"); });
   raid();
-  trouble(home);
+  trouble(home, hold);
 
   gameLog(`${tally(got, spent) || "No change."}${hungry ? ` ${hungry} went hungry.` : ""}`, hungry ? "bad" : "day");
 
@@ -932,7 +953,8 @@ function tally(got, spent) {
   }).filter(Boolean).join(" ");
 }
 
-function passDays(n) { for (let i = 0; i < n; i++) endDay(); save(); }
+// Trouble that turns up partway through several days waits for an answer instead of settling itself.
+function passDays(n) { const old = S.trouble; for (let i = 0; i < n; i++) endDay(!!S.trouble && S.trouble !== old); save(); }
 
 function welcomeVisitor(yes) {
   const v = S.visitor;

@@ -34,10 +34,11 @@
 - Each person at home eats 1🍞 a day. A day without food costs 15% HP (never below 1) and halves
   their work, down to a tenth. Whoever has gone longest without eats first.
 - Nights bring things, good and bad, grown from the village itself. Choices wait at the gate (a
-  popup, then a button under the map). Left until the next End day, trouble goes the worse way
-  and a chance goes by.
+  popup, then a button under the map). They reach a party below as well, on the dungeon screen.
+  Left until the next End day, trouble goes the worse way and a chance goes by; one that turns up
+  partway through days on the road waits to be answered.
   - Someone holding a grudge may go for them (👊, both hurt). Anyone left under half drinks a
-    potion if the village has one.
+    potion, but the last two are kept for the dungeon.
   - Full stores draw bandits (🗡): pay a third of the biggest pile, or fight at the odds shown.
     Ignored, they take twice that. Losing a fight hurts everyone at home and costs the same.
   - The haunted sometimes shut the forge door and want relics and more. Given, they come out with
@@ -46,16 +47,18 @@
     grudge, a mystic who burned down a library burning down yours. Good ones too: a bonesetter
     mends the worst hurt, a harvester brings in extra, a copyist finds research, a net-mender
     lands fish.
-  - Plenty brings talk of a feast: 3🍞 a head, and everyone lets go of one grudge (🍖).
+  - Plenty brings talk of a feast: 3🍞 a head (🍖). Everyone sits at one long table in no order; a
+    grudge is let go only by two who end up side by side. Village weddings seat the same way.
   - Two content people with no grudge between them may want to marry (💍). They marry either
     way; 3🍞 a head buys the whole village a wedding. Anyone may run from their own wedding and leave the
-    village for good (2%; 30% for someone who fled one before); the one left at the altar is jilted (💔), and the story
+    village for good (2%; 30% for someone who fled one before; 10 points less for anyone happy). Four
+    times in five they leave their gear, found by the road the next day. The one left at the altar is jilted (💔), and the story
     goes round.
   - Half of feasts and weddings bring something else: a brawl (an old grudge if there is one),
     loose tongues (two rounds of gossip), someone wandering off drunk (missed the next day, back
     in a few, sometimes with a relic, one time in ten never), a stranger drawn by the music, a turned ankle, sore
     heads in the morning, or a groom or bride who fled a wedding nearly running again.
-  - A trader offers relics, ore, silver or potions for 20 of the biggest pile (🛒).
+  - A trader offers 1 relic, 3 ore, 2 silver or 3 potions for 20 of the biggest pile (🛒).
 
 ## Dungeons
 

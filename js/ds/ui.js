@@ -47,7 +47,8 @@ function render() {
     sheet = { visitor: true };
   }
   if (sheet && sheet.visitor && !S.visitor) sheet = null;
-  if (S.trouble && S.trouble !== alarmed && tab === "village" && !sheet && !S.expedition) {
+  // Trouble at home reaches the party below too, so it can be answered from there.
+  if (S.trouble && S.trouble !== alarmed && ["village", "dungeon"].includes(tab) && !sheet && !S.expedition?.fight) {
     alarmed = S.trouble;
     sheet = { trouble: true };
   }
@@ -99,8 +100,7 @@ function viewVillage() {
   // Someone at the gate whose popup was swiped away: tap to see them again.
   const visitor = v ? `<button class="knock" data-act="knock"><img class="mini" src="${faceSrc(v)}" alt="">
     <b>${esc(v.name)}</b> ${CLASSES[v.cls].icon} <span class="dim">❯</span></button>` : "";
-  const t = S.trouble;
-  const alarm = t ? `<button class="knock" data-act="alarm">${troubleHead(t)} <span class="dim">❯</span></button>` : "";
+  const alarm = alarmButton();
   // Only the known land is drawn, with a ring of fog around it.
   const known = S.seen.map((v, i) => v && xy(i)).filter(Boolean);
   const x0 = Math.max(0, Math.min(...known.map(([x]) => x)) - 1), x1 = Math.min(LAND - 1, Math.max(...known.map(([x]) => x)) + 1);
@@ -136,6 +136,7 @@ function viewVillage() {
     ${visitor}${alarm}`;
 }
 
+const alarmButton = () => S.trouble ? `<button class="knock" data-act="alarm">${troubleHead(S.trouble)} <span class="dim">❯</span></button>` : "";
 // The night's trouble, or chance: who or what, what it costs, and two ways to answer.
 const goods = (c) => Object.entries(c).map(([r, n]) => `${n}${RESOURCES[r].icon}`).join(" ");
 function troubleHead(t) {
@@ -445,7 +446,7 @@ function viewDungeon() {
   return `<div class="row between"><b>${SITES[siteOf().kind].icon} ${esc(siteOf().name)} · ${m.floor}</b><small class="${foodLeft() <= homeFood() ? "short" : ""}">🍞 ${e.rations}${e.meals ? ` 🥪 ${e.meals}` : ""} · 🧪 ${S.res.potions}</small></div>
     <details class="lineup"><summary>Lineup</summary>${formation(e.party.map(byId), true)}</details>
     <div class="map move-${dir}" style="--w:${MAP}">${cells}</div>
-    <p class="dim small">Carrying: ${loot}</p>${panel}`;
+    <p class="dim small">Carrying: ${loot}</p>${panel}${alarmButton()}`;
 }
 
 // ---------- fight ----------
