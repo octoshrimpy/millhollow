@@ -8,3 +8,4 @@ android/keystore.properties
 android/*.jks
 tools/faces/sheets/
 tools/faces/logs/
+tools/faces/run.log
