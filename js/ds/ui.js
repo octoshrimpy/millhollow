@@ -72,17 +72,17 @@ function render() {
 }
 
 // A new game: six at the gate, tap four, ✓ to start.
-let chosen = [], cooled = 0; // a reroll needs 3s before the next, shown filling the button
+let chosen = [], cooled = 0, shine = 0; // a reroll needs 3s before the next, shown filling the button
 function viewRecruits() {
   chosen = chosen.filter((id) => S.recruits.some((s) => s.id === id));
   const left = cooled - Date.now(), cooling = left > 0;
   return `<div class="who">` + S.recruits.map((s) => {
     const t = tradeOf(s), b = Object.values(BUILDINGS).find((x) => x.job === t);
-    return `<button class="${chosen.includes(s.id) ? "on" : ""}" data-act="recruit" data-v="${s.id}">
+    return `<button class="${chosen.includes(s.id) ? "on" : ""} ${s.id === shine ? "shine" : ""}" data-act="recruit" data-v="${s.id}">
       <span class="me"><img src="${faceSrc(s)}" alt=""></span>
       <span class="past">${s.story.filter((e) => e.kind === "past").map((e) => `<span class="${PAST_GOOD.has(e.text) ? "good" : PAST_BAD.has(e.text) ? "bad" : ""}">${esc(e.text)}</span>`).join("")}</span>
       <b>${esc(s.name)}</b><span class="tags"><small>${CLASSES[s.cls].icon} ${CLASSES[s.cls].name}</small><small>${b ? b.icon : ""} ${TRADES[t]} <u>+${s.skills[t]}</u></small></span></button>`;
-  }).join("") + `</div><div class="row pair">
+  }).join("") + `</div><div class="row pair">${(shine = 0, "")}
     <button class="reroll${cooling ? " cooling" : ""}" data-act="reroll" ${cooling ? `disabled style="--left:${left}ms"` : ""}>🎲 Reroll</button>
     <button class="primary go" data-act="settlein" ${chosen.length === STARTERS ? "" : "disabled"}><i>✓</i> ${chosen.length}/${STARTERS}</button></div>`;
 }
@@ -826,7 +826,7 @@ const ACTS = {
   theme: (v) => { applyTheme(v); },
   newgame: () => (sheet = { menu: true, sure: true }),
   recruit: (v) => {
-    const id = +v;
+    const id = shine = +v;
     if (chosen.includes(id)) chosen = chosen.filter((x) => x !== id);
     else if (chosen.length < STARTERS) chosen.push(id);
   },
@@ -942,8 +942,8 @@ function loadCode(text) {
 // On the arrival cards the face turns a little toward the pointer.
 const still = matchMedia("(prefers-reduced-motion: reduce)");
 document.addEventListener("pointermove", (e) => {
-  const card = e.target.closest?.(".founding .who button"), img = card?.querySelector("img");
-  document.querySelectorAll(".founding .who img[style]").forEach((o) => { if (o !== img) o.removeAttribute("style"); });
+  const card = e.target.closest?.(".founding .who button"), img = card?.querySelector(".me");
+  document.querySelectorAll(".founding .who .me[style]").forEach((o) => { if (o !== img) o.removeAttribute("style"); });
   if (!img || still.matches) return;
   const r = card.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
   img.style.transform = `perspective(300px) rotateY(${x * 24}deg) rotateX(${-y * 24}deg)`;
