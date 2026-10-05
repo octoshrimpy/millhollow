@@ -1,0 +1,24 @@
+37 f a West African woman with very dark skin, a high rounded forehead, wide-set eyes, a broad nose with a low bridge, full lips, three small parallel scars on each cheek, and tightly coiled hair
+38 m an East African man with deep brown skin, a long narrow face, high cheekbones, a slender straight nose, a small pointed chin, a wide gap between his front teeth, and close-cropped tightly curled hair
+39 f a South Indian woman with dark brown skin, a round face, large heavy-lidded eyes, thick arched eyebrows, a small nose with a pierced left nostril, a full lower lip, and long thick wavy hair
+40 m a North Indian man with light brown skin, a long oval face, deep-set eyes under thick straight brows, a long nose with a hooked tip, a strong chin, a pockmarked forehead, and thick straight hair
+41 f a Han Chinese woman with pale skin, a broad flat face, narrow single-lidded eyes, a small flat nose, a small mouth, a mole under her left eye, and straight heavy black hair with a blunt fringe
+42 m a Korean man with fair skin, a long face, a wide square jaw, narrow monolid eyes, high flat cheekbones, a straight nose, thin lips, a pale scar through his upper lip, and coarse straight hair
+43 f a Filipino woman with warm brown skin, a heart-shaped face, wide double-lidded eyes, a short broad nose, a wide smile with deep dimples in both cheeks, and thick wavy black hair
+44 m a Vietnamese man with light brown skin, a small narrow face, prominent cheekbones, almond eyes, a short flat nose, a thin straight mouth, protruding ears, and fine straight hair
+45 f an Andean Quechua woman with copper-brown skin, a broad round face, very high wide cheekbones, narrow dark eyes, a prominent curved nose, a wide mouth, sun-weathered cheeks, and long straight black hair in two braids
+46 m a Diné (Navajo) man with reddish-brown skin, a long rectangular face, a strong high-bridged nose, deep-set dark eyes, heavy straight brows, a wide firm mouth, a broad chin, and long straight black hair tied back
+47 f an Arab woman with olive skin, an oval face, large dark almond eyes with heavy lashes, strong dark eyebrows, a long nose with a slight bump, full lips, a small chin dimple, and thick dark wavy hair
+48 m an Amazigh (Berber) man with tan sun-darkened skin, a narrow angular face, light green eyes, a long thin aquiline nose, hollow cheeks, a deep cleft chin, a faded blue tattoo dot on his chin, and curly dark hair
+49 f a Persian woman with pale olive skin, a long face, a high forehead, large hooded eyes, sharply arched brows that almost meet, a long straight nose, a small mouth, and dense dark curly hair
+50 m a Samoan man with warm brown skin, a very broad round face, a wide flat nose, small deep-set eyes, thick heavy brows, a wide mouth with full lips, a thick neck, and thick wavy black hair
+51 f an Aboriginal Australian woman with very dark skin, a broad face, a deep brow, deep-set eyes, a wide flat nose, a wide full mouth, a strong jaw, and soft loose curly hair that lightens toward the ends
+52 m a Kazakh man with tan skin, a wide flat face, very broad cheekbones, narrow eyes with a deep epicanthic fold, a small low-bridged nose, a weathered wind-burned face, a thin straight mouth, and coarse straight black hair
+53 f a Mexican mestiza woman with medium brown skin, a square face, a wide forehead, round dark eyes, a broad rounded nose, full cheeks, a small scar through her right eyebrow, and thick wavy hair
+54 m an Afro-Caribbean man with dark brown skin, a round face, a wide nose, large expressive eyes, a broad smiling mouth, a deep cleft chin, freckles across the nose, and short locs
+55 f a Romani woman with olive-brown skin, a narrow face, very large dark eyes, a long hooked nose, thin wide lips, high hollow cheeks, and a mass of thick black curls
+56 m an Inuit man with light brown skin, a broad flat face, full round cheeks, narrow eyes, a short wide nose, a small mouth, a thick neck, and thick straight black hair cut short
+57 f a Japanese woman with fair skin, a long narrow face, small monolid eyes, a long straight nose, a small pursed mouth, a high smooth forehead, a beauty mark beside her chin, and fine straight hair
+58 m an Ethiopian man with medium-dark brown skin, a narrow oval face, large almond eyes, a long straight narrow nose, thin lips, a high forehead, and a rounded mass of soft curly hair
+59 f a woman with deep brown skin and patches of vitiligo, pale cream patches around both eyes and across the chin, a round face, wide-set eyes, a broad nose, full lips, and short tight curls
+60 m a Pakistani Punjabi man with light brown skin, a heavy square face, a large curved nose, deep-set dark eyes under a single heavy brow, a wide mouth, big ears, and thick wavy black hair
