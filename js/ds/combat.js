@@ -59,6 +59,8 @@ function heroTarget(f) {
   return (f.focus != null && f.enemies[f.focus].hp > 0) ? f.enemies[f.focus] : live[0];
 }
 
+const waits = (h) => h.row === "back" && CLASSES[h.cls].range === "melee";
+
 function enemyTarget(f, en) {
   const live = alive(f.heroes);
   const warrior = live.find((h) => h.cls === "warrior");
@@ -119,13 +121,13 @@ function step(f, dt) {
     if (h.hp < h.hpMax * 0.25 && S.res.potions > 0) usePotion(i);
     if (h.cd === 0 && wantsSkill(f, h)) useSkill(f, i);
     h.gauge += h.spd * GAUGE_RATE * dt;
-    if (h.gauge < 100 || f.over) return;
+    // A sword can't reach from the back lane: it waits, ready, to step into the first gap.
+    if (waits(h)) h.gauge = Math.min(h.gauge, 100);
+    if (h.gauge < 100 || f.over || waits(h)) return;
     h.gauge -= 100;
     const t = heroTarget(f);
     if (!t) return;
-    // Swinging a sword from the back row is half a swing.
-    const mult = CLASSES[h.cls].range === "melee" && h.row === "back" ? 0.5 : 1;
-    hit(f, h, t, mult);
+    hit(f, h, t);
     check(f);
   });
 
@@ -146,6 +148,11 @@ function step(f, dt) {
     }
     check(f);
   }
+  // Each fall in the front lane, or an empty one, brings a waiting sword up.
+  const front = alive(f.heroes).filter((h) => h.row === "front").length;
+  const up = (front < (f.front ?? front) || !front) && alive(f.heroes).find(waits);
+  if (up) { up.row = "front"; byId(up.id).row = "front"; fightLog(f, `${up.name} steps up.`); }
+  f.front = front + (up ? 1 : 0);
   // Someone dropping under half is when choices matter: stop once for each of them.
   for (const h of f.heroes) if (h.hp > 0 && h.hp < h.hpMax / 2 && !h.hurt && !f.over) { h.hurt = true; f.paused = true; }
 }

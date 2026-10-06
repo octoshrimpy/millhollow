@@ -100,6 +100,7 @@
   .pips, .tile .lvl { color: var(--accent); letter-spacing: .1em; }
   .pips { font-size: .7em; vertical-align: middle; }
   .tile .lvl { position: absolute; left: 5px; top: 2px; font-size: .5rem; }
+  .tile .lvl.bad { color: var(--bad); }
   .tile .mini { position: absolute; top: 3px; right: 3px; width: 34%; height: auto; aspect-ratio: 1; border-radius: 5px;
     box-shadow: 0 0 0 1.5px var(--card); }
   .tile.empty { color: var(--dim); background: transparent; border-style: dashed; }
@@ -138,10 +139,6 @@
   .knock { display: flex; align-items: center; gap: .6em; width: 100%; margin: .6em 0; border-color: var(--story); text-align: left; }
   .knock b { font-weight: normal; flex: 1; }
   .knock .mini { width: 36px; height: 36px; }
-  .watch { gap: .6em; margin: .4em 0; }
-  .watch button { padding: 3px; border-radius: 9px; opacity: .55; }
-  .watch button.on { opacity: 1; border-color: var(--accent); }
-  .watch .mini { width: 36px; height: 36px; display: block; }
   .arrival { display: flex; flex-direction: column; align-items: center; gap: .35em; text-align: center; }
   .arrival .face { width: 110px; height: 110px; border-radius: 12px; }
   .arrival .ask { padding: 0; border: 0; background: none; border-radius: 12px; cursor: help; }
@@ -153,6 +150,12 @@
   .arrival .pair { width: 100%; margin-top: .8em; gap: 8px; }
   .arrival .pair button { flex: 1; padding: .7em; }
   .card.event { display: block; }
+  .optrow { display: flex; gap: .5em; align-items: center; margin: .35em 0; }
+  .optrow .opt { margin: 0; }
+  .mug { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; flex: none; max-width: 5.5em; cursor: pointer; font-size: .78rem; line-height: 1.2; }
+  .mug > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mug u { text-underline-offset: 2px; }
+  .optrow .mug { width: 4.5em; }
   .opt { display: flex; gap: .7em; align-items: center; width: 100%; text-align: left; margin: .35em 0; }
   .sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 1em; }
   .sheet-head h3 { margin: 0; }
@@ -246,7 +249,11 @@
   .face-wrap em { position: absolute; right: -6px; bottom: -4px; font-style: normal; font-size: .7rem; font-weight: 700;
     background: var(--bad); color: var(--bg); border-radius: 6px; padding: 0 3px; }
   #res .packed { color: var(--accent); }
-  .pc { width: 5.5em; text-align: center; } .pc.dead { opacity: .35; }
+  .pc { width: 5.5em; text-align: center; touch-action: pan-y; cursor: grab; }
+  .pc.sel .mini { outline: 2px solid var(--accent); outline-offset: 2px; } .pc.dead { opacity: .35; }
+  .pc.drag { position: relative; z-index: 5; cursor: grabbing; }
+  .lane.over { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+  .sites .busy { box-shadow: inset 0 -3px var(--accent); }
   .pc small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   #log { padding: .35em 16px 0; font-size: .8rem; }
@@ -410,7 +417,7 @@
   #log { cursor: pointer; }
   .fulllog { font-size: .85rem; } .fulllog p { margin: .3em 0; } .fulllog p.day, .fulllog small { color: var(--dim); }
   .fulllog small { margin-right: .3em; }
-  [data-hold], [data-long] { touch-action: manipulation; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+  [data-hold] { touch-action: manipulation; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
   .card.person { cursor: pointer; }
   .remembered { display: flex; flex-wrap: wrap; gap: 6px; }
   .remembered button { display: inline-flex; align-items: center; gap: .4em; padding: .2em .6em .2em .2em; border-radius: 999px; }

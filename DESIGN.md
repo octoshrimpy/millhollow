@@ -32,13 +32,24 @@
 - Quarries turn up 0.15⛏️ a day, 0.5⛏️ beside mountains. Fishing docks only go beside water.
 - Workplaces improve in place (+25%, +50%, +80%) instead of taking tools. An improved forge cuts
   crafting and brewing costs instead (−20%, −33%, −44%).
+  A staffed improved workplace eats upkeep each day: 1 wood, 1 stone or 1 silver by level. Unpaid
+  or unstaffed, it works as if never improved that day (red pips), the forge's cut included.
+- Forging takes days at a staffed forge, one piece per forge: potions and wood 1, iron 2, silver 3,
+  starmetal 4.
+- Research is paid up front, then studied one at a time: a day per 4 research, each staffed
+  library adding a day's progress.
 - Settlers level up, gain skill by working, and carry thoughts that move morale.
+- Everyone has their own patience for one job, 8–30 days back to back. Past it they're sick of it
+  (😐, −3 morale a day) until they do something else: another job, a day off, or a trip below.
 - Each person at home eats 1🍞 a day. A day without food costs 15% HP (never below 1) and halves
   their work, down to a tenth. From the third day without, they may leave for good: 5%, and 5% more each day after. Whoever has gone longest without eats first.
 - Nights bring things, good and bad, grown from the village itself. Choices wait at the gate (a
   popup that says what's wanted and what each answer costs, then a button under the map). They reach a party below as well, on the dungeon screen.
-  One person can be kept home on watch (👀): they don't work, count double when the gate is
-  fought for, and halve the odds of bandits. Taking a job or going below ends the watch.
+  One person can be kept home on watch (👀), two after Night watch: they don't work, count double
+  when the gate is fought for, and each halves the odds of bandits. Fortified walls halve them again,
+  until bandits bring ladders: 10–30 days after the walls go up, and again 10–30 days after each
+  siege, a bigger band comes whatever the odds and wants half the biggest pile.
+  Taking a job or going below ends the watch.
   Left until the next End day, trouble goes the worse way and a chance goes by; one that turns up
   partway through days on the road waits to be answered.
   - Someone holding a grudge may go for them (👊, both hurt). Anyone left under half drinks a
@@ -52,7 +63,8 @@
     grudge, a mystic who burned down a library burning down yours. Good ones too: a bonesetter
     mends the worst hurt, a harvester brings in extra, a copyist finds research, a net-mender
     lands fish.
-  - Plenty brings talk of a feast: 3🍞 a head (🍖). Everyone sits at one long table in no order; a
+  - Plenty brings talk of a feast: 3🍞 a head (🍖); far likelier while anyone grieves, as a wake.
+    Never while a party is below. A feast ends grief. Everyone sits at one long table in no order; a
     grudge is let go only by two who end up side by side. Village weddings seat the same way.
   - Two content people with no grudge between them may want to marry (💍). They marry either
     way; 3🍞 a head buys the whole village a wedding. Anyone may run from their own wedding and leave the
@@ -63,7 +75,21 @@
     loose tongues (two rounds of gossip), someone wandering off drunk (missed the next day, back
     in a few, sometimes with a relic, one time in ten never), a stranger drawn by the music, a turned ankle, sore
     heads in the morning, or a groom or bride who fled a wedding nearly running again.
-  - A trader offers 1 relic, 3 ore, 2 silver or 3 potions for 20 of the biggest pile (🛒).
+  - A trader brings three offers (🛒), each 1 relic, 3 ore, 2 silver or 3 potions for 20 of one of the
+    two biggest piles, that many times over for every 60 in it. Take one or none. Bigger piles bring
+    traders sooner.
+- Food beyond 20 a head spoils, a twentieth of the excess a day. Smoked meals keep.
+- No day is empty. A day nothing else happens, someone tells their past by the fire (+2 morale
+  for all), teaches someone their best trade (+0.5), talks late with someone, or brings back a few
+  🍞, 🌿 or 🪵 from a walk. The day's line also shows research and forging still under way (⏳ ⚒).
+- The grieving may refuse to go below: 70% when the dead was their spouse or someone they think well
+  of, 20% otherwise, decided once a day (😔).
+- The grieving with a violent past (pit fighter, mercenary, border raider, a bishop's mace, a
+  curse on a man, arson on purpose, revenge…) never refuse: from half HP up they join the next
+  party and can't be taken off it (🔒). Below half, they wait. Everyone fed at home heals 3 HP a
+  day, 9 with a staffed infirmary, working or not.
+- A fire in someone's past was set on purpose or by accident. Either can happen again where they
+  work; only on purpose counts as violent.
 
 ## Dungeons
 
@@ -71,6 +97,9 @@
   own foes, loot and a named keeper. As the land grows, new sites turn up in it, about one per 200
   new tiles; the further out, the longer the walk.
 - No site is ever cleared. The keeper returns every third floor, stronger each time.
+- Every loot roll brings at least 2. Most gear found suits a class in the party.
+- The first clear of a floor at a site pays 1 + ⌈floor/2⌉🏺.
+- Setting out with a weapon matched to their class makes someone well armed (+4 morale).
 - Beat a keeper on floor 3 or deeper and the party takes their crown (👑). Carried home, it widens
   the ward by a ring; the next crown has to come from 3 floors deeper (6, 9, 12…). A wipe loses it.
   One of the party carries it; fleeing a fight drops it half the time, and the rest blame the carrier.
@@ -83,8 +112,10 @@
   day. The game asks once before a step that leaves only enough food for the walk home.
 - Out of food below, every room costs 15% HP and the party fights at half attack.
 - Packed food leaves the village counter as it's packed; what the walk home doesn't eat comes back.
-- The party stands in two lanes under the foes. Walking foes hit the front lane; a melee fighter in
-  the back lane swings at half (marked ½). Tap someone to move them across.
+- The party stands in two lanes under the foes. Walking foes hit the front lane. A melee fighter
+  in the back lane can't reach and waits (⏸); each fall in the front lane, or an empty front lane,
+  brings one up. Drag someone onto the other lane, or tap them and then the lane; tap them twice to
+  open them. On touch, a drag scrolls the page.
 - Back from a dungeon, a party goes back to their old jobs if they are still open.
 - The dead stay on the floor they fell. Each haunts one living person, a witness if any survived:
   scared face, half work, −25% attack, −2 speed, −2 morale a day. The remains show as 🦴 on that

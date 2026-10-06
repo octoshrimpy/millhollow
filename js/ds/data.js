@@ -222,6 +222,7 @@ const PAST = {
       "Tracked {poachers|a lost child for six days|smugglers through the marshes}.",
       "Guided {travelers over the mountains|caravans through deep forest}.",
       "Worked as {a forester|a scout in a border war}.",
+      "Raided across the border.",
       "Knew {every ford on the river|the old roads}.",
       "Lived a year alone in the hills.",
       "Mapped old trails.",
@@ -249,6 +250,7 @@ const PAST = {
       "Saw something in a mirror.",
       "Hid their talent for years.",
       "Caused an accident they still can't explain.",
+      "Cursed a man who wronged them.",
     ],
 
     cleric: [
@@ -268,12 +270,14 @@ const PAST = {
       "Rebuilt a burned temple.",
       "Fed the poor.",
       "Guarded a holy spring.",
+      "Carried a mace for a bishop.",
     ],
   },
 
   // What comes back badly. Only skill brings these: see makeSettler.
   bad: [
-    "Burned down {a library|a forge|a smokehouse|an infirmary|a farm|a church|the stables}.",
+    "Burned down {a library|a forge|a smokehouse|an infirmary|a farm|a church|the stables} on purpose.",
+    "Burned down {a library|a forge|a smokehouse|an infirmary|a farm|a church|the stables} by accident.",
     "Fled a wedding.",
     "Fled debts.",
     "Stole from a lord.",
@@ -313,7 +317,11 @@ const PAST = {
 // Green: a trade line, which gave the skill (some also come back later). Red: pasts that come back badly.
 const PAST_GOOD = new Set(Object.values(PAST.trade).flat());
 // The fire comes back only where they work in what they burned, so the church and stables never do.
-const PAST_BAD = new Set([...PAST.bad, "Burned down a library."]);
+// Pasts that make grief go below for someone, instead of staying home.
+const PAST_VIOLENT = ["Pit fighter.", "Mercenary.", "Fought {bandits on the king's road|in someone else's feud}.",
+  "Hunted highwaymen for bounty.", "Raided across the border.", "Carried a mace for a bishop.", "Cursed a man who wronged them.",
+  "Looking for revenge.", PAST.bad[0]];
+const PAST_BAD = new Set([...PAST.bad, "Burned down a library by accident."]);
 // Trade lines that pay off, now and then, while their owner works this building: [building, resource, amount, what they did].
 const PAST_PAYS = {
   "Worked harvests.": ["farm", "food", 10, "brought in a bumper harvest"],
@@ -337,7 +345,7 @@ const PAST_WAS = {
   "Set bones for anyone who asked.": "Learned how to set bones.", "Set bones.": "Learned how to set bones.", "Copied books for a monastery.": "Copied books at a monastery.",
   "Served two winters in a border fort.": "Two winters at a border fort.", "Fought in the pits for coin.": "Pit fighter.",
   "Guarded caravans on the salt road.": "Caravan guard.", "Hunted deer for a lord's table.": "Hunted for a lord.",
-  "Tracked poachers in the king's wood.": "Tracked poachers.", "Set a library on fire. Mostly by accident.": "Burned down a library.",
+  "Tracked poachers in the king's wood.": "Tracked poachers.", "Set a library on fire. Mostly by accident.": "Burned down a library by accident.",
   "Read a book they shouldn't have.": "Studied banned books.", "Tended the sick through a plague year.": "Nursed the sick through a plague.",
   "Took vows, then left the order.": "Left a holy order.", "Buried half a village after a fever.": "Buried a village after a fever.",
   "Home burned. Walked north.": "Lost home to fire.", "Heard the mill stood empty.": "Came for work.",
@@ -386,9 +394,9 @@ const BUILDINGS = {
 // Workplaces improve in place; each level raises what the worker turns out (boost is the total).
 const IMPROVABLE = (type) => !!(BUILDINGS[type].yields || ["library", "smokehouse", "forge"].includes(type));
 const IMPROVE = [
-  { boost: 0.25, cost: { ore: 3, wood: 4 }, needs: "smelting" },
-  { boost: 0.5, cost: { silver: 3, stone: 4 }, needs: "silverwork" },
-  { boost: 0.8, cost: { starmetal: 2, silver: 2 }, needs: "starforging" },
+  { boost: 0.25, cost: { ore: 3, wood: 4 }, upkeep: { wood: 1 }, needs: "smelting" },
+  { boost: 0.5, cost: { silver: 3, stone: 4 }, upkeep: { stone: 1 }, needs: "silverwork" },
+  { boost: 0.8, cost: { starmetal: 2, silver: 2 }, upkeep: { silver: 1 }, needs: "starforging" },
 ];
 
 // `after` is the research that has to come first.
@@ -402,11 +410,13 @@ const RESEARCH = {
   camping: { name: "Camping", cost: 8, desc: "Rest once a floor: 1🍞 each, heals half. Uncleared rooms may come for you." },
   altar_lore: { name: "Altar lore", cost: 8, desc: "Altars always pay, but take 10 HP each." },
   rope: { name: "Climbing rope", cost: 10, desc: "Half the ambushes on the way home." },
+  nightwatch: { name: "Night watch", cost: 8, desc: "Two can keep watch." },
   masonry: { name: "Masonry", cost: 8, desc: "Stone houses (4 beds). Huts can be rebuilt." },
   surveying: { name: "Surveying", cost: 10, after: "scouting", desc: "See 1 further again." },
   tactics: { name: "Tactics", cost: 10, desc: "Party size 4." },
   silverwork: { name: "Silverwork", cost: 12, after: "smelting", desc: "Silver gear. Workplaces to +50%. Silver lies below floor 3." },
   lanterns: { name: "Deep lanterns", cost: 12, desc: "See inside rooms next to you." },
+  walls: { name: "Fortified walls", cost: 14, after: "nightwatch", desc: "Half the bandits." },
   architecture: { name: "Architecture", cost: 14, after: "masonry", desc: "Manors (6 beds)." },
   cartography: { name: "Cartography", cost: 16, after: "surveying", desc: "See 2 further again." },
   starforging: { name: "Starforging", cost: 18, after: "silverwork", desc: "Starmetal gear. Workplaces to +80%. Starmetal lies below floor 6." },
