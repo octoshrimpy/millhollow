@@ -15,7 +15,7 @@
 
 ## Village
 
-- A new game opens on six people at the gate, one of each class and two more, each card with their past (green: where their trade came from, red: comes back badly); tap four to keep.
+- A new game opens on six people at the gate, one of each class and two more, each card with their past (green: where their trade came from, red: comes back badly); tap four to keep. Trades start at +1 to +5, each step four times rarer: +2 and +3 sometimes carry one red line, +4 and +5 always two.
   The town hall already stands on the meadow nearest the middle.
 - The land is generated from the save's seed: hills, mountains, woods, meadow, water, a river
   and ruins, with fog beyond what's known. The land has no edge: it grows outward as more is
@@ -85,7 +85,7 @@
 - Packed food leaves the village counter as it's packed; what the walk home doesn't eat comes back.
 - The party stands in two lanes under the foes. Walking foes hit the front lane; a melee fighter in
   the back lane swings at half (marked ½). Tap someone to move them across.
-- Duty rosters (research) sends a party back to their old jobs when they get home.
+- Back from a dungeon, a party goes back to their old jobs if they are still open.
 - The dead stay on the floor they fell. Each haunts one living person, a witness if any survived:
   scared face, half work, −25% attack, −2 speed, −2 morale a day. The remains show as 🦴 on that
   floor on the next dive; carried home and put in a graveyard, they rest and the haunting ends.

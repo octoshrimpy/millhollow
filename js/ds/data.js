@@ -76,32 +76,261 @@ const LENS = {
 
 // Where someone came from before Millhollow: a birthplace, a trade, what their class made of
 // them, and why they took the road. One of each, oldest first.
+// Any line can hold {a|b|c}: each new person gets one of them, and braces can nest. A line is
+// picked before its braces, so a line with many options is no likelier than one with none.
+// Lines that game.js checks with pastHas, and the trade lines PAST_WAS renames old saves to, stay
+// plain: those match on the exact text.
 const PAST = {
-  born: ["Born in a fishing village.", "Grew up on a hill farm.", "Raised by an aunt in the city.",
-    "Born to traders.", "Orphan, raised at a temple.", "Grew up in a mining town.",
-    "Born to millers.", "Raised in a forest camp.", "Grew up above a tavern."],
+  born: [
+    "Born {in a fishing village|by a river crossing|in a market town|in a remote hamlet|in a tenement}.",
+    "Born {on the frontier|on an island|in a forest village|in a hard winter|in a town that's gone now}.",
+    "Born to {traders|millers|charcoal burners|shepherds|potters}.",
+    "Born to {hunters|tinkers|a cooper and a brewer|the village reeve}.",
+    "Temple orphan.",
+    "Grew up {on a hill farm|on an orchard|among sheep|in a lumber camp|by a quarry}.",
+    "Grew up {in a mining town|in a salt town|in a monastery village|on the docks|in a merchant house}.",
+    "Grew up {over a tavern|near an old battlefield|on the king's road|by a shrine|under a ruined castle}.",
+    "Grew up with {an aunt in the city|grandparents in the mountains|traveling players|an older sibling|an old soldier}.",
+    "Grew up {in a forest camp|with shepherds|on a horse farm|among ferrymen|on a canal}.",
+    "Grew up in {a roadside inn|a coastal monastery|a manor kitchen|a guildhall|a monastery orphanage}.",
+  ],
+
   trade: {
-    farming: "Worked harvests.", woodcutting: "Felled timber for shipwrights.",
-    quarrying: "Cut stone.", herbalism: "Gathered herbs for a healer.",
-    smithing: "Worked a smithy's bellows.", healing: "Learned how to set bones.",
-    scholarship: "Copied books at a monastery.", cooking: "Cooked at an inn.",
-    fishing: "Mended nets.",
+    farming: [
+      "Worked harvests.",
+      "Worked {an orchard|vineyards down south}.",
+      "Plowed behind an ox.",
+      "Kept sheep through lambing.",
+      "Drove cattle to market.",
+      "Kept geese and chickens.",
+      "Drained marshland.",
+      "Threshed grain for hire.",
+      "Ran a landlord's fields.",
+    ],
+
+    woodcutting: [
+      "Felled timber for shipwrights.",
+      "Cut {firewood for a monastery|beams for bridges}.",
+      "Worked {a charcoal camp|winter logging camps}.",
+      "Floated logs downriver.",
+      "Squared timber for carpenters.",
+      "Cleared forest for farmland.",
+      "Split shingles.",
+      "Marked trees for a forester.",
+    ],
+
+    quarrying: [
+      "Cut stone.",
+      "Hauled {quarry rubble|stone for a cathedral}.",
+      "Worked {a lime kiln|slate pits}.",
+      "Split granite.",
+      "Cut paving stones.",
+      "Carved gravestones.",
+      "Opened a new quarry face.",
+      "Dressed stone for city walls.",
+    ],
+
+    herbalism: [
+      "Gathered herbs for a healer.",
+      "Picked {mushrooms for an apothecary|moss in the hills}.",
+      "Stripped willow bark.",
+      "Dried roots and flowers.",
+      "Kept a healer's garden.",
+      "Sold herbs at market.",
+      "Knew the poison berries.",
+      "Made poultices.",
+    ],
+
+    smithing: [
+      "Worked a smithy's bellows.",
+      "Worked {in a foundry|for an armorer}.",
+      "Made {nails|cooking pots}.",
+      "Forged {miners' tools|wagon fittings}.",
+      "Sharpened farm tools.",
+      "Shoed horses.",
+      "Fixed hinges and locks.",
+    ],
+
+    healing: [
+      "Learned how to set bones.",
+      "Stitched wounds.",
+      "Helped a midwife.",
+      "Dressed wounds for a barber-surgeon.",
+      "Rolled bandages at a hospice.",
+      "Nursed fever patients.",
+      "Tended injured quarrymen.",
+      "Worked in a monastery infirmary.",
+      "Carried medicine between villages.",
+      "Trained under an old physician.",
+    ],
+
+    scholarship: [
+      "Copied books at a monastery.",
+      "Copied contracts.",
+      "Kept a merchant's accounts.",
+      "Taught rich children their letters.",
+      "Translated old records.",
+      "Worked as a scribe.",
+      "Catalogued a monastery library.",
+      "Drew maps for a surveyor.",
+      "Recorded taxes for a magistrate.",
+      "Illuminated manuscripts.",
+    ],
+
+    cooking: [
+      "Cooked {at an inn|on a riverboat|for a monastery}.",
+      "Worked {a manor kitchen|a brewery kitchen|for a butcher}.",
+      "Baked bread before dawn.",
+      "Fed quarry crews.",
+      "Sold pies at market.",
+      "Ran a roadside stewpot.",
+    ],
+
+    fishing: [
+      "Mended nets.",
+      "Crewed {a riverboat|a merchant ship}.",
+      "Set eel traps.",
+      "Gutted fish at the docks.",
+      "Fished the coast in winter.",
+      "Dug bait on the tidal flats.",
+      "Built fish traps.",
+      "Smoked fish for market.",
+    ],
   },
+
   cls: {
-    warrior: ["Two winters at a border fort.", "Pit fighter.", "Caravan guard."],
-    ranger: ["Hunted for a lord.", "Tracked poachers.", "Lived a year alone in the hills."],
-    mystic: ["Apprenticed to a hedge-witch.", "Burned down a library.", "Studied banned books."],
-    cleric: ["Nursed the sick through a plague.", "Left a holy order.", "Buried a village after a fever."],
+    warrior: [
+      "Two winters at a border fort.",
+      "Pit fighter.",
+      "Caravan guard.",
+      "Mercenary.",
+      "Town watchman.",
+      "Guarded {a counting house|prisoners|a bridge for three years|pilgrims}.",
+      "Fought {bandits on the king's road|in someone else's feud}.",
+      "Served {in a lord's levy|on an armed merchant ship}.",
+      "Escorted tax collectors.",
+      "Survived a siege.",
+      "Drilled militia.",
+      "Hunted highwaymen for bounty.",
+      "Household guard to a noble.",
+      "Deserted an army.",
+      "Won a sword in a tavern bet.",
+    ],
+
+    ranger: [
+      "Hunted {for a lord|wolves for bounty|a man-eater}.",
+      "Tracked {poachers|a lost child for six days|smugglers through the marshes}.",
+      "Guided {travelers over the mountains|caravans through deep forest}.",
+      "Worked as {a forester|a scout in a border war}.",
+      "Knew {every ford on the river|the old roads}.",
+      "Lived a year alone in the hills.",
+      "Mapped old trails.",
+      "Patrolled a lord's hunting grounds.",
+      "Trapped for three winters.",
+      "Kept wolves off the flocks.",
+      "Rarely slept indoors.",
+      "Ran messages through bandit country.",
+      "Searched a season for a lost expedition.",
+    ],
+
+    mystic: [
+      "Learned {from a hedge-witch|charms from a wandering mystic|magic from a teacher who vanished|from spirits}.",
+      "Studied {banned books|ruins nobody else would enter}.",
+      "Dreamed things before they happened.",
+      "Failed out of an academy.",
+      "Assisted an astrologer.",
+      "Read a spell their master forbade.",
+      "Spent a winter on an unknown language.",
+      "Joined a secret circle of scholars.",
+      "Broke a seal they shouldn't have.",
+      "Lifted curses for pay.",
+      "Collected scraps of old spellbooks.",
+      "Survived the ritual that killed their teacher.",
+      "Saw something in a mirror.",
+      "Hid their talent for years.",
+      "Caused an accident they still can't explain.",
+    ],
+
+    cleric: [
+      "Nursed the sick through a plague.",
+      "Left {a holy order|after a fight with a bishop}.",
+      "Served {at a roadside shrine|as chaplain to soldiers}.",
+      "Buried {a village after a fever|soldiers after a battle}.",
+      "Walked a year with pilgrims.",
+      "Sat with the dying.",
+      "Copied sermons at a monastery.",
+      "Cooked in a temple kitchen.",
+      "Carried relics between shrines.",
+      "Took orders and regretted it.",
+      "Kept a country chapel.",
+      "Kept a graveyard.",
+      "Preached in mining camps.",
+      "Rebuilt a burned temple.",
+      "Fed the poor.",
+      "Guarded a holy spring.",
+    ],
   },
-  road: ["Lost home to fire.", "Came for work.", "Fled debts.", "Wanted quiet.", "Came for the dungeons.",
-    "Lost family to winter.", "Fled a wedding.", "Got lost."],
+
+  // What comes back badly. Only skill brings these: see makeSettler.
+  bad: [
+    "Burned down {a library|a forge|a smokehouse|an infirmary|a farm|a church|the stables}.",
+    "Fled a wedding.",
+    "Fled debts.",
+    "Stole from a lord.",
+    "Drank away a fortune.",
+    "Carried a fever into a village.",
+    "Sold out a friend.",
+  ],
+
+  road: [
+    "Got lost.",
+    "Lost {home to fire|family to winter|everything gambling}.",
+    "Won big at dice.",
+    "Came for {work|the dungeons|the ruins|an inheritance}.",
+    "Came {with a caravan and stayed|to prove someone wrong|because everyone said not to|when a relative wrote for help}.",
+    "Looking for {a missing sibling|cheaper rent|a healer|a priest|revenge}.",
+    "Wanted {quiet|land|to disappear|a fresh start}.",
+    "Wanted {to see the frontier|adventure|to see where the road ended}.",
+    "Followed {rumors of good farmland|rumors of treasure|an old friend|a wandering preacher|a drunk's map}.",
+    "Heard {there was work|Millhollow needed hands|nobody asks questions here}.",
+    "Chased {a job that didn't exist|cheap land|a debtor|a lover}.",
+    "Left {after a bad harvest|when their employer died|before the law arrived|after a family fight}.",
+    "Inherited {nothing|trouble}.",
+    "Running from {someone|an old mistake|a feud}.",
+    "{Following|Avoiding} a prophecy.",
+    "Needed somewhere nobody knew them.",
+    "Family sent them away.",
+    "Finished their service.",
+    "Tired of the city.",
+    "Missed a turn on the king's road.",
+    "Nowhere else to go.",
+    "Couldn't afford home anymore.",
+    "Took the first road out of town.",
+    "Survived a shipwreck and kept walking.",
+    "Stopped for one night and stayed.",
+  ],
 };
 // Green: a trade line, which gave the skill (some also come back later). Red: pasts that come back badly.
-const PAST_GOOD = new Set(Object.values(PAST.trade));
-const PAST_BAD = new Set(["Burned down a library.", "Fled a wedding.", "Fled debts."]);
+const PAST_GOOD = new Set(Object.values(PAST.trade).flat());
+// The fire comes back only where they work in what they burned, so the church and stables never do.
+const PAST_BAD = new Set([...PAST.bad, "Burned down a library."]);
+// Trade lines that pay off, now and then, while their owner works this building: [building, resource, amount, what they did].
+const PAST_PAYS = {
+  "Worked harvests.": ["farm", "food", 10, "brought in a bumper harvest"],
+  "Plowed behind an ox.": ["farm", "food", 8, "plowed the back field"],
+  "Felled timber for shipwrights.": ["lumber", "wood", 12, "felled an old oak"],
+  "Cut stone.": ["quarry", "stone", 8, "found a clean seam"],
+  "Split granite.": ["quarry", "stone", 6, "split a boulder"],
+  "Gathered herbs for a healer.": ["garden", "herbs", 5, "found a wild patch"],
+  "Worked a smithy's bellows.": ["forge", "ore", 3, "melted down scrap"],
+  "Copied books at a monastery.": ["library", "research", 3, "copied out an old text"],
+  "Baked bread before dawn.": ["smokehouse", "meals", 2, "baked trail bread"],
+  "Mended nets.": ["dock", "food", 8, "mended the nets"],
+  "Set eel traps.": ["dock", "food", 6, "emptied the eel traps"],
+};
 // Older saves carry the wordier versions of these lines.
 const PAST_WAS = {
-  "Born on the road, to traders.": "Born to traders.", "Orphaned young, raised at a temple.": "Orphan, raised at a temple.",
+  "Born on the road, to traders.": "Born to traders.", "Orphaned young, raised at a temple.": "Temple orphan.", "Orphan, raised at a temple.": "Temple orphan.",
   "Born to a miller's family.": "Born to millers.", "Worked the fields every harvest.": "Worked harvests.",
   "Felled timber for the shipwrights.": "Felled timber for shipwrights.", "Cut stone in a flooded quarry.": "Cut stone.",
   "Gathered herbs for a village healer.": "Gathered herbs for a healer.", "Worked the bellows in a smithy.": "Worked a smithy's bellows.",
@@ -166,13 +395,14 @@ const IMPROVE = [
 const RESEARCH = {
   scouting: { name: "Scouting", cost: 5, desc: "See 1 further from the town hall." },
   herbalism: { name: "Herbalism", cost: 4, desc: "Brew potions at the forge. 3🌿 each, heals 20." },
-  salvage: { name: "Salvage", cost: 5, desc: "Demolishing returns ½ of what it cost." },
+  salvage: { name: "Salvage", cost: 6, desc: "Demolishing returns ¾ of what it cost." },
   smelting: { name: "Smelting", cost: 6, desc: "Iron gear. Workplaces improve to +25%." },
-  field_rations: { name: "Field rations", cost: 6, desc: "Food and meals last one room longer." },
-  smoking: { name: "Smoking", cost: 6, desc: "Smokehouse: trail meals last 3 rooms and heal." },
-  rosters: { name: "Duty rosters", cost: 5, desc: "Back from a dungeon, settlers return to their jobs." },
+  field_rations: { name: "Foraging", cost: 6, desc: "Won fights sometimes turn up 1🍞." },
+  smoking: { name: "Smoking", cost: 6, desc: "Smokehouse: 3🍞 → 1🥪." },
+  camping: { name: "Camping", cost: 8, desc: "Rest once a floor: 1🍞 each, heals half. Uncleared rooms may come for you." },
+  altar_lore: { name: "Altar lore", cost: 8, desc: "Altars always pay, but take 10 HP each." },
+  rope: { name: "Climbing rope", cost: 10, desc: "Half the ambushes on the way home." },
   masonry: { name: "Masonry", cost: 8, desc: "Stone houses (4 beds). Huts can be rebuilt." },
-  reclaim: { name: "Reclamation", cost: 10, after: "salvage", desc: "Demolishing returns ¾." },
   surveying: { name: "Surveying", cost: 10, after: "scouting", desc: "See 1 further again." },
   tactics: { name: "Tactics", cost: 10, desc: "Party size 4." },
   silverwork: { name: "Silverwork", cost: 12, after: "smelting", desc: "Silver gear. Workplaces to +50%. Silver lies below floor 3." },
@@ -184,27 +414,38 @@ const RESEARCH = {
 // Where each ore first turns up in the dungeon.
 const ORE_FLOOR = { silver: 3, starmetal: 6 };
 
-// Gear is plain stat bonuses; any class can wear any of it.
+// Gear is plain stat bonuses; any class can wear any of it. A weapon made for your class (`cls`)
+// hits a quarter harder, and a cleric's mace adds its attack to Mend.
 const RECIPES = [
-  { id: "club", name: "Oak club", slot: "weapon", atk: 2, cost: { wood: 4 } },
+  { id: "club", name: "Oak club", slot: "weapon", cls: "warrior", atk: 2, cost: { wood: 4 } },
+  { id: "staff", name: "Yew staff", slot: "weapon", cls: "mystic", atk: 3, cost: { wood: 5, herbs: 1 } },
+  { id: "rod", name: "Ash rod", slot: "weapon", cls: "cleric", atk: 2, hp: 4, cost: { wood: 4, herbs: 1 } },
   { id: "jerkin", name: "Leather jerkin", slot: "armor", def: 1, hp: 5, cost: { wood: 2, herbs: 1 } },
-  { id: "sword", name: "Iron sword", slot: "weapon", atk: 5, cost: { ore: 4, wood: 2 }, needs: "smelting" },
+  { id: "sword", name: "Iron sword", slot: "weapon", cls: "warrior", atk: 5, cost: { ore: 4, wood: 2 }, needs: "smelting" },
+  { id: "bow", name: "Yew longbow", slot: "weapon", cls: "ranger", atk: 4, spd: 1, cost: { wood: 6, ore: 1 }, needs: "smelting" },
+  { id: "istaff", name: "Iron-shod staff", slot: "weapon", cls: "mystic", atk: 6, cost: { wood: 3, ore: 3 }, needs: "smelting" },
+  { id: "mace", name: "Iron mace", slot: "weapon", cls: "cleric", atk: 4, def: 1, cost: { ore: 4, wood: 1 }, needs: "smelting" },
   { id: "mail", name: "Iron mail", slot: "armor", def: 3, hp: 10, spd: -1, cost: { ore: 6 }, needs: "smelting" },
-  { id: "bow", name: "Yew longbow", slot: "weapon", atk: 4, spd: 1, cost: { wood: 6, ore: 1 }, needs: "smelting" },
-  { id: "ssword", name: "Silver blade", slot: "weapon", atk: 8, cost: { silver: 4, ore: 2 }, needs: "silverwork" },
+  { id: "ssword", name: "Silver blade", slot: "weapon", cls: "warrior", atk: 8, cost: { silver: 4, ore: 2 }, needs: "silverwork" },
+  { id: "sbow", name: "Silver-strung bow", slot: "weapon", cls: "ranger", atk: 7, spd: 1, cost: { silver: 3, wood: 4 }, needs: "silverwork" },
+  { id: "wand", name: "Silver wand", slot: "weapon", cls: "mystic", atk: 9, spd: 1, cost: { silver: 3, wood: 2 }, needs: "silverwork" },
+  { id: "smace", name: "Silver mace", slot: "weapon", cls: "cleric", atk: 7, def: 1, cost: { silver: 4, ore: 2 }, needs: "silverwork" },
   { id: "smail", name: "Silver mail", slot: "armor", def: 5, hp: 14, cost: { silver: 6, ore: 2 }, needs: "silverwork" },
-  { id: "sbow", name: "Silver-strung bow", slot: "weapon", atk: 7, spd: 1, cost: { silver: 3, wood: 4 }, needs: "silverwork" },
-  { id: "starblade", name: "Star blade", slot: "weapon", atk: 12, spd: 1, cost: { starmetal: 4, silver: 2 }, needs: "starforging" },
+  { id: "starblade", name: "Star blade", slot: "weapon", cls: "warrior", atk: 12, spd: 1, cost: { starmetal: 4, silver: 2 }, needs: "starforging" },
+  { id: "starbow", name: "Star-strung bow", slot: "weapon", cls: "ranger", atk: 11, spd: 2, cost: { starmetal: 3, wood: 4 }, needs: "starforging" },
+  { id: "starstaff", name: "Star staff", slot: "weapon", cls: "mystic", atk: 13, spd: 1, cost: { starmetal: 4, wood: 2 }, needs: "starforging" },
+  { id: "starmace", name: "Star mace", slot: "weapon", cls: "cleric", atk: 11, def: 2, cost: { starmetal: 4, silver: 2 }, needs: "starforging" },
   { id: "starplate", name: "Star plate", slot: "armor", def: 7, hp: 20, cost: { starmetal: 6, silver: 2 }, needs: "starforging" },
 ];
 
 // Drops found in the dungeon, scaled by floor when rolled.
 const LOOT_GEAR = [
-  { name: "Rusted blade", slot: "weapon", atk: 3 },
+  { name: "Rusted blade", slot: "weapon", cls: "warrior", atk: 3 },
   { name: "Bone charm", slot: "armor", hp: 8 },
-  { name: "Cultist's knife", slot: "weapon", atk: 2, spd: 2 },
+  { name: "Cultist's knife", slot: "weapon", cls: "ranger", atk: 2, spd: 2 },
   { name: "Warden's plate", slot: "armor", def: 4, hp: 6, spd: -1 },
-  { name: "Lantern staff", slot: "weapon", atk: 5 },
+  { name: "Lantern staff", slot: "weapon", cls: "mystic", atk: 5 },
+  { name: "Chapel censer", slot: "weapon", cls: "cleric", atk: 3, hp: 4 },
   { name: "Root-woven cloak", slot: "armor", def: 2, spd: 1 },
 ];
 
@@ -249,7 +490,7 @@ const bossFor = (floor) => BOSSES[floor] || (floor % 3 === 0 && floor > 6
 const EVENTS = [
   {
     id: "prisoner", text: "A chained prisoner begs for water.",
-    choices: [{ label: "Free them", act: "recruit" }, { label: "Leave", act: "none" }],
+    choices: [{ label: "Free them", act: "free" }, { label: "Leave", act: "none" }],
   },
   {
     id: "altar", text: "A black altar. It wants blood.",

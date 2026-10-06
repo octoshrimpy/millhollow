@@ -53,8 +53,8 @@
   #menu, #savebtn { background: none; border: 0; padding: .4em; color: var(--dim); font-size: 1.15rem; line-height: 1; }
   /* The newest log lines and the tabs ride together at the bottom; main pads by the measured height. */
   .founding #dock { display: none; }
-  .reroll { position: relative; overflow: hidden; }
-  .reroll.cooling::before { content: ""; position: absolute; inset: 0; background: color-mix(in srgb, var(--accent) 30%, transparent); transform-origin: left; animation: cool 3s linear forwards; animation-delay: calc(var(--left) - 3s); }
+  .reroll, .timed { position: relative; overflow: hidden; }
+  .cooling::before { content: ""; position: absolute; inset: 0; background: color-mix(in srgb, var(--accent) 30%, transparent); transform-origin: left; animation: cool var(--dur, 3s) linear forwards; animation-delay: calc(var(--left) - var(--dur, 3s)); }
   @keyframes cool { from { transform: scaleX(0); } to { transform: scaleX(1); } }
   .stakes { color: var(--dim); margin: .6em 0 1em; } .stakes p { margin: .2em 0; }
   #dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; border-top: 1px solid var(--line);
@@ -119,6 +119,10 @@
   .sites { display: flex; gap: 6px; margin-bottom: 8px; }
   .sites button { flex: 1; padding: 8px 0; }
   .sites button.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--bg)); }
+  #pinned { padding: 0 16px; font-size: .85rem; }
+  #pinned:not(:empty) { border-bottom: 1px solid var(--line); padding: .35em 16px; }
+  #pinned summary { cursor: pointer; color: var(--dim); }
+  #pinned .row { gap: 6px; padding-top: .4em; max-height: 30vh; overflow-y: auto; }
   .beside { color: var(--c-green); font-weight: 600; }
   .chip.potion { border-color: var(--good); color: var(--ink); }
   .chip.potion:disabled { opacity: .45; }
@@ -134,11 +138,16 @@
   .knock { display: flex; align-items: center; gap: .6em; width: 100%; margin: .6em 0; border-color: var(--story); text-align: left; }
   .knock b { font-weight: normal; flex: 1; }
   .knock .mini { width: 36px; height: 36px; }
+  .watch { gap: .6em; margin: .4em 0; }
+  .watch button { padding: 3px; border-radius: 9px; opacity: .55; }
+  .watch button.on { opacity: 1; border-color: var(--accent); }
+  .watch .mini { width: 36px; height: 36px; display: block; }
   .arrival { display: flex; flex-direction: column; align-items: center; gap: .35em; text-align: center; }
   .arrival .face { width: 110px; height: 110px; border-radius: 12px; }
   .arrival .ask { padding: 0; border: 0; background: none; border-radius: 12px; cursor: help; }
   .arrival .said { margin: .3em 0 0; max-width: 32ch; font-style: italic; }
   .arrival h3 { margin: .2em 0 0; }
+  .arrival .omen { font-size: 3rem; line-height: 1; color: var(--story); }
   .arrival .row { justify-content: center; }
   .arrival .chip { font-size: .9rem; }
   .arrival .pair { width: 100%; margin-top: .8em; gap: 8px; }
@@ -155,6 +164,7 @@
   .who em { z-index: 1; position: absolute; right: 4px; top: 4px; font: bold .85rem Georgia, serif; font-style: normal;
     background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: .15em .45em; }
   .who em.top { color: var(--accent); border-color: var(--accent); }
+  .who .st b { margin: 0; font-weight: bold; }
   .who em i { font-style: normal; margin-right: .3em; }
   .who b { font-weight: normal; margin-top: .25em; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .who .st { font-size: .75rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
@@ -192,7 +202,8 @@
   .picker .pick { display: flex; justify-content: space-between; align-items: center; gap: .6em; padding: .5em .75em; border: 1px solid var(--line); border-radius: 8px; background: transparent; }
   .picker .pick b { font-size: .85rem; }
   .picker .pick small { font-size: .75rem; white-space: nowrap; }
-  .picker .up { color: var(--good); } .picker .down { color: var(--bad); }
+  .picker .up, .stats .up { color: var(--good); } .picker .down, .stats .down { color: var(--bad); }
+  .stats small { font-size: .75em; margin-left: -.15em; }
   .picker .off { justify-content: center; color: var(--bad); }
   @keyframes drop { from { opacity: 0; transform: translateY(-4px); } }
   .chip { font-size: .78rem; padding: .2em .55em; border-radius: 999px; border: 1px solid var(--line); background: transparent; }
@@ -218,6 +229,13 @@
   .room.here:disabled { opacity: 1; }
   .lineup summary { display: inline-block; list-style: none; color: var(--accent); cursor: pointer; }
   .lineup summary::-webkit-details-marker { display: none; }
+  /* Lineup left, Pack right on one line; whichever is open takes the full width below */
+  .bags { display: grid; grid-template-columns: 1fr auto; }
+  .bags details { display: contents; }
+  .bags summary { grid-row: 1; }
+  .bags .pack { text-align: right; }
+  .bags details > :not(summary) { grid-column: 1 / -1; }
+  .bags .pack > :not(summary) { text-align: right; }
   .formation { display: flex; flex-direction: column; gap: 4px; margin: .6em 0; }
   .foeline { text-align: center; opacity: .5; letter-spacing: .4em; font-size: .9rem; }
   .lane { display: flex; justify-content: center; gap: .5em; min-height: 4.2em; padding: .35em; border: 1px dashed var(--line); border-radius: 10px; }
@@ -261,6 +279,13 @@
   .lines { height: 5.5em; overflow: hidden; font-size: .82rem; color: var(--dim); margin: .6em 0; }
   .lines p { margin: .1em 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .controls { justify-content: center; }
+  /* the keeper's hit-everyone swing: fills toward the blow, throbs on the last swing before it */
+  .bar.wind { height: 4px; } .bar.wind i { background: repeating-linear-gradient(-45deg, var(--bad) 0 4px, transparent 4px 7px); transition: none; }
+  .foe.due .bar.wind { animation: due .5s ease-in-out infinite alternate; }
+  @keyframes due { to { box-shadow: 0 0 8px var(--bad); } }
+  .lanebtn { padding: 0; border: 0; background: none; align-self: start; }
+  .hero.back { border-style: dashed; background: var(--bg); }
+  [data-hold] { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 
   /* ---------- juice ---------- */
   button { transition: transform .08s, border-color .2s, background-color .2s, color .2s; }
@@ -385,7 +410,7 @@
   #log { cursor: pointer; }
   .fulllog { font-size: .85rem; } .fulllog p { margin: .3em 0; } .fulllog p.day, .fulllog small { color: var(--dim); }
   .fulllog small { margin-right: .3em; }
-  [data-hold] { touch-action: manipulation; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+  [data-hold], [data-long] { touch-action: manipulation; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
   .card.person { cursor: pointer; }
   .remembered { display: flex; flex-wrap: wrap; gap: 6px; }
   .remembered button { display: inline-flex; align-items: center; gap: .4em; padding: .2em .6em .2em .2em; border-radius: 999px; }
@@ -406,6 +431,7 @@
   <div id="view"></div>
 </main>
 <footer id="dock">
+  <section id="pinned" class="wrap"></section>
   <section id="log" class="wrap" data-act="tab" data-v="log"></section>
   <nav id="tabs"></nav>
 </footer>

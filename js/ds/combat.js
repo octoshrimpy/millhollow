@@ -15,7 +15,7 @@ function newFight(settlers, enemies) {
       return {
         side: "h", idx: i, id: s.id, name: s.name, cls: s.cls, level: s.level, row: s.row || defaultRow(s.cls),
         hp: s.hp, hpMax: st.hpMax, atk: starving() ? Math.ceil(st.atk / 2) : st.atk, def: st.def, spd: st.spd,
-        gauge: rand(40), cd: 2,
+        gauge: rand(40), cd: 2, hurt: s.hp < st.hpMax / 2,
       };
     }),
     enemies: enemies.map((e, i) => ({ ...e, side: "e", idx: i, gauge: rand(40), swings: 0 })),
@@ -33,6 +33,9 @@ function fightLog(f, text) {
 }
 
 const alive = (xs) => xs.filter((u) => u.hp > 0);
+
+// A keeper's hit-everyone swing, 0..100: fills over the swings before it lands, so there's time to answer it.
+const windup = (en) => en.aoeEvery ? ((en.swings % en.aoeEvery) * 100 + Math.min(100, en.gauge)) / en.aoeEvery : 0;
 
 // How a plain attack looks: who lunges and who throws something.
 const attackKind = (u) => u.side === "h"
@@ -83,7 +86,7 @@ function useSkill(f, i) {
     fightLog(f, `${h.name}: Firebolt, ${d} to ${t.name}.`);
   } else if (skill.id === "mend") {
     const t = alive(f.heroes).sort((a, b) => a.hp / a.hpMax - b.hp / b.hpMax)[0];
-    const n = 12 + 2 * h.level;
+    const s = byId(h.id), n = 12 + 2 * h.level + (fitBonus(s.gear.weapon, s) ? s.gear.weapon.atk : 0);
     t.hp = Math.min(t.hpMax, t.hp + n);
     t.healed = 0.4;
     f.fx.push({ t: "heal", to: t, n });
@@ -134,7 +137,8 @@ function step(f, dt) {
     en.swings++;
     if (en.aoeEvery && en.swings % en.aoeEvery === 0) {
       f.fx.push({ t: "aoe", u: en });
-      alive(f.heroes).forEach((h) => hit(f, en, h, 0.6, false, "aoe"));
+      // The back lane catches the edge of it.
+      alive(f.heroes).forEach((h) => hit(f, en, h, h.row === "back" ? 0.3 : 0.6, false, "aoe"));
       fightLog(f, `${en.name} hits everyone.`);
     } else {
       const t = enemyTarget(f, en);
@@ -142,6 +146,8 @@ function step(f, dt) {
     }
     check(f);
   }
+  // Someone dropping under half is when choices matter: stop once for each of them.
+  for (const h of f.heroes) if (h.hp > 0 && h.hp < h.hpMax / 2 && !h.hurt && !f.over) { h.hurt = true; f.paused = true; }
 }
 
 function check(f) {

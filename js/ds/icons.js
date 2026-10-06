@@ -69,6 +69,9 @@ const ICONS = {
   "📂": ["lu-folder-open", "currentColor"],
   "📥": ["lu-log-in", "currentColor"],
   "📲": ["lu-smartphone", "currentColor"],
+  "⛶": ["lu-maximize", "currentColor"],
+  "🦺": ["lu-shirt", "brown"],
+  "📦": ["lu-package", "brown"],
   // thoughts and morale
   "🍽": ["lu-utensils-crossed", "orange"],
   "🪦": ["ra-tombstone", "gray"],

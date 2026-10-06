@@ -6,6 +6,7 @@ const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 let tab = "village";
 let sheet = null; // open modal: { i } for a plot, { visitor: true } for someone at the gate
 let knocked = null; // the visitor whose popup already opened by itself
+let pleaded = null; // the same, for a room below that wants an answer
 let alarmed = null; // the night's trouble whose popup already opened by itself
 // Ask the browser not to clear the save when it tidies up storage (Safari does after a week away).
 navigator.storage?.persist?.().catch(() => {});
@@ -56,6 +57,10 @@ function render() {
     sheet = { visitor: true };
   }
   if (sheet && sheet.visitor && !S.visitor) sheet = null;
+  // A room that wants an answer asks once; swiped away, the room's button asks again.
+  const ev = S.expedition?.event, here = ev && `${S.expedition.map.floor}:${S.expedition.map.at}`;
+  if (ev && here !== pleaded && tab === "dungeon" && !sheet && !S.expedition.fight) { pleaded = here; sheet = { event: true }; }
+  if (sheet && sheet.event && !ev) sheet = null;
   // Trouble at home reaches the party below too, so it can be answered from there.
   if (S.trouble && S.trouble !== alarmed && ["village", "dungeon"].includes(tab) && !sheet && !S.expedition?.fight) {
     alarmed = S.trouble;
@@ -66,6 +71,7 @@ function render() {
   $("#view").innerHTML = iconize(view());
   placeLand();
   renderLog();
+  renderPinned();
   renderSheet();
   if (S.expedition && S.expedition.fight) renderFight();
   else $("#fight").hidden = true;
@@ -80,7 +86,7 @@ function viewRecruits() {
     const t = tradeOf(s), b = Object.values(BUILDINGS).find((x) => x.job === t);
     return `<button class="${chosen.includes(s.id) ? "on" : ""} ${s.id === shine ? "shine" : ""}" data-act="recruit" data-v="${s.id}">
       <span class="me"><img src="${faceSrc(s)}" alt=""></span>
-      <span class="past">${s.story.filter((e) => e.kind === "past").map((e) => `<span class="${PAST_GOOD.has(e.text) ? "good" : PAST_BAD.has(e.text) ? "bad" : ""}">${esc(e.text)}</span>`).join("")}</span>
+      <span class="past">${s.story.filter((e) => e.kind === "past").map((e) => `<span class="${PAST_GOOD.has(e.src || e.text) ? "good" : PAST_BAD.has(e.src || e.text) ? "bad" : ""}">${esc(e.text)}</span>`).join("")}</span>
       <b>${esc(s.name)}</b><span class="tags"><small>${CLASSES[s.cls].icon} ${CLASSES[s.cls].name}</small><small>${b ? b.icon : ""} ${TRADES[t]} <u>+${s.skills[t]}</u></small></span></button>`;
   }).join("") + `</div><div class="row pair">${(shine = 0, "")}
     <button class="reroll${cooling ? " cooling" : ""}" data-act="reroll" ${cooling ? `disabled style="--left:${left}ms"` : ""}>🎲 Reroll</button>
@@ -111,6 +117,12 @@ function renderLog() {
   el.hidden = tab === "log";
   el.innerHTML = iconize(S.log.slice(-3).reverse().map(logLine).join(""));
   logSeen = S.logN || 0;
+}
+// The forge's finished pieces sit folded in the dock, above the log.
+function renderPinned() {
+  const st = tab === "forge" ? S.stash || [] : [];
+  $("#pinned").innerHTML = st.length ? iconize(`<details data-keep="stores" ${kept.stores ? "open" : ""}><summary>📦 ${st.length}</summary>
+    <div class="row wrap">${st.map((g) => `<span class="chip">${esc(g.name)} ${gearText(g)}</span>`).join("")}</div></details>`) : "";
 }
 // Keep main's bottom padding equal to whatever the dock is right now.
 if (window.ResizeObserver) new ResizeObserver(([e]) =>
@@ -242,7 +254,7 @@ function sheetPlot(i) {
     body += `<div class="who">` + home.map((s) => {
       const here = b.worker === s.id, from = !here && s.job != null && S.grid[s.job];
       const st = here ? `<small class="st here">✓ Working</small>` : from
-        ? `<small class="st">${BUILDINGS[from.type].icon} ${BUILDINGS[from.type].name}</small>` : `<small class="st free">Free</small>`;
+        ? `<small class="st">${BUILDINGS[from.type].icon} ${BUILDINGS[from.type].name}${(s.skills[BUILDINGS[from.type].job] || 0) >= 0.1 ? ` <b>${s.skills[BUILDINGS[from.type].job].toFixed(1)}</b>` : ""}</small>` : `<small class="st free">Free</small>`;
       return `<button class="${here ? "on" : ""}" data-act="assign" data-v="${here ? 0 : s.id}">
         ${sk(s) >= 0.1 ? `<em class="${sk(s) === best ? "top" : ""}"><i>${d.icon}</i>${sk(s).toFixed(1)}</em>` : ""}
         <img src="${faceSrc(s)}" alt="">
@@ -274,6 +286,29 @@ const besideTag = (i, type) => {
 // A skill's icon is the building that trains it: 🌾 farming, 🪓 woodcutting…
 const jobIcon = (job) => Object.values(BUILDINGS).find((d) => d.job === job).icon;
 
+function sheetEvent() {
+  if (S.expedition.prisoner) return sheetPrisoner();
+  const ev = EVENTS.find((x) => x.id === S.expedition.event);
+  return `<div class="arrival">
+    <div class="omen">${ROOM_ICON.event}</div>
+    <p>${ev.text}</p>
+    <div class="row pair">${ev.choices.slice().reverse().map((x, i) =>
+      `<button ${i ? 'class="primary"' : ""} data-act="event" data-v="${x.act}">${x.label}</button>`).join("")}</div>
+  </div>`;
+}
+
+function sheetPrisoner() {
+  const p = S.expedition.prisoner, c = CLASSES[p.cls], ev = EVENTS.find((x) => x.id === "prisoner");
+  return `<div class="arrival">
+    <img class="face" src="${faceSrc(p)}" alt="">
+    <h3>${esc(p.name)}</h3>
+    <div>${c.icon} ${c.name}</div>
+    <p>${ev.text}</p>
+    <div class="row pair">${ev.choices.slice().reverse().map((x, i) =>
+      `<button ${i ? 'class="primary"' : ""} data-act="event" data-v="${x.act}">${x.label}</button>`).join("")}</div>
+  </div>`;
+}
+
 function sheetVisitor() {
   const v = S.visitor, c = CLASSES[v.cls], st = stats(v), full = living().length >= beds();
   const skills = Object.entries(v.skills).filter(([, x]) => x >= 0.1)
@@ -289,8 +324,11 @@ function sheetVisitor() {
   </div>`;
 }
 
-const statLine = (st, hp = "") => [hp, `⚔${st.atk}`, `🛡${st.def}`, `💨${st.spd}`].filter(Boolean)
-  .map((x) => `<span>${x}</span>`).join("");
+// With someone given, each stat carries what their gear adds to it, green or red.
+const gearAdds = (s, k) => ["weapon", "armor"].reduce((a, slot) => a + (s.gear[slot] ? gearStat(s.gear[slot], k, s) : 0), 0);
+const statLine = (st, hp = "", s = null) => [[hp, "hp"], [`⚔${st.atk}`, "atk"], [`🛡${st.def}`, "def"], [`💨${st.spd}`, "spd"]].filter(([x]) => x)
+  .map(([x, k]) => { const d = s ? gearAdds(s, k) : 0;
+    return `<span>${x}${d ? `<small class="${d > 0 ? "up" : "down"}">${d > 0 ? "+" : "−"}${Math.abs(d)}</small>` : ""}</span>`; }).join("");
 
 // ---------- people ----------
 // A card is a glance: who, how hurt, how they feel, what they hit for. Everything else is in their sheet.
@@ -301,9 +339,9 @@ function settlerCard(s) {
   return `<div class="card person" data-act="person" data-v="${s.id}">
     <img class="face" src="${faceSrc(s)}" alt="">
     <div class="grow">
-      <div class="row between"><span><b>${esc(s.name)}</b> <small class="dim">lv ${s.level}</small> <small class="dim">${jobText(s)}</small></span><small class="cls">${c.icon} ${c.name}</small></div>
+      <div class="row between"><span><b>${esc(s.name)}</b>${s.guest ? " 🚪" : ""} <small class="dim">lv ${s.level}</small> <small class="dim">${jobText(s)}</small></span><small class="cls">${c.icon} ${c.name}</small></div>
       ${bar(s.hp, st.hpMax, "hp")}
-      <div class="row between"><span class="feel">${moraleFace(s)}${feel}</span><span class="stats">${statLine(st)}</span></div>
+      <div class="row between"><span class="feel">${moraleFace(s)}${feel}</span><span class="stats">${statLine(st, "", s)}</span></div>
     </div></div>`;
 }
 // Where they are: the building they work, the dungeon, or nothing when idle.
@@ -312,14 +350,14 @@ const moraleFace = (s) => `<span title="Morale">${s.morale >= 75 ? "😄" : s.mo
 
 // Two slots. Tapping one opens what the stores hold for it, each with how it changes the stats.
 let gearPick = null; // { id, slot } while a slot's list is open
-const SLOT_ICON = { weapon: "⚔️", armor: "🛡️" };
+const SLOT_ICON = { weapon: "⚔️", armor: "🦺" };
 const STAT_ICON = { atk: "⚔️", def: "🛡️", hp: "❤️", spd: "💨" };
 function gearRow(s) {
   const busy = away(s), open = gearPick && gearPick.id === s.id && gearPick.slot;
   const slots = ["weapon", "armor"].map((slot) => {
     const g = s.gear[slot], choices = (S.stash || []).some((x) => x.slot === slot);
     return `<button class="slot ${g ? "" : "empty"} ${open === slot ? "open" : ""}" data-act="gearpick" data-v="${slot}"
-      ${busy || (!g && !choices) ? "disabled" : ""}><i>${SLOT_ICON[slot]}</i><span><b>${g ? esc(g.name) : "—"}</b>${g ? `<small>${gearText(g)}</small>` : ""}</span></button>`;
+      ${busy || (!g && !choices) ? "disabled" : ""}><i>${SLOT_ICON[slot]}</i><span><b>${g ? esc(g.name) : "—"}</b>${g ? `<small>${gearText(g, s)}</small>` : ""}</span></button>`;
   }).join("");
   return `<div class="slots">${slots}</div>${open && !busy ? gearList(s, open) : ""}
 `;
@@ -327,16 +365,18 @@ function gearRow(s) {
 function gearList(s, slot) {
   const cur = s.gear[slot];
   const rows = (S.stash || []).filter((g) => g.slot === slot).map((g) =>
-    `<button class="pick" data-act="equip" data-v="${s.id}" data-uid="${g.uid}"><b>${esc(g.name)}</b><small>${gearDelta(g, cur)}</small></button>`);
+    `<button class="pick" data-act="equip" data-v="${s.id}" data-uid="${g.uid}"><b>${esc(g.name)}</b><small>${weaponCls(g) ? `${CLASSES[weaponCls(g)].icon} ` : ""}${gearDelta(g, cur, s)}</small></button>`);
   if (cur) rows.push(`<button class="pick off" data-act="unequip" data-v="${s.id}" data-slot="${slot}">✕</button>`);
   return `<div class="picker">${rows.join("")}</div>`;
 }
 // "⚔️+3 💨−1" against what's worn now, green for better and red for worse.
-const gearDelta = (g, cur) => Object.keys(STAT_ICON).map((k) => {
-  const d = (g[k] || 0) - ((cur && cur[k]) || 0);
+const gearDelta = (g, cur, s) => Object.keys(STAT_ICON).map((k) => {
+  const d = gearStat(g, k, s) - (cur ? gearStat(cur, k, s) : 0);
   return d ? `<span class="${d > 0 ? "up" : "down"}">${STAT_ICON[k]}${d > 0 ? "+" : "−"}${Math.abs(d)}</span>` : "";
 }).filter(Boolean).join(" ") || "=";
-const gearText = (g) => Object.keys(STAT_ICON).filter((k) => g[k]).map((k) => `${STAT_ICON[k]}${g[k] > 0 ? "+" : "−"}${Math.abs(g[k])}`).join(" ");
+const gearStat = (g, k, s) => (g[k] || 0) + (k === "atk" && s ? fitBonus(g, s) : 0);
+const gearText = (g, s, bare = false) => (!bare && weaponCls(g) ? `${CLASSES[weaponCls(g)].icon} ` : "") +
+  Object.keys(STAT_ICON).filter((k) => g[k]).map((k) => { const v = gearStat(g, k, s); return `${STAT_ICON[k]}${v > 0 ? "+" : "−"}${Math.abs(v)}`; }).join(" ");
 
 const moraleChip = (s) => `<span class="thought">${moraleFace(s)}</span>`;
 const thoughtChip = (x) => {
@@ -385,11 +425,11 @@ function sheetPerson() {
     ${s.dead ? `<img class="face" src="${faceSrc(s)}" alt="">` : `<button class="ask" data-act="why" aria-label="Why?"><img class="face" src="${faceSrc(s)}" alt=""></button>`}
     ${sheet.why && !s.dead ? `<p class="said">“${esc(why(s))}”</p>` : ""}
     <h3>${esc(s.name)}</h3>
-    <div class="row center">${c.icon} ${c.name} · lv ${s.level}${jobText(s) && guard() !== s ? ` · ${jobText(s)}` : ""}
+    <div class="row center">${c.icon} ${c.name} · lv ${s.level}${guard() === s ? (s.wasJob ? ` · <span class="dim">${BUILDINGS[s.wasJob.type].icon}</span>` : "") : jobText(s) ? ` · ${jobText(s)}` : ""}
     ${s.dead || away(s) ? "" : `<button class="small ${guard() === s ? "on" : "ghost"}" data-act="guard" aria-label="Guard">👀</button>`}</div>
     ${s.dead ? restText(s) : ""}
     ${s.dead ? "" : `<div class="hpline">${bar(s.hp, st.hpMax, "hp")}</div>
-    <div class="stats">${statLine(st, `❤️${s.hp}/${st.hpMax}`)}</div>
+    <div class="stats">${statLine(st, `❤️${s.hp}/${st.hpMax}`, s)}</div>
     <div class="thoughts">${moraleChip(s)}${fresh(s).sort((x, y) => y.n - x.n).map(thoughtChip).join("")}</div>
     <div class="row wrap center">${skills}</div>
     ${blames(s)}
@@ -399,17 +439,30 @@ function sheetPerson() {
 }
 
 // ---------- forge / research ----------
+let forgeTab = null;
 function viewForge() {
   if (!S.grid.some((b) => b && b.type === "forge")) return `<p class="dim">Build a forge first.</p>`;
   if (!staffed("forge")) return `<p class="dim">The forge needs a worker.</p>`;
-  const recipes = RECIPES.map((r) => {
+  // a piece on the anvil fills its button; with every forge busy, the rest wait
+  const free = forgeFree(), now = Date.now();
+  const timer = (id) => { const j = (S.forging || []).filter((x) => x.id === id).sort((a, b) => a.until - b.until)[0];
+    return j ? ` timed cooling" style="--left:${j.until - now}ms;--dur:${forgeSecs(id)}s` : ""; };
+  const recipe = (r) => {
     const locked = r.needs && !has(r.needs);
-    return `<button class="opt" data-act="craft" data-v="${r.id}" ${locked || !afford(forgeCost(r.cost)) ? "disabled" : ""}>
-      <span><b>${r.name}</b> ${costText(forgeCost(r.cost))}<br><small>${locked ? `🔒 📜 ${RESEARCH[r.needs].name}` : gearText(r)}</small></span></button>`;
+    return `<button class="opt${timer(r.id)}" data-act="craft" data-v="${r.id}" ${locked || !free || !afford(forgeCost(r.cost)) ? "disabled" : ""}>
+      <span><b>${r.name}</b> ${costText(forgeCost(r.cost))}<br><small>${locked ? `🔒 📜 ${RESEARCH[r.needs].name}` : gearText(r, null, true)}</small></span></button>`;
+  };
+  const potion = `<button class="opt${timer("potion")}" data-act="brew" ${free && afford(forgeCost(POTION_COST)) ? "" : "disabled"}><span><b>Potion</b> ${costText(forgeCost(POTION_COST))}<br><small>❤️+20</small></span></button>`;
+  // a tab per class, armour, and potions once known; a tab with something on the anvil fills too
+  const groups = [...Object.entries(CLASSES).map(([k, c]) => [k, c.icon, c.name, RECIPES.filter((r) => r.cls === k).map(recipe).join(""), RECIPES.some((r) => r.cls === k && timer(r.id))]),
+    ["armor", SLOT_ICON.armor, "Armour", RECIPES.filter((r) => r.slot === "armor").map(recipe).join(""), RECIPES.some((r) => r.slot === "armor" && timer(r.id))],
+    ...(has("herbalism") ? [["potion", "🧪", "Potion", potion, !!timer("potion")]] : [])];
+  if (!groups.some(([k]) => k === forgeTab)) forgeTab = groups[0][0];
+  const tabs = groups.map(([k, icon, name, , busy]) => {
+    const j = busy && (S.forging || []).filter((x) => k === "potion" ? x.id === "potion" : RECIPES.some((r) => r.id === x.id && (r.cls || r.slot) === k)).sort((a, b) => a.until - b.until)[0];
+    return `<button class="${k === forgeTab ? "on" : ""}${j ? ` timed cooling" style="--left:${j.until - now}ms;--dur:${forgeSecs(j.id)}s` : ""}" data-act="forgetab" data-v="${k}" aria-label="${name}">${icon}</button>`;
   }).join("");
-  const potion = has("herbalism") ? `<button class="opt" data-act="brew" ${afford(forgeCost(POTION_COST)) ? "" : "disabled"}><span><b>Potion</b> ${costText(forgeCost(POTION_COST))}<br><small>Heals 20 in a fight.</small></span></button>` : "";
-  const stash = (S.stash || []).map((g) => `<span class="chip">${esc(g.name)} (${gearText(g)})</span>`).join("") || `<span class="dim">Empty. Equip from People.</span>`;
-  return `<p class="dim">Staffed forge: 1🪨/day → chance of ore.</p>` + recipes + potion + `<h4>Stores</h4><div class="row wrap">${stash}</div>`;
+  return `<div class="sites">${tabs}</div>` + groups.find(([k]) => k === forgeTab)[3];
 }
 
 function viewResearch() {
@@ -435,6 +488,8 @@ function viewExpedition() {
   const floors = Array.from({ length: site.deepest + 1 }, (_, k) => k + 1);
   const where = known.length > 1 ? `<div class="sites">${known.map((x) => `<button class="${x === site ? "on" : ""}" data-act="site" data-v="${S.sites.indexOf(x)}"
     aria-label="${esc(x.name)}">${SITES[x.kind].icon}</button>`).join("")}</div>` : "";
+  // whoever stays behind can be put on the gate from here
+  const home = living().filter((s) => !away(s) && !plan.party.includes(s.id));
   const per = (k) => `${roomsPer(k)} ${roomsPer(k) > 1 ? "rooms" : "room"}`;
   const cook = has("smoking") || S.res.meals > 0;
   const stepper = (act, icon, n) => `<div class="row between"><span>${icon}</span><span class="row">
@@ -443,11 +498,13 @@ function viewExpedition() {
     <p class="dim">Party of up to ${partyMax()}. 🍞 ${per("food")}${cook ? ` · 🥪 ${per("meals")}, +${MEAL_HEAL}❤️` : ""}. No food: starving. Death is permanent.</p>
     ${ready.map((s) => {
       const on = plan.party.includes(s.id), st = stats(s);
-      return `<button class="opt ${on ? "on" : ""}" data-act="pick" data-v="${s.id}">
+      return `<button class="opt ${on ? "on" : ""}" data-act="pick" data-v="${s.id}" data-long="person">
         <img class="mini" src="${faceSrc(s)}" alt=""><span><b>${esc(s.name)}</b>${plan.party.some((id) => grudge(s, byId(id)) || grudge(byId(id), s)) ? " 😠" : ""} ${CLASSES[s.cls].icon} lv ${s.level}${lensOf(s).length ? ` <span class="chip">${[...new Set(lensOf(s).map((t) => ROOM_ICON[t === "boss" ? "stairs" : t]))].join("")}</span>` : ""}
-        <br><small>HP ${s.hp}/${st.hpMax}${s.job != null ? " · leaves their work" : ""}</small></span></button>`;
+        <br><small>HP ${s.hp}/${st.hpMax}${s.job != null && S.grid[s.job] ? ` · working: ${BUILDINGS[S.grid[s.job].type].icon}` : ""}</small></span></button>`;
     }).join("")}
     ${plan.party.length ? formation(plan.party.map(byId), false) : ""}
+    ${home.length ? `<div class="row watch"><span>👀</span><span class="row wrap">${home.map((s) =>
+      `<button class="${guard() === s ? "on" : ""}" data-act="watch" data-v="${s.id}" data-long="person" aria-label="${esc(s.name)}"><img class="mini" src="${faceSrc(s)}" alt=""></button>`).join("")}</span></div>` : ""}
     ${stepper("rations", "🍞", plan.rations)}${cook ? stepper("meals", "🥪", plan.meals) : ""}
     <div class="row between"><span>Start at floor</span><select data-act="floor">${floors.map((f) =>
       `<option ${f === plan.floor ? "selected" : ""}>${f}</option>`).join("")}</select></div>
@@ -478,20 +535,26 @@ function viewDungeon() {
   let panel = "";
   if (e.event) {
     const ev = EVENTS.find((x) => x.id === e.event);
-    panel = `<div class="card event"><p>${ev.text}</p><div class="row wrap">${ev.choices.map((c) =>
-      `<button data-act="event" data-v="${c.act}">${c.label}</button>`).join("")}</div></div>`;
+    panel = `<div class="row wrap"><button class="primary" data-act="asked">${ROOM_ICON.event} ${ev.text}</button></div>`;
   } else {
     const down = ["stairs", "boss"].includes(r.type) && r.done;
     panel = `<div class="row wrap">${down ? `<button class="primary" data-act="descend">Down to floor ${m.floor + 1}${grim(m.floor + 1) > 1 ? " " + "💀".repeat(1 + Math.floor(Math.log2(grim(m.floor + 1)))) : ""}</button>` : ""}
+      <button data-hold="push" ${nextStep() ? "" : "disabled"}>👣 Push on</button>
+      ${has("camping") ? `<button data-act="camp" ${canCamp() ? "" : "disabled"}>🔥 Camp (${partyAlive().length}🍞)</button>` : ""}
       <button data-act="home">Head home (${homeDays()}d, ${homeFood()}🍞)</button></div>`;
   }
   return `<div class="row between"><b>${SITES[siteOf().kind].icon} ${esc(siteOf().name)} · ${m.floor}</b><small class="${foodLeft() <= homeFood() ? "short" : ""}">🍞 ${e.rations}${e.meals ? ` 🥪 ${e.meals}` : ""} · 🧪 ${S.res.potions}</small></div>
-    <details class="lineup"><summary>Lineup</summary>${formation(e.party.map(byId), true)}</details>
+    <div class="bags"><details class="lineup" data-keep="lineup" ${kept.lineup ? "open" : ""}><summary>Lineup</summary>${formation(e.party.map(byId), true)}</details>
+    <details class="lineup pack" data-keep="carry" ${kept.carry ? "open" : ""}><summary>Pack</summary><p class="dim small">${loot}</p></details></div>
     <div class="map move-${dir}" style="--w:${MAP}">${cells}</div>
-    <p class="dim small">Carrying: ${loot}</p>${panel}${alarmButton()}`;
+    ${panel}${alarmButton()}`;
 }
 
 // ---------- fight ----------
+// A <details> marked data-keep stays as it was left across re-renders.
+const kept = {};
+document.addEventListener("toggle", (e) => { if (e.target.dataset?.keep) kept[e.target.dataset.keep] = e.target.open; }, true);
+
 let fightBuilt = null;
 function renderFight() {
   const f = S.expedition.fight, box = $("#fight");
@@ -500,10 +563,10 @@ function renderFight() {
     fightBuilt = f;
     box.innerHTML = iconize(`<div class="fightbox">
       <div class="foes">${f.enemies.map((en, i) => `<button class="foe ${en.aoeEvery ? "boss" : ""}" style="--i:${i}" data-act="focus" data-v="${i}">
-        <span class="ico">${en.icon}</span><small>${esc(en.name)}</small>${bar(en.hp, en.hpMax, "hp")}${bar(0, 100, "atb")}</button>`).join("")}</div>
+        <span class="ico">${en.icon}</span><small>${esc(en.name)}</small>${bar(en.hp, en.hpMax, "hp")}${bar(0, 100, "atb")}${en.aoeEvery ? bar(0, 100, "wind") : ""}</button>`).join("")}</div>
       <div class="lines" id="flines"></div>
       <div class="heroes">${f.heroes.map((h, i) => { const s = byId(h.id); return `<div class="hero">
-        <img class="face" alt=""><div class="grow"><b>${esc(h.name)}</b>
+        <button class="lanebtn" data-act="lane" data-v="${i}"><img class="face" alt=""></button><div class="grow"><b>${esc(h.name)}</b>
         ${bar(h.hp, h.hpMax, "hp")}${bar(0, 100, "atb")}
         <div class="row"><small class="skill"></small>
         <button class="chip potion" data-act="potion" data-v="${i}"></button></div></div></div>`; }).join("")}</div>
@@ -522,6 +585,8 @@ function tickFight() {
     el.classList.toggle("dead", en.hp <= 0);
     el.classList.toggle("focus", f.focus === i);
     el.classList.toggle("flash", en.flash > 0);
+    const w = el.querySelector(".wind i");
+    if (w) { w.style.width = `${windup(en)}%`; el.classList.toggle("due", en.hp > 0 && en.swings % en.aoeEvery === en.aoeEvery - 1); }
   });
   document.querySelectorAll(".hero").forEach((el, i) => {
     const h = f.heroes[i], s = byId(h.id), skill = el.querySelector(".skill");
@@ -534,6 +599,7 @@ function tickFight() {
     el.classList.toggle("dead", h.hp <= 0);
     el.classList.toggle("flash", h.flash > 0);
     el.classList.toggle("healed", h.healed > 0);
+    el.classList.toggle("back", h.row === "back");
     // One tap drinks a potion: shows how many are left, gone when there are none.
     const pot = el.querySelector(".potion");
     pot.hidden = S.res.potions <= 0;
@@ -560,6 +626,25 @@ setInterval(() => {
   tickFight();
   playFx(f);
 }, 100);
+
+// a finished piece lands in the stores on its own
+setInterval(() => { if (S && S.forging && S.forging.length && forgeDone()) render(); }, 500);
+
+// Push on walks only while held: a step a beat, and it stops for anything that needs a say.
+let pushing = null;
+const stopPush = () => { clearInterval(pushing); pushing = null; };
+document.addEventListener("pointerdown", (ev) => {
+  if (pushing || !ev.target.closest?.("[data-hold=push]:not(:disabled)")) return;
+  const beat = () => {
+    const e = S.expedition, k = e && !e.fight && !e.event && !hurting() && nextStep();
+    // the food warning is a modal: let go first, so a yes takes one step and the next press carries on
+    if (!k || (onlyEnoughHome() && !e.warned)) stopPush();
+    if (k) run("move", k);
+  };
+  beat();
+  pushing = setInterval(beat, 380);
+});
+for (const t of ["pointerup", "pointercancel", "blur"]) window.addEventListener(t, stopPush);
 
 // ---------- fight juice ----------
 const EGG_FLOOR = 6;
@@ -672,6 +757,7 @@ const GITHUB_MARK = `<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="cur
 let installer = null;
 window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installer = e; });
 window.addEventListener("appinstalled", () => { installer = null; });
+document.addEventListener("fullscreenchange", () => { if (sheet?.menu) renderSheet(); });
 
 // Settings live behind the gear; wiping the save takes a second, deliberate tap.
 function sheetMenu() {
@@ -687,7 +773,8 @@ function sheetMenu() {
   return `<div class="menu"><div class="themes">${THEMES.map(swatch).join("")}</div>${saves}` + (sheet.sure
     ? `<div class="row pair"><button data-act="close">Keep playing</button><button class="danger" data-act="wipe" ${S.recruits ? "disabled" : ""}>Delete save</button></div>`
     : `<button class="danger wide" data-act="newgame" ${S.recruits ? "disabled" : ""}>New game</button>`)
-    + (installer ? `<button class="wide install" data-act="install">📲 Install</button>` : "") + `<a class="src" href="https://github.com/octoshrimpy/millhollow" target="_blank" rel="noopener">${GITHUB_MARK}<small>Source</small></a></div>`;
+    + (installer ? `<button class="wide install" data-act="install">📲 Install</button>` : "")
+    + (document.fullscreenEnabled ? `<button class="wide ${document.fullscreenElement ? "on" : ""}" data-act="fullscreen">⛶ Fullscreen</button>` : "") + `<a class="src" href="https://github.com/octoshrimpy/millhollow" target="_blank" rel="noopener">${GITHUB_MARK}<small>Source</small></a></div>`;
 }
 
 function renderSheet() {
@@ -711,7 +798,7 @@ function renderSheet() {
     box.classList.add("open");
   }
   // A built plot's sheet is one tap (pick a worker) or a tap outside; only the long build list keeps Close.
-  inner.innerHTML = iconize(sheet.menu ? sheetMenu() : sheet.visitor ? sheetVisitor() : sheet.trouble ? sheetTrouble() : sheet.person ? sheetPerson()
+  inner.innerHTML = iconize(sheet.menu ? sheetMenu() : sheet.event ? sheetEvent() : sheet.visitor ? sheetVisitor() : sheet.trouble ? sheetTrouble() : sheet.person ? sheetPerson()
     : sheetPlot(sheet.i) + (S.grid[sheet.i] || wild(sheet.i) ? "" : `<button class="wide" data-act="close">Close</button>`));
 }
 
@@ -793,16 +880,34 @@ document.addEventListener("scroll", (e) => {
 })();
 
 // ---------- input ----------
+// data-long="act": a long press runs that action with the button's data-v instead of its tap.
+(() => {
+  let timer = null, at = null, fired = false;
+  const stop = () => { clearTimeout(timer); timer = null; };
+  document.addEventListener("pointerdown", (e) => {
+    fired = false;
+    const el = e.target.closest("[data-long]");
+    if (!el || el.disabled) return;
+    at = { x: e.clientX, y: e.clientY };
+    stop();
+    timer = setTimeout(() => { fired = true; run(el.dataset.long, el.dataset.v); }, 450);
+  });
+  document.addEventListener("pointermove", (e) => { if (timer && Math.hypot(e.clientX - at.x, e.clientY - at.y) > 8) stop(); });
+  ["pointerup", "pointercancel", "blur"].forEach((ev) => window.addEventListener(ev, stop));
+  document.addEventListener("contextmenu", (e) => { if (e.target.closest("[data-long]")) e.preventDefault(); });
+  document.addEventListener("click", (e) => { if (fired) { fired = false; e.stopPropagation(); e.preventDefault(); } }, true);
+})();
 // Buttons marked data-hold repeat while held, faster the longer the hold. The page re-renders
 // under the finger, so the repeat runs off the action name, not the element.
 (() => {
   let timer = null, repeated = false;
   const stop = () => { clearTimeout(timer); timer = null; };
   document.addEventListener("pointerdown", (e) => {
-    const el = e.target.closest("[data-hold]");
+    // reset on every press: a hold whose button re-rendered away never gets its click, and the flag would eat the next tap
+    repeated = false;
+    const el = e.target.closest("[data-hold][data-act]");
     if (!el || el.disabled) return;
     const act = el.dataset.act, v = el.dataset.v;
-    repeated = false;
     let wait = 380;
     const tick = () => {
       repeated = true;
@@ -862,6 +967,7 @@ const ACTS = {
   person: (v) => { sheet = { person: +v }; gearPick = null; },
   why: () => { sheet.why = !sheet.why; },
   guard: () => setGuard(sheet.person),
+  watch: (v) => setGuard(+v),
   gearpick: (v) => (gearPick = gearPick && gearPick.id === sheet.person && gearPick.slot === v ? null : { id: sheet.person, slot: v }),
   equip: (v, el) => { equip(+v, +el.dataset.uid); gearPick = null; },
   unequip: (v, el) => { unequip(+v, el.dataset.slot); gearPick = null; },
@@ -869,6 +975,7 @@ const ACTS = {
   craft: (v) => craft(v),
   brew: () => brew(),
   research: (v) => doResearch(v),
+  camp: () => camp(),
   pick: (v) => {
     const id = +v, i = plan.party.indexOf(id);
     if (i >= 0) plan.party.splice(i, 1);
@@ -887,11 +994,15 @@ const ACTS = {
     }
     move(v);
   },
-  event: (v) => resolveEvent(v),
+  event: (v) => { resolveEvent(v); if (sheet?.event) sheet = null; },
+  asked: () => (sheet = { event: true }),
+  forgetab: (v) => (forgeTab = v),
   descend: () => descend(),
   home: () => returnHome(),
   focus: (v) => { const f = S.expedition.fight; f.focus = f.enemies[+v].hp > 0 ? +v : null; tickFight(); return "keep"; },
   potion: (v) => { usePotion(+v); tickFight(); renderTop(); playFx(S.expedition.fight); return "keep"; },
+  // Tapping a face mid-fight swaps their lane, and it sticks for the next fight too.
+  lane: (v) => { const f = S.expedition.fight, h = f.heroes[+v]; if (h.hp > 0 && !f.over) byId(h.id).row = h.row = h.row === "back" ? "front" : "back"; tickFight(); return "keep"; },
   pause: () => { const f = S.expedition.fight; f.paused = !f.paused; tickFight(); return "keep"; },
   speed: () => { const f = S.expedition.fight, speeds = [0.5, 1, 2, 3]; f.speed = speeds[(speeds.indexOf(f.speed) + 1) % speeds.length]; tickFight(); return "keep"; },
   flee: () => { flee(S.expedition.fight); tickFight(); playFx(S.expedition.fight); return "keep"; },
@@ -908,6 +1019,7 @@ const ACTS = {
     });
     return "keep";
   },
+  fullscreen: () => { (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen({ navigationUI: "hide" })).catch(() => {}); },
   install: () => { installer.prompt(); installer.userChoice.then(() => { installer = null; if (sheet) renderSheet(); }); return "keep"; },
   savefile: () => {
     exportSave().then((code) => {

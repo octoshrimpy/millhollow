@@ -48,22 +48,43 @@ function makeSettler(cls) {
   };
   // everyone arrives good at one thing
   const trade = pick(Object.keys(JOBS));
-  s.skills[trade] = 1 + rand(3);
-  s.story = pastOf(s, trade);
+  // Each +1 past the first is a 1-in-4: +2 is 1 in 5 people, +3 1 in 21, +4 or +5 1 in 64.
+  let lvl = 1;
+  while (lvl < 5 && chance(0.25)) lvl++;
+  s.skills[trade] = lvl;
+  // Better hands, worse pasts: +2 and +3 sometimes bring one bad line, past +3 always two.
+  // Nobody tells a line someone here already told. ponytail: 50 tries, then a repeat beats a hang once a trade runs dry.
+  const told = new Set(S ? [...S.settlers, S.visitor].filter(Boolean).flatMap((o) => o.story || []).map((e) => e.text) : []);
+  for (let i = 0; i < 50 && (i === 0 || s.story.some((e) => told.has(e.text))); i++) s.story = pastOf(s, trade, lvl > 3 ? 2 : +chance((lvl - 1) / 3));
   return s;
 }
 // The trade could have been picked up at any point after a childhood, so its line lands anywhere past the first.
-const pastOf = (s, trade) => {
-  const lines = [pick(PAST.born), pick(PAST.cls[s.cls]), pick(PAST.road)];
-  lines.splice(1 + rand(3), 0, PAST.trade[trade]);
-  return lines.map((text) => ({ text, kind: "past" }));
+// Bad lines take the road's slot first, then the class's.
+const pastOf = (s, trade, bad = 0) => {
+  const pool = [...PAST.bad], b = Array.from({ length: bad }, () => pool.splice(rand(pool.length), 1)[0]);
+  const lines = [pick(PAST.born), b[1] || pick(PAST.cls[s.cls]), b[0] || pick(PAST.road)];
+  lines.splice(1 + rand(3), 0, pick(PAST.trade[trade]));
+  return lines.map(pastLine);
+};
+const pastLine = (src) => {
+  const text = roll(src);
+  return text === src ? { text, kind: "past" } : { text, src, kind: "past" };
+};
+// "{a|b|c}" becomes one of a, b or c, innermost first so they nest. The unrolled line stays on as
+// src, so colours and pastHas still match the line as written in PAST.
+const roll = (t) => {
+  while (/\{[^{}]*\}/.test(t)) t = t.replace(/\{([^{}]*)\}/g, (_, o) => pick(o.split("|")));
+  return t;
 };
 
+// Gear made before weapons had a class finds it by name.
+const weaponCls = (g) => g.cls || [...RECIPES, ...LOOT_GEAR].find((r) => r.cls && g.name.startsWith(r.name))?.cls;
+const fitBonus = (g, s) => (g && g.atk && weaponCls(g) === s.cls ? Math.ceil(g.atk / 4) : 0);
 function stats(s) {
   const c = CLASSES[s.cls];
   const g = [s.gear.weapon, s.gear.armor].filter(Boolean);
   const sum = (k) => g.reduce((a, it) => a + (it[k] || 0), 0);
-  const atk = c.atk + Math.floor((s.level - 1) * 1.2) + sum("atk"), spd = c.spd + sum("spd");
+  const atk = c.atk + Math.floor((s.level - 1) * 1.2) + sum("atk") + fitBonus(s.gear.weapon, s), spd = c.spd + sum("spd");
   const h = haunted(s);
   return {
     hpMax: s.hpMax + sum("hp"),
@@ -423,7 +444,7 @@ function load() {
     S.remains ??= [];
     for (const e of [...S.log, ...[...S.settlers, S.visitor].filter(Boolean).flatMap((s) => s.story || [])]) e.text = PAST_WAS[e.text] || e.text;
     // Cooks arrived with no trade line until cooking had one.
-    for (const s of [...S.settlers, S.visitor].filter(Boolean)) for (const e of s.story || []) if (e.kind === "past" && !e.text) e.text = PAST.trade.cooking;
+    for (const s of [...S.settlers, S.visitor].filter(Boolean)) for (const e of s.story || []) if (e.kind === "past" && !e.text) Object.assign(e, pastLine(pick(PAST.trade.cooking)));
     // People from older saves get a past, drawn from what they were best at.
     for (const s of [...S.settlers, S.visitor].filter(Boolean)) {
       if ((s.story || []).some((e) => e.kind === "past")) continue;
@@ -537,7 +558,8 @@ function raid() {
 // Nights aren't all quiet. What happens grows out of the village itself: grudges, ghosts, pasts,
 // full stores. Some of it waits on a choice; left until the next End day, trouble goes the worse
 // way and a chance goes by.
-const pastHas = (s, text) => (s.story || []).some((e) => e.kind === "past" && e.text === text);
+// Matches the line as written in PAST, or as this person rolled it.
+const pastHas = (s, text) => (s.story || []).some((e) => e.kind === "past" && (e.src === text || e.text === text));
 const stock = () => ["food", "wood", "stone", "ore", "herbs"].reduce((a, r) => a + S.res[r], 0);
 const hurt = (s, lo, hi) => (s.hp = Math.max(1, s.hp - Math.ceil(stats(s).hpMax * (lo + Math.random() * (hi - lo)))));
 // Someone kept home on watch instead of working. Going below or taking a job ends it.
@@ -545,8 +567,18 @@ const guard = () => { const g = S.guard && byId(S.guard); return g && !g.dead &&
 function setGuard(id) {
   const s = byId(id);
   if (!s || s.dead || away(s)) return;
-  if (S.guard === id) S.guard = null;
-  else { if (s.job != null && S.grid[s.job]) S.grid[s.job].worker = null; s.job = null; S.guard = id; }
+  // the gate takes them off their work, and standing down sends them back to it if it's still free
+  const off = byId(S.guard);
+  if (off) {
+    const was = off.wasJob, b = was && S.grid[was.i];
+    S.guard = null; off.wasJob = null;
+    if (b && b.type === was.type && !b.worker && off.job == null && !off.dead) { b.worker = off.id; off.job = was.i; }
+  }
+  if (off !== s) {
+    s.wasJob = s.job != null && S.grid[s.job] ? { i: s.job, type: S.grid[s.job].type } : null;
+    if (s.wasJob) S.grid[s.job].worker = null;
+    s.job = null; S.guard = id;
+  }
   save();
 }
 // Odds that whoever's home holds the gate against n attackers. A guard counts twice.
@@ -589,11 +621,12 @@ function trouble(home, hold) {
   // Pasts catch up, once each.
   for (const s of home) {
     if (s.caught || !chance(0.01)) continue;
-    if (pastHas(s, "Burned down a library.") && S.grid[s.job]?.type === "library") {
+    const b = S.grid[s.job], what = b && BUILDINGS[b.type].name.toLowerCase();
+    if (b && pastHas(s, `Burned down ${/^[aeiou]/.test(what) ? "an" : "a"} ${what}.`)) {
       s.caught = true;
       S.grid[s.job] = null; s.job = null;
-      S.res.research = Math.floor(S.res.research / 2);
-      gameLog(`${s.name} burned down the library. Again.`, "bad", living());
+      if (b.type === "library") S.res.research = Math.floor(S.res.research / 2);
+      gameLog(`${s.name} burned down the ${what}. Again.`, "bad", living());
     } else if (pastHas(s, "Fled a wedding.") && !S.visitor) {
       s.caught = true;
       S.visitor = makeSettler();
@@ -603,6 +636,24 @@ function trouble(home, hold) {
       s.caught = true;
       S.trouble = { kind: "debt", who: s.id, n: 3, take: S.res.silver >= 3 ? { silver: 3 } : { food: 20 } };
       gameLog(`Collectors at the gate for ${s.name}'s debts.`, "bad", [s]);
+    } else if (pastHas(s, "Stole from a lord.")) {
+      s.caught = true;
+      const k = S.res.silver ? "silver" : "food", n = Math.ceil(S.res[k] / 4);
+      S.res[k] -= n;
+      gameLog(`A lord's men took back what ${s.name} stole. -${n}${RESOURCES[k].icon}`, "bad", [s]);
+    } else if (pastHas(s, "Drank away a fortune.")) {
+      s.caught = true;
+      const n = Math.min(10, S.res.food);
+      S.res.food -= n; think(s, "hungover");
+      gameLog(`${s.name} drank the stores. -${n}🍞`, "bad", [s]);
+    } else if (pastHas(s, "Carried a fever into a village.")) {
+      s.caught = true;
+      for (const o of home) o.hp = Math.max(1, o.hp - Math.ceil(stats(o).hpMax / 4));
+      gameLog(`${s.name}'s old fever came back. Everyone caught it.`, "bad", living());
+    } else if (pastHas(s, "Sold out a friend.") && home.length > 1) {
+      s.caught = true;
+      for (const o of home) if (o !== s) think(o, "grudge");
+      gameLog(`Word got round that ${s.name} once sold out a friend.`, "bad", [s]);
     }
   }
   // Old trades turn up when they're needed.
@@ -612,10 +663,13 @@ function trouble(home, hold) {
     if (pastHas(s, "Learned how to set bones.") && worst && worst.hp < stats(worst).hpMax * 0.6) {
       worst.hp = stats(worst).hpMax; think(worst, "mended");
       gameLog(`${s.name} set ${worst.name}'s bones.`, "good", [s, worst]);
-    } else if (pastHas(s, "Worked harvests.") && job === "farm") { add("food", 10); gameLog(`${s.name} brought in a bumper harvest. +10🍞`, "good", [s]); }
-    else if (pastHas(s, "Copied books at a monastery.") && job === "library") { add("research", 3); gameLog(`${s.name} copied out an old text. +3📜`, "good", [s]); }
-    else if (pastHas(s, "Mended nets.") && job === "dock") { add("food", 8); gameLog(`${s.name} mended the nets. +8🍞`, "good", [s]); }
-    else continue;
+    } else {
+      const pays = Object.entries(PAST_PAYS).find(([line, [at]]) => at === job && pastHas(s, line))?.[1];
+      if (!pays) continue;
+      const [, res, n, did] = pays;
+      add(res, n);
+      gameLog(`${s.name} ${did}. +${n}${RESOURCES[res].icon}`, "good", [s]);
+    }
     break;
   }
   if (S.trouble) return;
@@ -841,7 +895,7 @@ function upgrade(i) {
   save();
 }
 
-const refundRate = () => (has("reclaim") ? 0.75 : has("salvage") ? 0.5 : 0);
+const refundRate = () => (has("salvage") || has("reclaim") ? 0.75 : 0);
 function refundOf(i) {
   const b = S.grid[i], rate = refundRate(), out = {};
   for (const [k, v] of Object.entries(b.spent || BUILDINGS[b.type].cost)) if (Math.floor(v * rate)) out[k] = Math.floor(v * rate);
@@ -887,6 +941,7 @@ function assign(i, settlerId) {
     s.job = i;
     b.worker = s.id;
     if (S.guard === s.id) S.guard = null;
+    s.wasJob = null;
   }
   save();
 }
@@ -983,6 +1038,22 @@ function endDay(hold) {
 
   gameLog(`${tally(got, spent) || "No change."}${hungry ? ` ${hungry} went hungry.` : ""}`, hungry ? "bad" : "day");
 
+  // Guests freed below stay a few days. Happier ones ask to stay; the rest go, warmly or by night.
+  for (const s of living().filter((o) => o.guest && o.guest <= S.day && !away(o))) {
+    if (chance((s.morale - 30) / 70)) {
+      if (S.visitor) { s.guest = S.day + 1; continue; }
+      leave(s); S.gone = S.gone.filter((o) => o !== s);
+      delete s.guest; s.stayed = true; S.visitor = s;
+      gameLog(`${s.name} asks to stay.`, "story", [s]);
+    } else if (s.morale >= 45) {
+      leave(s);
+      gameLog(`${s.name} said a hearty farewell and left.`, "good", [s, ...living()]);
+    } else {
+      leave(s);
+      gameLog(`${s.name} slipped away in the night.`, "bad", [s]);
+    }
+  }
+
   // A stranger turns up at the gate now and then: never two within a week, rarer when beds are full.
   const since = S.day - (S.lastVisitor ?? -99);
   if (!S.visitor && since >= 7 && chance(living().length < beds() ? 0.12 : 0.05)) {
@@ -1014,7 +1085,11 @@ function welcomeVisitor(yes) {
   if (yes) {
     S.settlers.push(v);
     gameLog(`${v.name} joined.`, "good", living());
-  } else gameLog(`${v.name} left.`);
+  } else {
+    // A guest who lived here is remembered once sent off; a stranger at the gate isn't.
+    if (v.stayed) (S.gone ||= []).push(v);
+    gameLog(`${v.name} left.`, "", v.stayed ? [v] : undefined);
+  }
   save();
 }
 
@@ -1036,23 +1111,41 @@ function forgeCost(cost) {
   return Object.fromEntries(Object.entries(cost).map(([r, v]) => [r, Math.max(1, Math.round(v / k))]));
 }
 
+// Forging takes real seconds, longer for finer metal. Each staffed forge works one piece at a time.
+const FORGE_SECS = { smelting: 6, silverwork: 9, starforging: 12 };
+const forgeSecs = (id) => (id === "potion" ? 3 : FORGE_SECS[RECIPES.find((x) => x.id === id).needs] || 4);
+const forgeSlots = () => S.grid.filter((b) => b && b.type === "forge" && b.worker && available(byId(b.worker))).length;
+const forgeFree = () => (S.forging || []).length < forgeSlots();
+function startForging(id, cost) {
+  pay(forgeCost(cost));
+  (S.forging ||= []).push({ id, until: Date.now() + forgeSecs(id) * 1000 });
+  save();
+}
+// Hands over whatever has finished; true if anything did.
+function forgeDone() {
+  const now = Date.now(), done = (S.forging || []).filter((j) => j.until <= now);
+  if (!done.length) return false;
+  S.forging = S.forging.filter((j) => j.until > now);
+  for (const j of done) {
+    if (j.id === "potion") { S.res.potions++; continue; }
+    const { id, cost, needs, ...item } = RECIPES.find((x) => x.id === j.id);
+    (S.stash ||= []).push({ ...item, uid: nextId++ });
+    gameLog(`Forged: ${item.name}.`);
+  }
+  save();
+  return true;
+}
+
 function craft(recipeId) {
   const r = RECIPES.find((x) => x.id === recipeId);
-  if (!r || !staffed("forge") || !afford(forgeCost(r.cost)) || (r.needs && !has(r.needs))) return;
-  pay(forgeCost(r.cost));
-  S.stash = S.stash || [];
-  const { id, cost, needs, ...item } = r;
-  S.stash.push({ ...item, uid: nextId++ });
-  gameLog(`Forged: ${r.name}.`);
-  save();
+  if (!r || !forgeFree() || !afford(forgeCost(r.cost)) || (r.needs && !has(r.needs))) return;
+  startForging(r.id, r.cost);
 }
 
 const POTION_COST = { herbs: 3 };
 function brew() {
-  if (!has("herbalism") || !staffed("forge") || !afford(forgeCost(POTION_COST))) return;
-  pay(forgeCost(POTION_COST));
-  S.res.potions++;
-  save();
+  if (!has("herbalism") || !forgeFree() || !afford(forgeCost(POTION_COST))) return;
+  startForging("potion", POTION_COST);
 }
 
 function equip(settlerId, uid) {
@@ -1079,7 +1172,7 @@ function unequip(settlerId, slot) {
 // ---------- dungeon ----------
 const partyMax = () => (has("tactics") ? 4 : 3);
 // How many rooms one of each lasts. Plain food goes first; meals are the reserve.
-const roomsPer = (kind) => (kind === "meals" ? 3 : 1) + (has("field_rations") ? 1 : 0);
+const roomsPer = (kind) => (kind === "meals" ? 3 : 1);
 const MEAL_HEAL = 4;
 
 // The site the party is in, and the one waiting for them every third floor.
@@ -1227,7 +1320,12 @@ function enterRoom() {
   if (r.done) return;
   if (r.type === "fight") return startFight(rollEnemies(f));
   if (r.type === "boss") return startFight([scaleEnemy(keeper(siteOf(), f), f, true)]);
-  if (r.type === "event") { e.event = r.event; return; }
+  if (r.type === "event") {
+    e.event = r.event;
+    // Rolled on sight, so the modal can show who's in the chains.
+    if (r.event === "prisoner") { e.prisoner = makeSettler(); e.prisoner.hp = Math.ceil(e.prisoner.hpMax / 4); }
+    return;
+  }
   r.done = true;
   if (r.type === "treasure") {
     const got = lootRoll(f, 2);
@@ -1287,14 +1385,18 @@ function resolveEvent(act) {
   e.event = null;
   r.done = true;
   const party = partyAlive();
-  if (act === "recruit") {
-    const s = makeSettler();
-    s.hp = Math.ceil(s.hpMax / 2);
+  const freed = e.prisoner;
+  e.prisoner = null;
+  if (act === "free") {
+    // A guest, not a villager: they rest a few days, then ask to stay or move on.
+    const s = freed || makeSettler();
+    s.guest = S.day + 3 + rand(3);
     S.settlers.push(s);
-    gameLog(`${s.name} (${CLASSES[s.cls].name.toLowerCase()}) joined.`, "good", [s, ...party]);
+    gameLog(`Freed ${s.name}. Gone to Millhollow to rest.`, "good", [s, ...party]);
   } else if (act === "altar") {
-    party.forEach((s) => (s.hp = Math.max(1, s.hp - 5)));
-    if (chance(0.6)) {
+    const lore = has("altar_lore");
+    party.forEach((s) => (s.hp = Math.max(1, s.hp - (lore ? 10 : 5))));
+    if (lore || chance(0.6)) {
       const n = 2 + rand(2);
       e.loot.relics = (e.loot.relics || 0) + n;
       gameLog(`Altar: +${n}🏺.`, "good", party);
@@ -1317,18 +1419,46 @@ function resolveEvent(act) {
 }
 
 // Fights live in combat.js; these are the hand-offs either side.
+// A keeper or an even fight opens paused. Anything less runs itself, and a stomp is over before it's drawn,
+// unless someone gets hurt enough to need a say.
 function startFight(enemies) {
-  S.expedition.fight = newFight(partyAlive(), enemies);
+  const f = S.expedition.fight = newFight(partyAlive(), enemies);
+  if (f.enemies.some((x) => x.boss) || f.odds >= 1) return;
+  f.paused = false;
+  if (f.odds >= 0.25) return;
+  f.quick = true;
+  for (let n = 0; n < 1e4 && !f.over && !f.paused; n++) step(f, 0.1);
+  f.fx = [];
+  if (f.over) endFight(f.over);
+  else f.quick = false;
 }
+
+// Push on: one step toward the nearest room not yet dealt with, through rooms that are. Never into a keeper or down the stairs.
+function nextStep() {
+  const m = S.expedition.map, back = { [m.at]: null }, q = [m.at];
+  while (q.length) {
+    const k = q.shift();
+    for (const n of neighbours(m.rooms, k)) {
+      const r = m.rooms[n];
+      if (n in back || !r.seen || (!r.done && ["boss", "stairs"].includes(r.type))) continue;
+      back[n] = k;
+      if (!r.done) { let s = n; while (back[s] !== m.at) s = back[s]; return s; }
+      q.push(n);
+    }
+  }
+  return null;
+}
+const hurting = () => partyAlive().some((s) => s.hp < stats(s).hpMax / 2);
 
 function endFight(won) {
   const e = S.expedition, f = e.map.floor, r = e.map.rooms[e.map.at];
   const fight = e.fight;
   e.fight = null;
-  const fell = [];
+  const fell = [], cuts = [];
   for (const u of fight.heroes) {
-    const s = byId(u.id);
-    s.hp = Math.max(0, Math.round(u.hp));
+    const s = byId(u.id), hp = Math.max(0, Math.round(u.hp));
+    if (hp < s.hp) cuts.push(`${s.name} −${s.hp - hp}`);
+    s.hp = hp;
     if (s.hp <= 0 && !s.dead) {
       s.dead = true;
       fell.push(s.id);
@@ -1374,9 +1504,12 @@ function endFight(won) {
     r.done = true;
     const xp = fight.enemies.reduce((a, en) => a + (en.boss ? 20 : 3), 0) + f;
     partyAlive().forEach((s) => gainXp(s, xp));
-    const got = lootRoll(f, fight.enemies.some((x) => x.boss) ? 5 : 1);
-    gameLog(`Floor ${f}: won. ${got}`, "good", partyAlive());
-    if (r.type === "boss") {
+    let got = lootRoll(f, fight.enemies.some((x) => x.boss) ? 5 : 1);
+    if (has("field_rations") && chance(0.35)) { e.rations++; got += " +1🍞"; }
+    const easy = fight.quick ? ` ${fight.enemies.map((x) => x.icon).join("")}${cuts.length ? `, ${cuts.join(", ")}` : ""}` : "";
+    gameLog(`Floor ${f}: won${easy}. ${got}`, "good", partyAlive());
+    // by the fight, not the room: a camp ambush in a keeper's room isn't the keeper
+    if (fight.enemies.some((x) => x.boss)) {
       reached(f);
       partyAlive().forEach((s) => think(s, "victory"));
       gameLog(`Floor ${f}: boss down. Stairs open.`, "story", partyAlive());
@@ -1387,6 +1520,19 @@ function endFight(won) {
       }
     }
   }
+  save();
+}
+
+// A night's rest: everyone eats a ration and heals half, once a floor. Anything left awake on the floor can find them.
+const canCamp = () => { const e = S.expedition; return has("camping") && !e.fight && !e.event && e.camped !== e.map.floor && e.rations >= partyAlive().length; };
+function camp() {
+  if (!canCamp()) return;
+  const e = S.expedition, party = partyAlive();
+  e.rations -= party.length;
+  e.camped = e.map.floor;
+  party.forEach((s) => (s.hp = Math.min(stats(s).hpMax, s.hp + Math.ceil(stats(s).hpMax / 2))));
+  gameLog(`Floor ${e.map.floor}: camped. Party healed.`, "good", party);
+  if (chance(1 - 0.93 ** untouched(e.map))) { gameLog(`Floor ${e.map.floor}: attacked in camp!`, "bad", party); startFight(rollEnemies(e.map.floor)); }
   save();
 }
 
@@ -1417,7 +1563,7 @@ function returnHome() {
   e.up ??= Object.entries({ ...e.left, [e.map.floor]: untouched(e.map) });
   while (e.up.length) {
     const [f, n] = e.up.pop();
-    if (!chance(1 - 0.93 ** n)) continue;
+    if (!chance((1 - 0.93 ** n) * (has("rope") ? 0.5 : 1))) continue;
     e.homing = true;
     gameLog(`Floor ${f}: ambushed on the way up.`, "bad", partyAlive());
     return startFight(rollEnemies(+f));
@@ -1443,7 +1589,7 @@ function returnHome() {
   gameLog(`Home after ${days}d: ${[...brought, ...e.gear.map((g) => g.name)].join(" ") || "nothing"}.${short ? ` ${short} rations short.` : ""}`, short ? "bad" : "story", party);
   S.remains.forEach((r) => { if (r.at === "carried") r.at = "home"; });
   bury();
-  if (has("rosters")) backToWork(party);
+  backToWork(party);
   save();
 }
 
@@ -1459,7 +1605,7 @@ function bury() {
   gameLog(`Buried ${ids.map((id) => byId(id).name).join(", ")}.`, "story", [...ids.map(byId), ...living()]);
 }
 
-// With rosters, people go back to the job they left if it's still there and still open.
+// People go back to the job they left if it's still there and still open.
 function backToWork(party) {
   for (const s of party) {
     const w = s.was, b = w && S.grid[w.i];
