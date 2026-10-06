@@ -47,7 +47,7 @@
 <div id="all"></div>
 
 <script>
-  // Read the counts straight out of the sim rather than restating them, so this
+  // Read the counts straight out of the game data rather than restating them, so this
   // page cannot drift from FACES when more sheets land.
   const AGES = ["child", "young", "mid", "old"];
   const MOODS = ["happy", "neutral", "sad", "angry", "scared"];
@@ -71,7 +71,7 @@
     "Halloran", "Isolde", "Jerrold",
   ];
 
-  fetch("js/sim.js").then((r) => r.text()).then((src) => {
+  fetch("js/ds/data.js").then((r) => r.text()).then((src) => {
     const faces = +(src.match(/const FACES = (\d+)/) || [, 0])[1];
     document.getElementById("sub").textContent =
       `${faces} people, ${AGES.length} ages, ${MOODS.length} moods — ${faces * 20} panels. `

@@ -7,7 +7,9 @@ cuts it into `assets/face-<id>-<age>-<mood>.webp`.
 - `new.sh <ids>` draws people from their line in `people.txt` (`<id> <f|m|any> <description>`).
 - `redraw.sh <ids>` redraws a person seeded from their existing portrait, for a sheet where the
   ages blurred or grey hair and beards reached the young rows.
-- `slice.sh [ids]` cuts sheets into panels.
+- `fix.sh <id> <age|mood> "<what went wrong>"` redraws one row or column, seeded from the current panels.
+- `slice.sh [ids]` cuts sheets into panels along the gutters it finds, and warns if one still shows.
+- `prompt.sh` holds the age, mood and style text all three draw scripts share. Fix a prompt there.
 
 Run them one at a time: codex doesn't say which file it wrote, so each sheet is taken as the
 newest image since the run started. Look over every sheet before slicing.

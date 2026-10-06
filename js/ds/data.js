@@ -13,8 +13,8 @@ const NAMES = {
     "Hesper", "Hollis", "Kestrel", "Mabry", "Perrin", "Pike", "Rowan", "Sorrel",
     "Wren", "Wyn"],
 };
-const FACES = 36;
-const FACE_F = [1, 4, 6, 8, 13, 14, 16, 23, 24, 25, 26, 29, 31, 33, 35];
+const FACES = 60;
+const FACE_F = [1, 4, 6, 8, 13, 14, 16, 23, 24, 25, 26, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 51, 53, 55, 57, 59];
 const FACE_ANY = [9];
 const sexOf = (id) => (FACE_F.includes(id) ? "f" : FACE_ANY.includes(id) ? "any" : "m");
 const namesFor = (sex) =>
