@@ -21,16 +21,18 @@ const ICONS = {
   "♻": ["lu-recycle", "green"],
   // classes
   "🛡": ["lu-shield", "blue"],
+  "🪖": ["lu-chess-knight", "blue"],
   "🏹": ["lu-bow-arrow", "green"],
   "🔥": ["lu-flame", "orange"],
   "✚": ["lu-cross", "yellow"],
+  "🏕": ["lu-flame-kindling", "orange"],
   // buildings
   "🛖": ["lu-tent", "brown"],
   "🏠": ["lu-house", "brown"],
   "🌾": ["lu-wheat", "yellow"],
   "🪓": ["lu-axe", "brown"],
   "⛰": ["lu-mountain", "gray"],
-  "⚒": ["ra-anvil", "gray"],
+  "⚒": ["lu-anvil", "gray"],
   "🩹": ["lu-bandage", "pink"],
   "📚": ["lu-library-big", "purple"],
   "🌲": ["lu-tree-pine", "green"],
@@ -88,7 +90,7 @@ const ICONS = {
   // enemies
   "🐀": ["lu-rat", "brown"],
   "🟢": ["ra-gloop", "green"],
-  "💀": ["ra-skull", "ink"],
+  "💀": ["lu-skull", "ink"],
   "🦇": ["ra-batwings", "purple"],
   "🕯": ["ra-hood", "purple"],
   "🧟": ["ra-monster-skull", "green"],

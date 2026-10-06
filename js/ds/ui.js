@@ -364,7 +364,9 @@ function gearRow(s) {
 }
 function gearList(s, slot) {
   const cur = s.gear[slot];
-  const rows = (S.stash || []).filter((g) => g.slot === slot).map((g) =>
+  // their own class's weapons first, then the strongest
+  const worth = (g) => (weaponCls(g) === s.cls ? 1000 : 0) + Object.keys(STAT_ICON).reduce((t, k) => t + gearStat(g, k, s), 0);
+  const rows = (S.stash || []).filter((g) => g.slot === slot).sort((a, b) => worth(b) - worth(a)).map((g) =>
     `<button class="pick" data-act="equip" data-v="${s.id}" data-uid="${g.uid}"><b>${esc(g.name)}</b><small>${weaponCls(g) ? `${CLASSES[weaponCls(g)].icon} ` : ""}${gearDelta(g, cur, s)}</small></button>`);
   if (cur) rows.push(`<button class="pick off" data-act="unequip" data-v="${s.id}" data-slot="${slot}">✕</button>`);
   return `<div class="picker">${rows.join("")}</div>`;
@@ -540,7 +542,7 @@ function viewDungeon() {
     const down = ["stairs", "boss"].includes(r.type) && r.done;
     panel = `<div class="row wrap">${down ? `<button class="primary" data-act="descend">Down to floor ${m.floor + 1}${grim(m.floor + 1) > 1 ? " " + "💀".repeat(1 + Math.floor(Math.log2(grim(m.floor + 1)))) : ""}</button>` : ""}
       <button data-hold="push" ${nextStep() ? "" : "disabled"}>👣 Push on</button>
-      ${has("camping") ? `<button data-act="camp" ${canCamp() ? "" : "disabled"}>🔥 Camp (${partyAlive().length}🍞)</button>` : ""}
+      ${has("camping") ? `<button data-act="camp" ${canCamp() ? "" : "disabled"}>🏕️ Camp (${partyAlive().length}🍞)</button>` : ""}
       <button data-act="home">Head home (${homeDays()}d, ${homeFood()}🍞)</button></div>`;
   }
   return `<div class="row between"><b>${SITES[siteOf().kind].icon} ${esc(siteOf().name)} · ${m.floor}</b><small class="${foodLeft() <= homeFood() ? "short" : ""}">🍞 ${e.rations}${e.meals ? ` 🥪 ${e.meals}` : ""} · 🧪 ${S.res.potions}</small></div>

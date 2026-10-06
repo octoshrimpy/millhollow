@@ -38,7 +38,7 @@ const RESOURCES = {
 // Combat classes. `skill` is the one ability each hero fires on its own.
 const CLASSES = {
   warrior: {
-    name: "Warrior", icon: "🛡️", hp: 32, atk: 6, def: 3, spd: 8, range: "melee",
+    name: "Warrior", icon: "🪖", hp: 32, atk: 6, def: 3, spd: 8, range: "melee",
     skill: { id: "cleave", name: "Cleave", cd: 10, desc: "70% to all enemies. Draws attacks for 5s." },
   },
   ranger: {
