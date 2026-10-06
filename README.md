@@ -1,68 +1,79 @@
 # Millhollow
 
-A settlement builder and dungeon crawler for the browser. Play at
-<https://octoshrimpy.github.io/millhollow/>. It installs as an app and plays offline.
+A little village at the edge of a dungeon. You build it up, send people down, and live with
+who comes back. Play it at <https://octoshrimpy.github.io/millhollow/>. It installs like an
+app and works offline.
 
-## Play
+## What it's like
 
-- Found a town hall, clear land, build, and put settlers to work.
-- Farms, lumber camps and quarries do better beside water, woods and hills. Fishing docks go
-  beside water; quarries find more ore beside mountains.
-- Send a party of 3–4 into dungeon sites on the overworld: the old mill, a barrow, a mine, a
-  thornwood and a shrine. Each has its own foes, loot and keeper.
-- Floors are random room maps. Fights are real-time auto-battles; you control pause, speed,
-  potions and retreat. Death is permanent.
-- Sites never clear. The keeper returns every third floor.
-- Loot feeds the forge, the library's research and the village.
+You start by picking a handful of settlers. Each has a face, a class and a past, and pasts
+matter: the one who "burned down a forge" might do it again if you put them in yours, and the one who "fought bandits"
+will want revenge if a friend dies below.
 
-## Run locally
+Up top, you clear land and build. Farms like water, lumber camps like woods, quarries like
+hills. People get bored doing one job too long, buildings cost upkeep, food spoils if you
+hoard it, and traders, bandits and strangers turn up at the gate.
 
-Vanilla JS, no build step, no backend. The save lives in `localStorage` and can be exported
-from the gear menu.
+Down below, a party of three or four walks a random map of rooms. Fights run on their own;
+you pause, change speed, hand out potions, and decide when to run. Death is permanent. The
+dead leave remains, and anyone left unburied haunts someone back home.
+
+There are five places to dig into: the old mill, a barrow, a mine, a thornwood and a
+shrine. None of them ever runs out, and every third floor has a keeper. Carry a keeper's
+crown home and your land grows.
+
+The village talks. When someone dies, people decide whose fault it was, and the story
+changes as it gets passed around. Tap a face to hear what they think.
+
+## Running it yourself
+
+Plain JavaScript, no build step, no server code. Your save lives in the browser, and the
+gear menu can export it as a code or a file.
 
 ```
-python3 serve.py   # port 8791
+python3 serve.py   # http://localhost:8791
 ```
 
-## Code
+## Where things are
 
-All in `js/ds/`:
+Everything lives in `js/ds/`:
 
-| File | Holds |
+| File | What's in it |
 |---|---|
 | `themes.js` | Colour themes |
-| `data.js` | Tables: terrain, buildings, research, enemies, sites |
-| `names.js` | Settler and place names |
-| `game.js` | Rules, world generation, save |
+| `data.js` | The tables: terrain, buildings, research, enemies, sites, pasts |
+| `names.js` | Name generator for settlers |
+| `game.js` | The rules, the world, saving |
 | `combat.js` | Fights |
-| `juice.js` | Particles, floating numbers, shakes, transitions |
-| `ui.js` | DOM |
+| `juice.js` | Particles, floating numbers, shakes |
+| `ui.js` | Everything on screen |
 | `icons.js`, `sprite.js` | Icons |
 
-`sw.js` and `manifest.webmanifest` make it installable. The worker always checks the server for
-code, and an open page reloads itself when a deploy changes any script (never mid-fight).
+`sw.js` and `manifest.webmanifest` make it installable. If I push an update while you're
+playing, the page saves and reloads itself when you're idle, but never during a fight.
 
 ## Icons
 
-Game text uses emoji. `iconize()` in `icons.js` swaps each one for an SVG from `sprite.js`,
-tinted by a hue the theme defines. To add or change an icon, edit the `ICONS` table and run:
+The game's text is written with emoji, and `iconize()` in `icons.js` swaps each one for a
+proper SVG coloured by the current theme. To add or change one, edit the `ICONS` table and run:
 
 ```
 python3 tools/build_icons.py
 ```
 
-It pulls Lucide (`lu-`) and RPG Awesome (`ra-`) into `tools/.cache/`. `mh-` icons are drawn in
-the script. Licences are in `ICON-LICENSES.md`.
+That pulls Lucide (`lu-`) and RPG Awesome (`ra-`) into `tools/.cache/`. The `mh-` icons are
+drawn by hand in the script. Licences are in `ICON-LICENSES.md`.
 
 ## Themes
 
-Eight dark and eight light themes in `themes.js`, picked from the gear menu and kept outside the
-save. Portraits take a two-tone tint from the theme; the Millhollow theme shows them untouched.
+Sixteen of them, half dark and half light, picked from the gear menu. Your pick isn't part
+of the save. Portraits get tinted to match, except in the Millhollow theme, which shows them
+as drawn.
 
 ## Older versions
 
-Earlier takes still run but aren't maintained:
+Two earlier attempts are still in the repo. They run, but I don't work on them anymore:
 
 - `old-slice.html`: minigames and town projects.
-- `log-rebuild.html`: log-driven village sim, described in `DESIGN.md`. `transcript.js` runs its
-  sim headless.
+- `log-rebuild.html`: a village told through its log, described in `DESIGN.md`.
+  `transcript.js` runs it without a screen.
