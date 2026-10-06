@@ -119,7 +119,8 @@ function step(f, dt) {
     h.cd = Math.max(0, h.cd - dt);
     // Below a quarter, anyone with a potion to hand drinks it.
     if (h.hp < h.hpMax * 0.25 && S.res.potions > 0) usePotion(i);
-    if (h.cd === 0 && wantsSkill(f, h)) useSkill(f, i);
+    // A sword waiting in the back can't reach to cleave either; a heal reaches from anywhere.
+    if (h.cd === 0 && wantsSkill(f, h) && !(waits(h) && CLASSES[h.cls].skill.id !== "mend")) useSkill(f, i);
     h.gauge += h.spd * GAUGE_RATE * dt;
     // A sword can't reach from the back lane: it waits, ready, to step into the first gap.
     if (waits(h)) h.gauge = Math.min(h.gauge, 100);

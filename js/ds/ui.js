@@ -543,7 +543,7 @@ function viewDungeon() {
       ${here ? "🔦" : r.body ? `<span class="mark">🦴</span>` : show ? `<span class="mark">${mark}</span>` : "?"}</button>`;
   }
   const r = m.rooms[m.at];
-  const loot = Object.entries(e.loot).filter(([, n]) => n).map(([k, n]) => `${n}${RESOURCES[k].icon}`).concat(e.gear.map((g) => esc(g.name)), e.crown ? ["👑"] : []).join(" ") || "nothing yet";
+  const loot = Object.entries(e.loot).filter(([, n]) => n).map(([k, n]) => `${n}${RESOURCES[k].icon}`).concat(e.gear.map((g) => esc(g.name)), e.crown ? ["👑".repeat(e.crowns || 1)] : []).join(" ") || "nothing yet";
   let panel = "";
   if (e.event) {
     const ev = EVENTS.find((x) => x.id === e.event);

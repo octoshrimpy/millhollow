@@ -598,7 +598,7 @@ function raid() {
 // way and a chance goes by.
 // Matches the line as written in PAST, or as this person rolled it.
 const pastHas = (s, text) => (s.story || []).some((e) => e.kind === "past" && (e.src === text || e.text === text));
-const stock = () => ["food", "wood", "stone", "ore", "herbs"].reduce((a, r) => a + S.res[r], 0);
+const stock = () => ["food", "meals", "wood", "stone", "ore", "herbs"].reduce((a, r) => a + (S.res[r] || 0), 0);
 const hurt = (s, lo, hi) => (s.hp = Math.max(1, s.hp - Math.ceil(stats(s).hpMax * (lo + Math.random() * (hi - lo)))));
 // Someone kept home on watch instead of working. Going below or taking a job ends it.
 const guards = () => S.guards.map(byId).filter((g) => g && !g.dead && !away(g) && g.job == null);
@@ -835,9 +835,9 @@ function settle(how) {
     }
     a.spouse = b.id; b.spouse = a.id;
     note(a, { text: `Married ${b.name}.` }); note(b, { text: `Married ${a.name}.` });
-    think(a, "wed"); think(b, "wed");
     if (how !== "yes" || !afford(t.take)) return gameLog(`${a.name} and ${b.name} married quietly.`, "good", [a, b]);
     pay(t.take);
+    think(a, "wed"); think(b, "wed");
     const home = living().filter((o) => !away(o));
     home.forEach((o) => think(o, "feast"));
     gameLog(`${a.name} and ${b.name} married. The whole village came. −${what}`, "good", home);
@@ -872,9 +872,12 @@ function settle(how) {
       return gameLog(`${s.name} came out of the forge with ${g.name}.`, "good", [s]);
     }
     think(s, "snapped");
-    const b = S.grid[s.job];
-    if (b) { gameLog(`${s.name} smashed the ${BUILDINGS[b.type].name.toLowerCase()}.`, "bad", living()); S.grid[s.job] = null; s.job = null; }
-    else gameLog(`${s.name} came out of the forge with nothing.`, "bad", [s]);
+    const at = s.job ?? S.grid.findIndex((b) => b && b.type === "forge"), b = S.grid[at];
+    if (b) {
+      gameLog(`${s.name} smashed the ${BUILDINGS[b.type].name.toLowerCase()}.`, "bad", living());
+      if (b.worker) byId(b.worker).job = null;
+      S.grid[at] = null;
+    } else gameLog(`${s.name} came out of the forge with nothing.`, "bad", [s]);
     return;
   }
   const who = t.kind === "debt" ? "The collectors" : "The bandits";
@@ -1224,7 +1227,7 @@ function learn() {
 
 // An improved forge wastes less: each level cuts what crafting and brewing cost.
 function forgeCost(cost) {
-  const f = S.grid.find((b) => b && b.type === "forge"), k = 1 + (f ? boostOf(f) : 0);
+  const k = 1 + Math.max(0, ...S.grid.filter((b) => b && b.type === "forge").map(boostOf));
   return Object.fromEntries(Object.entries(cost).map(([r, v]) => [r, Math.max(1, Math.round(v / k))]));
 }
 
@@ -1397,7 +1400,7 @@ const foodLeft = () => S.expedition.rations + (S.expedition.meals || 0);
 function onlyEnoughHome() {
   const e = S.expedition;
   const kind = e.rations > 0 ? "food" : e.meals > 0 ? "meals" : null;
-  const after = foodLeft() - (kind && e.steps + 1 >= roomsPer(kind) ? 1 : 0);
+  const after = e.rations + (e.meals || 0) * roomsPer("meals") - (kind && e.steps + 1 >= roomsPer(kind) ? roomsPer(kind) : 0);
   return after <= homeFood();
 }
 
@@ -1517,8 +1520,9 @@ function resolveEvent(act) {
     S.settlers.push(s);
     gameLog(`Freed ${s.name}. Gone to Millhollow to rest.`, "good", [s, ...party]);
   } else if (act === "altar") {
-    const lore = has("altar_lore");
-    party.forEach((s) => (s.hp = Math.max(1, s.hp - (lore ? 10 : 5))));
+    const lore = has("altar_lore"), cost = lore ? 10 : 5;
+    if (party.some((s) => s.hp <= cost)) return gameLog("Altar: not enough blood.", "bad", party);
+    party.forEach((s) => (s.hp -= cost));
     if (lore || chance(0.6)) {
       const n = 2 + rand(2);
       e.loot.relics = (e.loot.relics || 0) + n;
@@ -1611,7 +1615,8 @@ function endFight(won) {
   // Running with the crown can drop it; whoever carried it takes the blame.
   if (won === "fled" && e.crown && chance(0.5)) {
     const by = partyAlive().find((s) => s.id === e.crownBy) || pick(partyAlive());
-    e.crown = null;
+    e.crowns = (e.crowns || 1) - 1;
+    if (!e.crowns) e.crown = null;
     gameLog(`${by.name} dropped the keeper's crown 👑 running.`, "bad", partyAlive());
     for (const w of partyAlive()) if (w !== by) (w.heard ||= []).push({ about: by.id, death: `crown${S.day}`, crown: true, v: -1, hops: 0, until: fades() });
   }
@@ -1637,7 +1642,8 @@ function endFight(won) {
       reached(f);
       partyAlive().forEach((s) => think(s, "victory"));
       gameLog(`Floor ${f}: boss down. Stairs open.`, "story", partyAlive());
-      if (f >= crownFloor() && !(e.crown >= f)) {
+      if (f >= crownFloor(e.crowns || (e.crown ? 1 : 0)) && !(e.crown >= f)) {
+        e.crowns = (e.crowns || (e.crown ? 1 : 0)) + 1;
         e.crown = f;
         e.crownBy = pick(partyAlive()).id;
         gameLog(`Floor ${f}: took the keeper's crown 👑.`, "good", partyAlive());
@@ -1675,7 +1681,7 @@ function descend() {
 }
 
 // Each crown carried home widens the ward by a ring; the next one has to come from three floors deeper.
-const crownFloor = () => 3 * (S.claim + 1);
+const crownFloor = (held = 0) => 3 * (S.claim + held + 1);
 
 // Returning climbs back through the dungeon; fractional half-days do not tick town time.
 const homeDays = () => Math.floor(travelDays(siteOf()) + S.expedition.map.floor * 0.5);
@@ -1693,8 +1699,9 @@ function returnHome() {
     return startFight(rollEnemies(+f));
   }
   const days = homeDays(), party = partyAlive();
-  // The road home eats one packed ration per person per day; short days cost blood.
-  const need = homeFood(), eat = Math.min(e.rations, need), eatMeals = Math.min(e.meals || 0, need - eat), short = need - eat - eatMeals;
+  // The road home eats one packed ration per person per day, or a trail meal for three; short days cost blood.
+  const need = homeFood(), eat = Math.min(e.rations, need), eatMeals = Math.min(e.meals || 0, Math.ceil((need - eat) / roomsPer("meals"))),
+    short = Math.max(0, need - eat - eatMeals * roomsPer("meals"));
   const foodBack = e.rations - eat, mealsBack = (e.meals || 0) - eatMeals;
   if (short) party.forEach((s) => (s.hp = Math.max(1, s.hp - Math.ceil(stats(s).hpMax * 0.15 * Math.ceil(short / Math.max(1, party.length))))));
   passDays(days);
@@ -1706,7 +1713,7 @@ function returnHome() {
   if (mealsBack) brought.push(`${mealsBack}🥪`);
   S.expedition = null;
   if (e.crown) {
-    S.claim++;
+    S.claim += e.crowns || 1;
     gameLog(`Set the keeper's crown 👑 in the hall. The ward reaches further.`, "good", living());
   }
   living().forEach((s) => think(s, "home"));
@@ -1744,7 +1751,7 @@ function backToWork(party) {
 function usePotion(heroIdx) {
   const f = S.expedition && S.expedition.fight;
   const u = f && f.heroes[heroIdx];
-  if (!u || u.hp <= 0 || S.res.potions <= 0) return;
+  if (!u || u.hp <= 0 || u.hp >= u.hpMax || S.res.potions <= 0) return;
   S.res.potions--;
   u.hp = Math.min(u.hpMax, u.hp + 20);
   f.fx.push({ t: "heal", to: u, n: 20 });

@@ -101,8 +101,9 @@
 - The first clear of a floor at a site pays 1 + ⌈floor/2⌉🏺.
 - Setting out with a weapon matched to their class makes someone well armed (+4 morale).
 - Beat a keeper on floor 3 or deeper and the party takes their crown (👑). Carried home, it widens
-  the ward by a ring; the next crown has to come from 3 floors deeper (6, 9, 12…). A wipe loses it.
-  One of the party carries it; fleeing a fight drops it half the time, and the rest blame the carrier.
+  the ward by a ring; the next crown has to come from 3 floors deeper (6, 9, 12…), on the same trip or
+  a later one, and each crown carried home counts. A wipe loses them.
+  One of the party carries them; fleeing a fight drops one half the time, and the rest blame the carrier.
 - Foes grow steadily with depth until about floor 10, then compound: +15% a floor. The way-down
   button shows 💀 once the next floor is past that point, one more 💀 for each doubling.
 - Heading home climbs back through every floor of the trip. Each one rolls once for an ambush,
