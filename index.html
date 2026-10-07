@@ -414,6 +414,9 @@
     border: 1px solid var(--line); border-radius: 999px; }
   .thought.good { border-color: color-mix(in srgb, var(--good) 50%, var(--line)); color: var(--good); }
   .thought.bad { border-color: color-mix(in srgb, var(--bad) 50%, var(--line)); color: var(--bad); }
+  .drives { display: flex; flex-wrap: wrap; justify-content: center; gap: .3em 1em; margin: .35em 0; font-size: .8rem; color: var(--dim); }
+  .drive { display: inline-flex; align-items: center; gap: .3em; letter-spacing: .05em; }
+  .drive b { font-weight: normal; }
   #log { cursor: pointer; }
   .fulllog { font-size: .85rem; } .fulllog p { margin: .3em 0; } .fulllog p.day, .fulllog small { color: var(--dim); }
   .fulllog small { margin-right: .3em; }

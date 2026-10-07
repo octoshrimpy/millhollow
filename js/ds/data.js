@@ -316,8 +316,9 @@ const PAST = {
 };
 // Green: a trade line, which gave the skill (some also come back later). Red: pasts that come back badly.
 const PAST_GOOD = new Set(Object.values(PAST.trade).flat());
-// The fire comes back only where they work in what they burned, so the church and stables never do.
-// Pasts that make grief go below for someone, instead of staying home.
+// An accidental fire comes back only where they work in what they burned, so the church and stables
+// never do; one set on purpose comes back as anger (see URGES).
+// Pasts with blood in them: anger runs hotter (see stir), and comes to blows sooner.
 const PAST_VIOLENT = ["Pit fighter.", "Mercenary.", "Fought {bandits on the king's road|in someone else's feud}.",
   "Hunted highwaymen for bounty.", "Raided across the border.", "Carried a mace for a bishop.", "Cursed a man who wronged them.",
   "Looking for revenge.", PAST.bad[0]];

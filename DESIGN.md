@@ -52,21 +52,44 @@
   Taking a job or going below ends the watch.
   Left until the next End day, trouble goes the worse way and a chance goes by; one that turns up
   partway through days on the road waits to be answered.
-  - Someone holding a grudge may go for them (👊, both hurt). Anyone left under half drinks a
-    potion, but the last two are kept for the dungeon.
+  - Drives: everyone carries anger, fear, grief, restlessness, warmth and pride, 0–100. Every
+    thought stirs some (hunger: anger and restlessness; a near death: fear; a feast eases anger,
+    grief and restlessness and warms). Each night they ebb by a fifth; a grudge keeps stirring
+    anger, morale under 30 keeps stirring restlessness, a spouse at home or morale 70+ warms, work
+    stirs pride (twice over at skill 3+). A violent past stirs anger half again as hard. A drive at 40+ sets
+    the face when no fresh thought does. The villager page shows each as pips (◆).
+  - Past a drive's mark, people act on it, at most one act a night, likelier the further past and
+    three times likelier when their past leans that way. Acting spends the drive:
+    - anger 50+: goes for whoever they blame most, or anyone at 70+ (👊, both hurt; anyone left
+      under half drinks a potion, the last two kept for the dungeon). The one hit holds it against
+      them; everyone else is a little afraid. Leans: violent pasts.
+    - anger 70+: wrecks their own workplace or their foe's; an arsonist burns it. Everyone home
+      holds it against them. Leans: arson on purpose.
+    - grief 55+: drinks 10🍞 or 5🥪. Leans: drank away a fortune.
+    - restlessness 55+: walks off for a few days, back the same way as after a party. Leans: wanting
+      to see the frontier.
+    - restlessness 75+: leaves for good; anyone close to them grieves. Hungry ones go to find food.
+      Leans: fled a wedding or debts, running from something, took the first road out.
+    - warmth 40+: shows someone less skilled their trade.
+    - warmth 45+: sits up with the worst hurt (+30% health; a bonesetter mends them whole). Leans:
+      bones and nursing pasts.
+    - warmth 45+: lets a grudge go. Leans: fed the poor, kept a chapel.
+    - warmth 50+: wants to marry someone warm toward them too (💍).
+    - pride 20+: means to outdo themselves; works half again as hard the next day.
+    - pride 40+, idle: takes the gate unasked. Leans: guard pasts.
   - Full stores draw bandits (🗡): pay a third of the biggest pile, or fight at the odds shown.
     Ignored, they take twice that. Losing a fight hurts everyone at home and costs the same twice
-    over.
-  - The haunted sometimes shut the forge door and want relics and more. Given, they come out with
+    over. With water within 3 of the hall, a quarter of the time it's river pirates (🌊🗡) instead, whom
+    walls don't halve.
+  - The haunted, grieving at 30+, sometimes shut the forge door and want relics and more. Given, they come out with
     gear named for their ghost (✨). Refused, they smash where they work.
   - Pasts come back: debt collectors (pay or fight), a jilted ex who wants to join and holds a
-    grudge, a mystic who burned down a library burning down yours. Good ones too: a bonesetter
-    mends the worst hurt, a harvester brings in extra, a copyist finds research, a net-mender
+    grudge, a mystic who burned down a library by accident burning down yours. Good ones too: a harvester brings in extra, a copyist finds research, a net-mender
     lands fish.
   - Plenty brings talk of a feast: 3🍞 a head (🍖); far likelier while anyone grieves, as a wake.
     Never while a party is below. A feast ends grief. Everyone sits at one long table in no order; a
     grudge is let go only by two who end up side by side. Village weddings seat the same way.
-  - Two content people with no grudge between them may want to marry (💍). They marry either
+  - Courting ends in a wedding (💍). They marry either
     way; 3🍞 a head buys the whole village a wedding. Anyone may run from their own wedding and leave the
     village for good (2%; 30% for someone who fled one before; 10 points less for anyone happy). Four
     times in five they leave their gear, found by the road the next day. The one left at the altar is jilted (💔), and the story
@@ -82,14 +105,13 @@
 - No day is empty. A day nothing else happens, someone tells their past by the fire (+2 morale
   for all), teaches someone their best trade (+0.5), talks late with someone, or brings back a few
   🍞, 🌿 or 🪵 from a walk. The day's line also shows research and forging still under way (⏳ ⚒).
-- The grieving may refuse to go below: 70% when the dead was their spouse or someone they think well
-  of, 20% otherwise, decided once a day (😔).
-- The grieving with a violent past (pit fighter, mercenary, border raider, a bishop's mace, a
-  curse on a man, arson on purpose, revenge…) never refuse: from half HP up they join the next
-  party and can't be taken off it (🔒). Below half, they wait. Everyone fed at home heals 3 HP a
-  day, 9 with a staffed infirmary, working or not.
-- A fire in someone's past was set on purpose or by accident. Either can happen again where they
-  work; only on purpose counts as violent.
+- Fear 60+ won't go below (😔). The grieving may refuse too: 70% when the dead was their spouse or
+  someone they think well of, 20% otherwise, decided once a day.
+- The grieving with anger 35+ never refuse: from half HP up they join the next party and can't be
+  taken off it (🔒). Below half, they wait. Everyone fed at home heals 3 HP a day, 9 with a staffed
+  infirmary, working or not.
+- A fire in someone's past was set on purpose or by accident. By accident, it can happen again where
+  they work; on purpose counts as violent, and comes back through anger.
 
 ## Dungeons
 

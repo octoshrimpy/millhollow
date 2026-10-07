@@ -170,10 +170,16 @@ function why(s) {
   const balk = refuses(s);
   const due = avenges(s);
   if (due) say("angry", `Something down there owes me ${due.name}.`);
+  else if (balk === true) say("scared", "I won't go below.");
   else if (balk) say("sad", `I won't go below. Not after ${balk.name}.`);
-  else if (has("grief") && lost && violent(s)) say("angry", `When I can stand, I'm going down for ${lost.name}.`);
+  else if (has("grief") && lost && drive(s, "anger") >= 35) say("angry", `When I can stand, I'm going down for ${lost.name}.`);
   else if (has("grief") && lost) say("sad", `${lost.name} is dead.`);
   if (has("bored") && s.job != null && S.grid[s.job]) say("sad", `Same ${JOBS[BUILDINGS[S.grid[s.job].type].job].toLowerCase()}, every day.`);
+  if (drive(s, "anger") >= 50) say("angry", "I could hit someone.");
+  if (drive(s, "fear") >= 50) say("scared", "I keep watching the gate.");
+  if (drive(s, "restless") >= 50) say("sad", "I could walk out of here.");
+  if (drive(s, "warmth") >= 50) say("happy", "Good people here.");
+  if (drive(s, "pride") >= 50) say("happy", "I'm good at what I do.");
   if (s.hp < stats(s).hpMax * 0.7) say("sad", "Still hurting.");
   if (has("victory")) say("happy", "We killed the keeper.");
   if (has("levelup")) say("happy", "I'm getting stronger.");
@@ -185,34 +191,35 @@ function why(s) {
 
 // ---------- thoughts ----------
 // Things that just happened to someone. Each moves morale once, when it lands; while it's fresh
-// it also sets the face, strongest feeling first and the newest breaking ties.
+// it also sets the face, strongest feeling first and the newest breaking ties. Each also stirs
+// drives (see DRIVES), which is what people act on.
 const THOUGHTS = {
-  hungry:    { name: "Hungry", icon: "🍽", mood: "angry", morale: -12, days: 2 },
-  haunted:   { name: "Haunted", icon: "👻", mood: "scared", morale: -2, days: 2 },
-  starving:  { name: "Starving", icon: "🍽", mood: "angry", morale: -3, days: 1 },
-  rough:     { name: "No bed", icon: "🛏", mood: "angry", morale: -4, days: 1 },
-  grief:     { name: "Grieving", icon: "🪦", mood: "sad", morale: -10, days: 4 },
-  neardeath: { name: "Nearly died", icon: "💔", mood: "scared", morale: -6, days: 2 },
-  fled:      { name: "Fled", icon: "👣", mood: "scared", morale: -4, days: 1 },
-  victory:   { name: "Slew a boss", icon: "🏆", mood: "happy", morale: 8, days: 3 },
-  home:      { name: "Home again", icon: "🏘", mood: "happy", morale: 5, days: 2 },
-  levelup:   { name: "Grew stronger", icon: "⭐", mood: "happy", morale: 5, days: 2 },
-  built:     { name: "The village grows", icon: "🔨", mood: "happy", morale: 3, days: 1 },
-  grudge:    { name: "Grudge", icon: "😠", mood: "angry", morale: -6, days: 3 },
-  blamed:    { name: "Blamed", icon: "💬", mood: "sad", morale: -4, days: 2 },
-  raided:    { name: "Raided", icon: "👁", mood: "scared", morale: -6, days: 2 },
-  farwalk:   { name: "Long walk", icon: "👣", mood: "sad", morale: -2, days: 1 },
-  brawl:     { name: "Brawl", icon: "👊", mood: "angry", morale: -4, days: 2 },
-  made:      { name: "Made something", icon: "✨", mood: "happy", morale: 12, days: 5 },
-  jilted:    { name: "Jilted", icon: "💔", mood: "sad", morale: -15, days: 6 },
-  wed:       { name: "Married", icon: "💍", mood: "happy", morale: 15, days: 6 },
-  hungover:  { name: "Sore head", icon: "🍖", mood: "sad", morale: -2, days: 1 },
-  feast:     { name: "Feast", icon: "🍖", mood: "happy", morale: 10, days: 3 },
-  mended:    { name: "Mended", icon: "🩹", mood: "happy", morale: 4, days: 2 },
-  armed:     { name: "Well armed", icon: "⚔️", mood: "happy", morale: 4, days: 2 },
-  snapped:   { name: "Snapped", icon: "👻", mood: "scared", morale: -15, days: 4 },
-  bored:     { name: "Bored", icon: "😐", mood: "sad", morale: -3, days: 2 },
-  tale:      { name: "A good story", icon: "🔥", mood: "happy", morale: 2, days: 1 },
+  hungry:    { name: "Hungry", icon: "🍽", mood: "angry", morale: -12, days: 2, stir: { anger: 12, restless: 15 } },
+  haunted:   { name: "Haunted", icon: "👻", mood: "scared", morale: -2, days: 2, stir: { fear: 8, grief: 8 } },
+  starving:  { name: "Starving", icon: "🍽", mood: "angry", morale: -3, days: 1, stir: { anger: 8 } },
+  rough:     { name: "No bed", icon: "🛏", mood: "angry", morale: -4, days: 1, stir: { anger: 6, restless: 6 } },
+  grief:     { name: "Grieving", icon: "🪦", mood: "sad", morale: -10, days: 4, stir: { grief: 45 } },
+  neardeath: { name: "Nearly died", icon: "💔", mood: "scared", morale: -6, days: 2, stir: { fear: 30, pride: -10 } },
+  fled:      { name: "Fled", icon: "👣", mood: "scared", morale: -4, days: 1, stir: { fear: 15 } },
+  victory:   { name: "Slew a boss", icon: "🏆", mood: "happy", morale: 8, days: 3, stir: { fear: -25, anger: -20, pride: 30 } },
+  home:      { name: "Home again", icon: "🏘", mood: "happy", morale: 5, days: 2, stir: { fear: -10, warmth: 5 } },
+  levelup:   { name: "Grew stronger", icon: "⭐", mood: "happy", morale: 5, days: 2, stir: { fear: -5, pride: 15 } },
+  built:     { name: "The village grows", icon: "🔨", mood: "happy", morale: 3, days: 1, stir: { restless: -5, pride: 5 } },
+  grudge:    { name: "Grudge", icon: "😠", mood: "angry", morale: -6, days: 3, stir: { anger: 20, warmth: -10 } },
+  blamed:    { name: "Blamed", icon: "💬", mood: "sad", morale: -4, days: 2, stir: { anger: 10, restless: 12, pride: -15 } },
+  raided:    { name: "Raided", icon: "👁", mood: "scared", morale: -6, days: 2, stir: { fear: 20 } },
+  farwalk:   { name: "Long walk", icon: "👣", mood: "sad", morale: -2, days: 1, stir: { restless: 5 } },
+  brawl:     { name: "Brawl", icon: "👊", mood: "angry", morale: -4, days: 2, stir: { anger: 15, warmth: -20 } },
+  made:      { name: "Made something", icon: "✨", mood: "happy", morale: 12, days: 5, stir: { grief: -25, anger: -15, pride: 30 } },
+  jilted:    { name: "Jilted", icon: "💔", mood: "sad", morale: -15, days: 6, stir: { grief: 30, anger: 20, warmth: -30 } },
+  wed:       { name: "Married", icon: "💍", mood: "happy", morale: 15, days: 6, stir: { restless: -30, warmth: 30 } },
+  hungover:  { name: "Sore head", icon: "🍖", mood: "sad", morale: -2, days: 1, stir: { restless: -10 } },
+  feast:     { name: "Feast", icon: "🍖", mood: "happy", morale: 10, days: 3, stir: { anger: -20, grief: -15, restless: -10, warmth: 20 } },
+  mended:    { name: "Mended", icon: "🩹", mood: "happy", morale: 4, days: 2, stir: { fear: -10, warmth: 15 } },
+  armed:     { name: "Well armed", icon: "⚔️", mood: "happy", morale: 4, days: 2, stir: { fear: -10, pride: 10 } },
+  snapped:   { name: "Snapped", icon: "👻", mood: "scared", morale: -15, days: 4, stir: { anger: 25, grief: 10 } },
+  bored:     { name: "Bored", icon: "😐", mood: "sad", morale: -3, days: 2, stir: { restless: 15, pride: -10 } },
+  tale:      { name: "A good story", icon: "🔥", mood: "happy", morale: 2, days: 1, stir: { restless: -5, grief: -5, warmth: 10 } },
 };
 const clampMorale = (n) => Math.max(0, Math.min(100, n));
 function think(s, k) {
@@ -221,7 +228,32 @@ function think(s, k) {
   s.thoughts = (s.thoughts || []).filter((x) => x.k !== k && x.until > S.day);
   s.thoughts.push({ k, until: S.day + t.days, n: S.thoughtN });
   s.morale = clampMorale(s.morale + t.morale);
+  for (const [d, n] of Object.entries(t.stir || {})) stir(s, d, n);
   note(s, { k });
+}
+
+// ---------- drives ----------
+// What builds up in someone while things keep happening to them, 0 to 100, ebbing a fifth each
+// night. Past a drive's mark people act on it (see URGES); acting spends it. Warmth and pride
+// are the good ones: they're what makes a calm village do things too.
+const DRIVES = { anger: "angry", fear: "scared", grief: "sad", restless: "sad", warmth: "happy", pride: "happy" };
+const drive = (s, d) => s.drive?.[d] || 0;
+// Blood in someone's past makes anything that angers them anger them more.
+function stir(s, d, n) {
+  if (n > 0 && d === "anger" && violent(s)) n *= 1.5;
+  (s.drive ||= {})[d] = Math.max(0, Math.min(100, drive(s, d) + n));
+}
+const topDrive = (s) => Object.keys(DRIVES).sort((a, b) => drive(s, b) - drive(s, a))[0];
+// Each night: drives ebb, and what's still true keeps stirring them.
+function ebb(home) {
+  for (const s of living()) for (const d of Object.keys(DRIVES)) s.drive && (s.drive[d] = Math.floor(drive(s, d) * 0.8));
+  for (const s of home) {
+    if (living().some((t) => grudge(s, t))) stir(s, "anger", 8);
+    if (s.morale < 30) stir(s, "restless", 8);
+    if (s.spouse && home.some((o) => o.id === s.spouse)) stir(s, "warmth", 5);
+    if (s.morale >= 70) stir(s, "warmth", 6);
+    if (s.job != null && S.grid[s.job]) stir(s, "pride", (s.skills[BUILDINGS[S.grid[s.job].type].job] || 0) >= 3 ? 8 : 4);
+  }
 }
 const fresh = (s) => (s.thoughts || []).filter((x) => x.until > S.day);
 function feeling(s) {
@@ -236,6 +268,7 @@ function mood(s) {
   if (s.hp < st.hpMax * 0.3) return "scared";
   const f = feeling(s);
   if (f) return THOUGHTS[f.k].mood;
+  if (drive(s, topDrive(s)) >= 40) return DRIVES[topDrive(s)];
   if (living().some((t) => grudge(s, t))) return "angry";
   if (s.morale < 30) return "angry";
   if (s.hp < st.hpMax * 0.7) return "sad";
@@ -557,16 +590,18 @@ const available = (s) => s && !s.dead && !away(s);
 // The grieving may not go below, likelier for someone they were close to. Decided once a day.
 const close = (s, o) => s.spouse === o.id || (s.heard || []).some((x) => x.about === o.id && x.v > 0);
 const lostOf = (s) => fresh(s).some((x) => x.k === "grief") ? S.settlers.filter((o) => o.dead && o.diedOn > S.day - THOUGHTS.grief.days) : [];
-// The grieving with blood in their past go below with the next party, whatever anyone says,
-// once they can stand: half their HP.
+// The grieving who are angry enough go below with the next party, whatever anyone says, once
+// they can stand: half their HP. Blood in their past gets them there faster (see stir).
 const violent = (s) => PAST_VIOLENT.some((t) => pastHas(s, t));
 function avenges(s) {
   const lost = lostOf(s);
-  return lost.length && violent(s) && s.hp >= stats(s).hpMax / 2 ? lost.find((o) => close(s, o)) || lost[lost.length - 1] : null;
+  return lost.length && drive(s, "anger") >= 35 && s.hp >= stats(s).hpMax / 2 ? lost.find((o) => close(s, o)) || lost[lost.length - 1] : null;
 }
+// Who won't go below: the badly frightened (true), or the grieving, for someone they lost.
 function refuses(s) {
+  if (drive(s, "fear") >= 60) return true;
   const lost = lostOf(s);
-  if (!lost.length || violent(s)) return null;
+  if (!lost.length || avenges(s)) return null;
   if (!s.balk || s.balk.day !== S.day) {
     const near = lost.find((o) => close(s, o));
     s.balk = { day: S.day, who: chance(near ? 0.7 : 0.2) ? (near || lost[lost.length - 1]).id : null };
@@ -647,30 +682,17 @@ function trouble(home, hold) {
     else if (r < 0.35) { add("relics", 1); gameLog(`${s.name} came back with a relic from who knows where. +1🏺`, "good", [s]); }
     else { hurt(s, 0.1, 0.3); think(s, "hungover"); gameLog(`${s.name} came back, muddy and sore.`, "story", [s]); }
   }
-  // Three days hungry and people start looking elsewhere: 5% the third day, 5% more each day after.
-  for (const s of home.filter((o) => o.unfed >= 3)) {
-    if (!chance(0.05 * (s.unfed - 2))) continue;
-    leave(s);
-    gameLog(`${s.name} left to find food elsewhere.`, "bad", living());
-  }
   if (t && !hold) settle(t.kind === "fey" ? "no" : "ignore");
-  // A grudge comes to blows.
-  for (const a of home) {
-    const b = home.find((o) => grudge(a, o));
-    if (!b || !chance(0.06)) continue;
-    brawl(a, b);
-    break;
-  }
+  ebb(home);
+  act(home);
   // Pasts catch up, once each.
   for (const s of home) {
     if (s.caught || !chance(0.01)) continue;
     const b = S.grid[s.job], what = b && BUILDINGS[b.type].name.toLowerCase();
-    const burnt = b && `Burned down ${/^[aeiou]/.test(what) ? "an" : "a"} ${what}`, meant = burnt && pastHas(s, `${burnt} on purpose.`);
-    if (meant || (burnt && pastHas(s, `${burnt} by accident.`))) {
+    if (b && pastHas(s, `Burned down ${/^[aeiou]/.test(what) ? "an" : "a"} ${what} by accident.`)) {
       s.caught = true;
-      S.grid[s.job] = null; s.job = null;
-      if (b.type === "library") S.res.research = Math.floor(S.res.research / 2);
-      gameLog(meant ? `${s.name} set fire to the ${what}. Again.` : `${s.name} knocked over a lamp. The ${what} burned down.`, "bad", living());
+      burn(s.job);
+      gameLog(`${s.name} knocked over a lamp. The ${what} burned down.`, "bad", living());
     } else if (pastHas(s, "Fled a wedding.") && !S.visitor) {
       s.caught = true;
       S.visitor = makeSettler();
@@ -685,11 +707,6 @@ function trouble(home, hold) {
       const k = S.res.silver ? "silver" : "food", n = Math.ceil(S.res[k] / 4);
       S.res[k] -= n;
       gameLog(`A lord's men took back what ${s.name} stole. -${n}${RESOURCES[k].icon}`, "bad", [s]);
-    } else if (pastHas(s, "Drank away a fortune.")) {
-      s.caught = true;
-      const n = Math.min(10, S.res.food);
-      S.res.food -= n; think(s, "hungover");
-      gameLog(`${s.name} drank the stores. -${n}🍞`, "bad", [s]);
     } else if (pastHas(s, "Carried a fever into a village.")) {
       s.caught = true;
       for (const o of home) o.hp = Math.max(1, o.hp - Math.ceil(stats(o).hpMax / 4));
@@ -703,17 +720,12 @@ function trouble(home, hold) {
   // Old trades turn up when they're needed.
   for (const s of home) {
     if (!chance(0.03)) continue;
-    const job = S.grid[s.job]?.type, worst = home.filter((o) => o !== s).sort((a, b) => a.hp / stats(a).hpMax - b.hp / stats(b).hpMax)[0];
-    if (pastHas(s, "Learned how to set bones.") && worst && worst.hp < stats(worst).hpMax * 0.6) {
-      worst.hp = stats(worst).hpMax; think(worst, "mended");
-      gameLog(`${s.name} set ${worst.name}'s bones.`, "good", [s, worst]);
-    } else {
-      const pays = Object.entries(PAST_PAYS).find(([line, [at]]) => at === job && pastHas(s, line))?.[1];
-      if (!pays) continue;
-      const [, res, n, did] = pays;
-      add(res, n);
-      gameLog(`${s.name} ${did}. +${n}${RESOURCES[res].icon}`, "good", [s]);
-    }
+    const job = S.grid[s.job]?.type;
+    const pays = Object.entries(PAST_PAYS).find(([line, [at]]) => at === job && pastHas(s, line))?.[1];
+    if (!pays) continue;
+    const [, res, n, did] = pays;
+    add(res, n);
+    gameLog(`${s.name} ${did}. +${n}${RESOURCES[res].icon}`, "good", [s]);
     break;
   }
   if (S.trouble) return;
@@ -723,14 +735,6 @@ function trouble(home, hold) {
     const r = ["food", "wood", "stone", "ore", "herbs"].sort((a, b) => S.res[b] - S.res[a])[0];
     S.trouble = { kind: "bandits", n: 3 + Math.floor(stock() / 120), take: { [r]: Math.ceil(S.res[r] / 2) } };
     return gameLog(`Ladders on the walls.`, "bad", living());
-  }
-  // Two who get on may want to marry; whether the village throws them a wedding is up to you.
-  const free = home.filter((s) => !s.spouse && s.morale >= 60);
-  const match = free.flatMap((a) => free.filter((b) => a.id < b.id && !grudge(a, b) && !grudge(b, a)).map((b) => [a, b]));
-  if (match.length && chance(0.015)) {
-    const [a, b] = pick(match);
-    S.trouble = { kind: "wedding", pair: [a.id, b.id], take: { food: 3 * home.length } };
-    return gameLog(`${a.name} and ${b.name} want to marry.`, "story", [a, b]);
   }
   // Plenty asks for a feast; a feast softens grudges.
   const plate = 3 * home.length;
@@ -750,18 +754,135 @@ function trouble(home, hold) {
     }) };
     return gameLog(`A trader at the gate.`, "story");
   }
-  // The haunted sometimes shut themselves in the forge and want things for whatever they're making.
-  const fey = home.find((s) => haunted(s) && chance(0.03));
+  // The haunted, deep in grief, sometimes shut themselves in the forge and want things for whatever they're making.
+  const fey = home.find((s) => haunted(s) && drive(s, "grief") >= 30 && chance(0.05));
   if (fey && S.grid.some((b) => b && b.type === "forge")) {
     S.trouble = { kind: "fey", who: fey.id, take: { relics: 1 + rand(2), [pick(["ore", "herbs", "silver"])]: 3 + rand(3) } };
     return gameLog(`${fey.name} shut the forge door.`, "story", [fey]);
   }
-  // Full stores draw bandits.
-  if (S.day > 12 && chance(Math.min(0.06, (stock() - 120) / 2500) * 0.5 ** guards().length * (has("walls") ? 0.5 : 1))) {
+  // Full stores draw bandits. A hall by the water a quarter of the time draws river pirates instead,
+  // who come by boat: walls don't slow them.
+  const pirates = S.land.some((k, i) => k === "water" && dist(i, S.hall ?? MID) <= 3) && chance(0.25);
+  if (S.day > 12 && chance(Math.min(0.06, (stock() - 120) / 2500) * 0.5 ** guards().length * (has("walls") && !pirates ? 0.5 : 1))) {
     const r = ["food", "wood", "stone", "ore", "herbs"].sort((a, b) => S.res[b] - S.res[a])[0];
-    S.trouble = { kind: "bandits", n: 2 + Math.floor(stock() / 150), take: { [r]: Math.ceil(S.res[r] / 3) } };
-    gameLog(`Bandits at the gate.`, "bad", living());
+    S.trouble = { kind: pirates ? "pirates" : "bandits", n: 2 + Math.floor(stock() / 150), take: { [r]: Math.ceil(S.res[r] / 3) } };
+    gameLog(pirates ? `River pirates at the landing.` : `Bandits at the gate.`, "bad", living());
   }
+}
+// What people do when a drive runs over. Each night everyone home past an urge's mark may act on
+// it, likelier the further past and three times as likely if their past leans that way; one act a
+// night at most. Acting spends the drive, and what they did stirs everyone else.
+// Whoever someone is angriest at: the one they blame most, else, past seventy, whoever's nearest.
+const foe = (s, home) => home.filter((o) => grudge(s, o)).sort((a, b) => believes(s, a) - believes(s, b))[0]
+  || (drive(s, "anger") >= 70 ? pick(home.filter((o) => o !== s)) : null);
+const ruinable = (s, home) => { const f = foe(s, home); return [s.job, f?.job].filter((i) => i != null && S.grid[i] && S.grid[i].type !== "townhall"); };
+// Everyone else in `who` hears it, from the one it was done to or from having seen it.
+// A blow is held against someone a week or two; a wrecked building, as long as any story.
+const witness = (s, who, what, d, n, days) => who.filter((o) => o !== s).forEach((o) => {
+  stir(o, d, n);
+  (o.heard ||= []).push({ about: s.id, death: `${what[0]}${S.day}`, what, v: -1, hops: 0, until: days ? S.day + days + rand(days) : fades() });
+});
+// Someone home they could help: the one they've taught least of their best trade, or the worst hurt.
+const pupil = (s, home) => { const k = best(s); return k && home.filter((o) => o !== s && s.skills[k] - (o.skills[k] || 0) >= 1.5).sort((a, b) => (a.skills[k] || 0) - (b.skills[k] || 0))[0]; };
+const best = (s) => Object.keys(s.skills).sort((a, b) => s.skills[b] - s.skills[a])[0];
+const hurtest = (s, home) => home.filter((o) => o !== s && o.hp < stats(o).hpMax * 0.6).sort((a, b) => a.hp / stats(a).hpMax - b.hp / stats(b).hpMax)[0];
+const sweetheart = (s, home) => !s.spouse && pick(home.filter((o) => o !== s && !o.spouse && drive(o, "warmth") >= 30 && !grudge(s, o) && !grudge(o, s)));
+const spend = (s, d, k = 0) => (s.drive[d] = Math.floor(drive(s, d) * k));
+const URGES = {
+  brawl: { drive: "anger", min: 50, leans: PAST_VIOLENT, can: (s, home) => !!foe(s, home),
+    does(s, home) {
+      const b = foe(s, home);
+      brawl(s, b);
+      s.drive.anger = 0;
+      witness(s, [b], [`went for ${b.name}`, `had cause to go for ${b.name}`], "anger", 10, 7);
+      home.filter((o) => o !== s && o !== b).forEach((o) => stir(o, "fear", 5));
+    } },
+  smash: { drive: "anger", min: 70, leans: [PAST.bad[0]], can: (s, home) => ruinable(s, home).length > 0,
+    does(s, home) {
+      const i = pick(ruinable(s, home)), what = BUILDINGS[S.grid[i].type].name.toLowerCase(), fire = pastHas(s, PAST.bad[0]);
+      burn(i);
+      s.drive.anger = 0;
+      think(s, "snapped");
+      witness(s, home, [`${fire ? "burned" : "smashed"} the ${what}`, `had reason to wreck the ${what}`], "anger", 15);
+      gameLog(fire ? `${s.name} set fire to the ${what}. Again.` : `${s.name} smashed the ${what}.`, "bad", living());
+    } },
+  drink: { drive: "grief", min: 55, leans: [PAST.bad[5]], can: () => S.res.food + S.res.meals >= 5,
+    does(s) {
+      const k = S.res.meals >= 5 ? "meals" : "food", n = Math.min(k === "meals" ? 5 : 10, S.res[k]);
+      S.res[k] -= n;
+      s.drive.grief = Math.floor(drive(s, "grief") / 2);
+      think(s, "hungover");
+      gameLog(`${s.name} drank the stores. -${n}${RESOURCES[k].icon}`, "bad", [s]);
+    } },
+  wander: { drive: "restless", min: 55, leans: ["Wanted {to see the frontier|adventure|to see where the road ended}."], can: () => true,
+    does(s) {
+      s.wander = { back: S.day + 2 + rand(4), seen: true };
+      s.drive.restless = 0;
+      gameLog(`${s.name} walked off.`, "bad", [s]);
+    } },
+  leave: { drive: "restless", min: 75, leans: [PAST.bad[2], PAST.bad[3], "Running from {someone|an old mistake|a feud}.", "Took the first road out of town."], can: () => true,
+    does(s, home) {
+      leave(s);
+      home.filter((o) => o !== s && close(o, s)).forEach((o) => stir(o, "grief", 20));
+      gameLog(s.unfed >= 2 ? `${s.name} left to find food elsewhere.` : `${s.name} packed up and left in the night.`, "bad", living());
+    } },
+  teach: { drive: "warmth", min: 40, leans: ["Taught rich children their letters."], can: (s, home) => !!pupil(s, home),
+    does(s, home) {
+      const o = pupil(s, home), k = best(s);
+      o.skills[k] = +((o.skills[k] || 0) + 0.5).toFixed(1);
+      spend(s, "warmth", 0.5); stir(o, "warmth", 10);
+      gameLog(`${s.name} showed ${o.name} some ${JOBS[k].toLowerCase()}.`, "good", [s, o]);
+    } },
+  mend: { drive: "warmth", min: 45, leans: ["Learned how to set bones.", "Nursed fever patients.", "Tended injured quarrymen.", "Trained under an old physician.", "Nursed the sick through a plague."],
+    can: (s, home) => !!hurtest(s, home),
+    does(s, home) {
+      const o = hurtest(s, home), bones = pastHas(s, "Learned how to set bones.");
+      o.hp = bones ? stats(o).hpMax : Math.min(stats(o).hpMax, o.hp + Math.ceil(stats(o).hpMax * 0.3));
+      spend(s, "warmth", 0.5); think(o, "mended");
+      gameLog(bones ? `${s.name} set ${o.name}'s bones.` : `${s.name} sat up with ${o.name} and dressed the wounds.`, "good", [s, o]);
+    } },
+  forgive: { drive: "warmth", min: 45, leans: ["Fed the poor.", "Kept a country chapel."], can: (s, home) => home.some((o) => grudge(s, o)),
+    does(s, home) {
+      const o = home.filter((t) => grudge(s, t)).sort((a, b) => believes(s, b) - believes(s, a))[0];
+      (s.heard || []).forEach((x) => { if (x.about === o.id && x.v < 0) x.until = S.day; });
+      spend(s, "warmth"); stir(o, "warmth", 15);
+      gameLog(`${s.name} sat with ${o.name} and let it go.`, "good", [s, o]);
+    } },
+  court: { drive: "warmth", min: 50, leans: [], can: (s, home) => !S.trouble && !!sweetheart(s, home),
+    does(s, home) {
+      const o = sweetheart(s, home);
+      spend(s, "warmth");
+      S.trouble = { kind: "wedding", pair: [s.id, o.id], take: { food: 3 * home.length } };
+      gameLog(`${s.name} and ${o.name} want to marry.`, "story", [s, o]);
+    } },
+  graft: { drive: "pride", min: 20, leans: [], can: (s) => s.job != null && !!S.grid[s.job],
+    does(s) {
+      s.graft = S.day + 1;
+      spend(s, "pride", 0.5);
+      gameLog(`${s.name} means to outdo themselves tomorrow.`, "good", [s]);
+    } },
+  watch: { drive: "pride", min: 40, leans: ["Caravan guard.", "Town watchman.", "Household guard to a noble."],
+    can: (s) => s.job == null && !isGuard(s) && guards().length < watchMax(),
+    does(s) {
+      setGuard(s.id);
+      spend(s, "pride", 0.5);
+      gameLog(`${s.name} took the gate without being asked.`, "good", [s]);
+    } },
+};
+function act(home) {
+  const tries = home.flatMap((s) => Object.entries(URGES).map(([k, u]) => {
+    const over = drive(s, u.drive) - u.min;
+    return { s, u, p: over > 0 ? (over / 250) * (u.leans.some((t) => pastHas(s, t)) ? 3 : 1) : 0 };
+  })).filter((x) => x.p > 0 && x.u.can(x.s, home)).sort(() => Math.random() - 0.5);
+  const hit = tries.find((x) => chance(x.p));
+  if (hit) hit.u.does(hit.s, home);
+}
+// A building lost to fire or fists. A library takes half the research with it.
+function burn(i) {
+  const b = S.grid[i];
+  if (b.worker) byId(b.worker).job = null;
+  if (b.type === "library") S.res.research = Math.floor(S.res.research / 2);
+  S.grid[i] = null;
 }
 // Gone for good: off the books, out of work, and their ghosts find someone else.
 function leave(s) {
@@ -875,12 +996,11 @@ function settle(how) {
     const at = s.job ?? S.grid.findIndex((b) => b && b.type === "forge"), b = S.grid[at];
     if (b) {
       gameLog(`${s.name} smashed the ${BUILDINGS[b.type].name.toLowerCase()}.`, "bad", living());
-      if (b.worker) byId(b.worker).job = null;
-      S.grid[at] = null;
+      burn(at);
     } else gameLog(`${s.name} came out of the forge with nothing.`, "bad", [s]);
     return;
   }
-  const who = t.kind === "debt" ? "The collectors" : "The bandits";
+  const who = { debt: "The collectors", pirates: "The pirates" }[t.kind] || "The bandits";
   if (how === "yes") { grab(1); return gameLog(`Paid ${what}. ${who} left.`, "bad"); }
   if (how === "ignore") { grab(2); return gameLog(`Nobody went to the gate. ${who} took ${what} twice over.`, "bad", living()); }
   const guard = living().filter((o) => !away(o));
@@ -1021,7 +1141,7 @@ function add(res, n) {
   return whole;
 }
 
-// A quiet day still has someone in it: a story, a lesson, a find, a long talk.
+// A day nobody acted on anything still has someone in it: a story, a lesson, a find, a long talk.
 function beat(home) {
   if (!home.length) return;
   const s = pick(home), o = pick(home.filter((x) => x !== s)) || null;
@@ -1068,7 +1188,7 @@ function endDay(hold) {
     b.unpaid = !up.every(([r, n]) => S.res[r] >= n);
     if (!b.unpaid) for (const [r, n] of up) { S.res[r] -= n; spent[r] = (spent[r] || 0) + n; }
     const boost = 1 + boostOf(b) + besideBoost(i, b.type);
-    const eff = (1 + skill * 0.1) * (s.morale < 30 ? 0.5 : 1) * (haunted(s) ? 0.5 : 1) * fedRate(s) * boost;
+    const eff = (1 + skill * 0.1) * (s.graft === S.day ? 1.5 : 1) * (s.morale < 30 ? 0.5 : 1) * (haunted(s) ? 0.5 : 1) * fedRate(s) * boost;
     for (const [r, n] of Object.entries(addCost({ ...def.yields }, besideYields(i, b.type)))) take(r, n * eff);
     // each staffed library brings the current study a day closer
     if (b.type === "library" && S.study && --S.study.left <= 0) learn();

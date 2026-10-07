@@ -184,7 +184,7 @@ function troubleHead(t) {
   const s = t.who && byId(t.who);
   const face = s ? mug(s) : "";
   if (t.pair) { const [a, b] = t.pair.map(byId); return `<b class="row">${mug(a)} 💍 ${mug(b)}</b>`; }
-  return { bandits: `<b>🗡 ×${t.n}</b>`, debt: `${face} 💰`, fey: `${face} ⚒🔒`, feast: `<b>🍖</b>`, trader: `<b>🛒</b>` }[t.kind];
+  return { bandits: `<b>🗡 ×${t.n}</b>`, pirates: `<b>🌊🗡 ×${t.n}</b>`, debt: `${face} 💰`, fey: `${face} ⚒🔒`, feast: `<b>🍖</b>`, trader: `<b>🛒</b>` }[t.kind];
 }
 // What's at stake, said plainly: what they want, and what each answer and doing nothing costs.
 function troubleStakes(t) {
@@ -192,6 +192,7 @@ function troubleStakes(t) {
   const armed = [`⚔ Lost: they take ${twice}, everyone home hurt.`, `Left till End day: they take ${twice}.`];
   const lines = {
     bandits: [`${t.n} bandits want ${want}.`, ...armed],
+    pirates: [`${t.n} river pirates want ${want}.`, ...armed],
     debt: [`Collectors want ${want} for ${s?.name}'s debts.`, ...armed],
     fey: [`${s?.name} wants ${want}.`, `Given: gear named for their ghost.`, `Refused or left: they smash where they work.`],
     feast: [`A feast for everyone home: ${want}.`, `Two side by side may let a grudge go.`],
@@ -386,6 +387,12 @@ const gearStat = (g, k, s) => (g[k] || 0) + (k === "atk" && s ? fitBonus(g, s) :
 const gearText = (g, s, bare = false) => (!bare && weaponCls(g) ? `${CLASSES[weaponCls(g)].icon} ` : "") +
   Object.keys(STAT_ICON).filter((k) => g[k]).map((k) => { const v = gearStat(g, k, s); return `${STAT_ICON[k]}${v > 0 ? "+" : "−"}${Math.abs(v)}`; }).join(" ");
 
+// Each drive as five diamonds, one per 20. Nothing stirred, no row.
+const DRIVE_ICON = { anger: "😠", fear: "👁", grief: "🪦", restless: "👣", warmth: "🔥", pride: "⭐" };
+const drivePips = (s) => Object.keys(DRIVES).some((d) => drive(s, d) >= 10) ? `<div class="drives">${Object.keys(DRIVES).map((d) => {
+  const n = Math.round(drive(s, d) / 20);
+  return `<span class="drive" title="${d}">${DRIVE_ICON[d]} <b class="${DRIVES[d] === "happy" ? "good" : "bad"}">${"◆".repeat(n)}</b>${"◇".repeat(5 - n)}</span>`;
+}).join("")}</div>` : "";
 const moraleChip = (s) => `<span class="thought">${moraleFace(s)}</span>`;
 const thoughtChip = (x) => {
   const t = THOUGHTS[x.k], v = t.morale;
@@ -439,6 +446,7 @@ function sheetPerson() {
     ${s.dead ? "" : `<div class="hpline">${bar(s.hp, st.hpMax, "hp")}</div>
     <div class="stats">${statLine(st, `❤️${s.hp}/${st.hpMax}`, s)}</div>
     <div class="thoughts">${moraleChip(s)}${fresh(s).sort((x, y) => y.n - x.n).map(thoughtChip).join("")}</div>
+    ${drivePips(s)}
     <div class="row wrap center">${skills}</div>
     ${blames(s)}
     ${gearRow(s)}`}
