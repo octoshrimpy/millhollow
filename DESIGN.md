@@ -23,7 +23,8 @@
   building reveals one ring around that tile.
 - The town hall wards 3 rings around it. Land past the ward is greyed and contested: each night,
   a building out there may be raided, with odds rising 3% per ring past the ward (at most 50%).
-  A worker on site is hurt and drives it off (👁); an unwatched building is wrecked.
+  A worker on site is hurt and drives it off (👁); an unwatched building is wrecked, and the log
+  says why.
 - Work more than 4 tiles from any bed is a long walk (👣).
 - Untouched land is flat ground. Buildings and sites are raised cards. Open meadow is a dashed
   slot, the only place to build. Woods, hills and ruins clear to meadow for their yield; water and
@@ -74,15 +75,35 @@
     - warmth 45+: sits up with the worst hurt (+30% health; a bonesetter mends them whole). Leans:
       bones and nursing pasts.
     - warmth 45+: lets a grudge go. Leans: fed the poor, kept a chapel.
-    - warmth 50+: wants to marry someone warm toward them too (💍).
+    - warmth 40+: wants to marry whoever they're closest to, tie 20+, if that one is warm too or a
+      friend (💍). The widowed and the left-behind can marry again, unless they swore not to: a
+      third of the widowed do. Some pairs are friends and nothing more: asking finds out, and
+      neither asks the other again. Nobody has a sex; anyone can marry anyone. A wedding cools most others near courting a little; some it warms.
+  - Ties: how two people stand with each other, −100 to 100. Evenings and talks together, lessons,
+    mending, forgiving, a long table, fights won side by side raise it; brawls and jiltings sink it.
+    Strong ties wear slowly unless kept up. Crossing 40 makes friends, −40 enemies. Small stuff (talks, walks, evenings out,
+    retold tales, easy fights) is an aside: folded into a ··· in the log, tap to show them all in
+    place, and kept out of people's own stories. The log is never cut short unless storage fills; then the oldest
+    asides go first. The newest 2000 lines show, the rest behind a ▾. People spend evenings and talk mostly with whoever they're closest to. A death grieves the
+    close, the spouse and the party; anyone else only sometimes.
     - pride 20+: means to outdo themselves; works half again as hard the next day.
     - pride 40+, idle: takes the gate unasked. Leans: guard pasts.
   - Full stores draw bandits (🗡): pay a third of the biggest pile, or fight at the odds shown.
     Ignored, they take twice that. Losing a fight hurts everyone at home and costs the same twice
     over. With water within 3 of the hall, a quarter of the time it's river pirates (🌊🗡) instead, whom
     walls don't halve.
-  - The haunted, grieving at 30+, sometimes shut the forge door and want relics and more. Given, they come out with
+  - The haunted, grieving at 30+, sometimes (no one twice in 20 days) shut the forge door and want relics and more. Given, they come out with
     gear named for their ghost (✨). Refused, they smash where they work.
+  - Everyone has a pastime (whittling, baskets, the lute, dice, star-gazing, ~45 in all), mostly one
+    their past leads to. Big moments (a death, a wedding, a near death, a win) sometimes turn them to
+    another (after a death, they say whose). Most evenings someone spends time on theirs, sometimes with someone else: less
+    restless and sad, a little warmer, and so are they.
+  - Research builds places to spend evenings: Village green (park, playground, chapel, bandstand),
+    Town square (fountain, archery range, workshop, stables), Games (axe yard, alehouse). Each makes
+    evenings likelier; people mostly go to the one built for their pastime. Now and then someone
+    asks for theirs (🙋 on the build menu, a count for each asker); building it gladdens them. Someone at anger 35+
+    goes to the range or yard first, before it comes to blows, and leaves most of it there; with one
+    built, blows are held against people half as long.
   - Pasts come back: debt collectors (pay or fight), a jilted ex who wants to join and holds a
     grudge, a mystic who burned down a library by accident burning down yours. Good ones too: a harvester brings in extra, a copyist finds research, a net-mender
     lands fish.
@@ -142,7 +163,7 @@
 - Back from a dungeon, a party goes back to their old jobs if they are still open.
 - The dead stay on the floor they fell. Each haunts one living person, a witness if any survived:
   scared face, half work, −25% attack, −2 speed, −2 morale a day. The remains show as 🦴 on that
-  floor on the next dive; carried home and put in a graveyard, they rest and the haunting ends.
+  floor, in the room they fell, on the next dive; carried home and put in a graveyard, they rest and the haunting ends.
   Unburied dead look angry, buried ones at peace.
 - A settler's trade (their best skill) shows them some rooms from next door: woodcutters and
   fishers see fights, smiths and cooks treasure, healers and herbalists shrines, quarriers the way
@@ -153,9 +174,11 @@
   the party sours the trip and shows on their face (😠); a third of the village blaming you (one,
   in a small village) wears you down (💬). A story fades from each person after 10–40 days. Burial ends the
   talk about that death.
-- Tap a face to ask why. They answer with their own account, rumours as they believe them and who
+- Tap a face to ask why. They answer with their own account (who died, who patched them up, who
+  they came to blows with, their closest friend), rumours as they believe them and who
   told them, so a story can be traced back through the village. Nothing says which version is true.
-- Floors are random room maps. Fights are real-time auto-battles with pause, speed, potions and
+- Floors are random room maps, kept once found: the same rooms on the next dive, looted stashes
+  still empty, some cleared fights and spent shrines back. Fights are real-time auto-battles with pause, speed, potions and
   retreat. A hero under a quarter HP drinks a potion by themselves; tapping 🧪 still drinks one any time. Death is permanent.
 - A won fight closes itself. The celebration scales with how lopsided the fight was against the
   party at the start, more for a keeper and for depth: a stomp gets a faint word, an upset fills

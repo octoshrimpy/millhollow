@@ -113,12 +113,12 @@ function renderTop() {
 }
 
 let logSeen = Infinity; // entries past this are new since the last render and slide in
-const logLine = (l) => `<p class="${l.kind} ${l.n > logSeen ? "new" : ""}"><small>d${l.day}</small> ${esc(l.text)}</p>`;
+const logLine = (l) => `<p class="${l.kind} ${l.aside ? "aside" : ""} ${l.n > logSeen ? "new" : ""}"><small>d${l.day}</small> ${esc(l.text)}</p>`;
 // Every page keeps the last few lines underneath; tapping them opens the whole log.
 function renderLog() {
   const el = $("#log");
   el.hidden = tab === "log";
-  el.innerHTML = iconize(S.log.slice(-3).reverse().map(logLine).join(""));
+  el.innerHTML = iconize(S.log.filter((l) => !l.aside).slice(-3).reverse().map(logLine).join(""));
   logSeen = S.logN || 0;
 }
 // The forge's finished pieces sit folded in the dock, above the log.
@@ -131,8 +131,20 @@ function renderPinned() {
 if (window.ResizeObserver) new ResizeObserver(([e]) =>
   document.documentElement.style.setProperty("--dock-h", `${e.target.offsetHeight}px`)).observe($("#dock"));
 
+// Asides fold into a ··· between the main lines; tapping one opens them all in place.
+// The newest 2000 show; the rest wait behind a ··· at the bottom.
+let asides = false, older = false;
 function viewLog() {
-  return `<div class="fulllog">${S.log.slice().reverse().map(logLine).join("")}</div>`;
+  const out = [], shown = older ? S.log : S.log.slice(-2000);
+  let run = 0;
+  for (const l of shown.slice().reverse()) {
+    if (l.aside && !asides) { run++; continue; }
+    if (run) out.push(`<p class="more" data-act="asides">··· ${run}</p>`), (run = 0);
+    out.push(logLine(l));
+  }
+  if (run) out.push(`<p class="more" data-act="asides">··· ${run}</p>`);
+  if (shown.length < S.log.length) out.push(`<p class="more" data-act="older">▾ ${S.log.length - shown.length}</p>`);
+  return `<div class="fulllog ${asides ? "all" : ""}">${asides ? `<p class="more" data-act="asides">▴</p>` : ""}${out.join("")}</div>`;
 }
 
 // ---------- village ----------
@@ -233,7 +245,7 @@ function sheetPlot(i) {
     return `<h3>Build</h3>` + Object.entries(BUILDINGS).filter(([id]) => (S.hall == null) === (id === "townhall")).map(([id, d]) => {
       const locked = d.needs && !has(d.needs), far = d.near && !beside(i, d.near);
       return `<button class="opt" data-act="build" data-v="${id}" ${locked || far || !afford(d.cost) ? "disabled" : ""}>
-        <span class="ico">${d.icon}</span><span><b>${d.name}</b> ${costText(d.cost)}${besideTag(i, id)}<br><small>${locked ? `🔒 📜 ${RESEARCH[d.needs].name}` : far ? `🔒 ${TERRAIN[d.near].icon}` : d.desc}</small></span></button>`;
+        <span class="ico">${d.icon}</span><span><b>${d.name}</b>${S.asks?.[id]?.length ? ` 🙋${S.asks[id].length}` : ""} ${costText(d.cost)}${besideTag(i, id)}<br><small>${locked ? `🔒 📜 ${RESEARCH[d.needs].name}` : far ? `🔒 ${TERRAIN[d.near].icon}` : d.desc}</small></span></button>`;
     }).join("");
   }
   const d = BUILDINGS[b.type];
@@ -447,7 +459,7 @@ function sheetPerson() {
     <div class="stats">${statLine(st, `❤️${s.hp}/${st.hpMax}`, s)}</div>
     <div class="thoughts">${moraleChip(s)}${fresh(s).sort((x, y) => y.n - x.n).map(thoughtChip).join("")}</div>
     ${drivePips(s)}
-    <div class="row wrap center">${skills}</div>
+    <div class="row wrap center">${skills}${s.pastime ? `<span class="chip">${PASTIMES[s.pastime].icon} ${PASTIMES[s.pastime].name}</span>` : ""}</div>
     ${blames(s)}
     ${gearRow(s)}`}
   </div>
@@ -970,6 +982,8 @@ document.addEventListener("scroll", (e) => {
 })();
 const ACTS = {
   tab: (v) => { tab = v; sheet = null; },
+  asides: () => (asides = !asides),
+  older: () => (older = true),
   menu: () => (sheet = { menu: true }),
   theme: (v) => { applyTheme(v); },
   newgame: () => (sheet = { menu: true, sure: true }),

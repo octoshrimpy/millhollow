@@ -17,9 +17,10 @@ let lastYields = []; // what each tile made on the most recent day, for ui.js to
 
 // ---------- log ----------
 // `who` are the people it happened to or around; each keeps the line in their own story.
-function gameLog(text, kind = "", who = []) {
-  S.log.push({ day: S.day, text, kind, n: (S.logN = (S.logN || 0) + 1) });
-  if (S.log.length > 300) S.log.shift();
+// An aside is small stuff: folded away in the log and kept out of everyone's own story.
+function gameLog(text, kind = "", who = [], aside = false) {
+  S.log.push({ day: S.day, text, kind, n: (S.logN = (S.logN || 0) + 1), ...(aside && { aside }) });
+  if (aside) return;
   who.forEach((s) => note(s, { text, kind }));
 }
 // A person's own history. The same thought on consecutive days folds into one line with a count.
@@ -56,6 +57,7 @@ function makeSettler(cls) {
   // Nobody tells a line someone here already told. ponytail: 50 tries, then a repeat beats a hang once a trade runs dry.
   const told = new Set(S ? [...S.settlers, S.visitor].filter(Boolean).flatMap((o) => o.story || []).map((e) => e.text) : []);
   for (let i = 0; i < 50 && (i === 0 || s.story.some((e) => told.has(e.text))); i++) s.story = pastOf(s, trade, lvl > 3 ? 2 : +chance((lvl - 1) / 3));
+  s.pastime = pastimeOf(s);
   return s;
 }
 // The trade could have been picked up at any point after a childhood, so its line lands anywhere past the first.
@@ -65,6 +67,12 @@ const pastOf = (s, trade, bad = 0) => {
   const lines = [pick(PAST.born), b[1] || pick(PAST.cls[s.cls]), b[0] || pick(PAST.road)];
   lines.splice(1 + rand(3), 0, pick(PAST.trade[trade]));
   return lines.map(pastLine);
+};
+// Mostly something their past leads to, if anything does; else anything.
+const pastimeOf = (s) => {
+  const past = (s.story || []).filter((e) => e.kind === "past").map((e) => e.text).join(" ");
+  const fit = Object.keys(PASTIMES).filter((k) => PASTIMES[k].from.test(past));
+  return pick(fit.length && chance(0.6) ? fit : Object.keys(PASTIMES));
 };
 const pastLine = (src) => {
   const text = roll(src);
@@ -107,6 +115,19 @@ const believes = (s, t) => (s.heard || []).filter((x) => x.about === t.id && !(x
 const deed = (x, v) => x.what ? x.what[v < 0 ? 0 : 1] : x.crown ? (v < 0 ? "lost the keeper's crown" : "tried to hold on to the crown")
   : v < 0 ? `got ${byId(x.death).name} killed` : `tried to save ${byId(x.death).name}`;
 const grudge = (s, t) => s.id !== t.id && believes(s, t) <= -0.5;
+// How two people stand with each other, -100 to 100, from what they've done together. Strong
+// ties slowly wear unless kept up. Only crossing a mark is news.
+const FRIEND = 40;
+const tieOf = (s, o) => s.ties?.[o.id] || 0;
+function tie(a, b, n) {
+  if (!a || !b || a === b) return;
+  const was = tieOf(a, b), now = Math.max(-100, Math.min(100, was + n));
+  (a.ties ||= {})[b.id] = now; (b.ties ||= {})[a.id] = now;
+  if (was < FRIEND && now >= FRIEND && !(a.pals ||= []).includes(b.id)) (a.pals.push(b.id), (b.pals ||= []).push(a.id)), gameLog(`${a.name} and ${b.name} are friends now.`, "story", [a, b]);
+  else if (was > -FRIEND && now <= -FRIEND) gameLog(`${a.name} and ${b.name} can't stand each other.`, "bad", [a, b]);
+}
+// Mostly whoever they're closest to, if anyone; else anyone.
+const mate = (s, xs) => (chance(0.6) && xs.filter((o) => tieOf(s, o) > 0).sort((a, b) => tieOf(s, b) - tieOf(s, a))[0]) || pick(xs) || null;
 
 // Whoever stood in the same lane and walked out least hurt takes the blame.
 function blameDeath(dead, survivors, beside = () => true) {
@@ -145,7 +166,7 @@ function gossip(home) {
 // What someone says when asked why they look the way they do: their own account, rumours as
 // they believe them, true or not. Reasons for the face they're wearing come first.
 function why(s) {
-  const name = (id) => byId(id).name, has = (k) => fresh(s).some((x) => x.k === k);
+  const name = (id) => byId(id).name, has = (k) => fresh(s).some((x) => x.k === k), whom = (k) => byId(fresh(s).filter((x) => x.k === k && x.who).pop()?.who);
   const told = (x) => (!x.hops ? "I was there." : x.from ? `${name(x.from)} told me.` : "I heard.");
   const said = [];
   const say = (m, text) => said.push([m, text]);
@@ -164,8 +185,11 @@ function why(s) {
   if (s.morale < 30) say("angry", "I've had enough of this place.");
   const mine = S.settlers.flatMap((o) => (o.heard || []).filter((x) => x.about === s.id && x.v < 0 && !o.dead));
   if (has("blamed") && mine.length) say("sad", `They say I ${deed(mine[0], -1)}.`);
-  const lost = S.settlers.filter((o) => o.dead && !o.buried).pop() || S.settlers.filter((o) => o.dead).pop();
-  if (has("jilted")) say("sad", "I was left at the altar.");
+  const lost = whom("grief") || S.settlers.filter((o) => o.dead && !o.buried).pop() || S.settlers.filter((o) => o.dead).pop();
+  if (has("jilted")) say("sad", whom("jilted") ? `${whom("jilted").name} left me at the altar.` : "I was left at the altar.");
+  if (s.vow) say("sad", "I'll not marry again.");
+  if (whom("mended")) say("happy", `${whom("mended").name} patched me up.`);
+  if (whom("brawl")) say("angry", `${whom("brawl").name} and I came to blows.`);
   if (has("wed") && s.spouse) say("happy", `I married ${name(s.spouse)}.`);
   const balk = refuses(s);
   const due = avenges(s);
@@ -178,6 +202,8 @@ function why(s) {
   if (drive(s, "anger") >= 50) say("angry", "I could hit someone.");
   if (drive(s, "fear") >= 50) say("scared", "I keep watching the gate.");
   if (drive(s, "restless") >= 50) say("sad", "I could walk out of here.");
+  const friend = living().filter((o) => tieOf(s, o) >= FRIEND).sort((a, b) => tieOf(s, b) - tieOf(s, a))[0];
+  if (friend) say("happy", s.fz?.includes(friend.id) ? `${friend.name} and I are friends. Just friends.` : `${friend.name} and I go way back.`);
   if (drive(s, "warmth") >= 50) say("happy", "Good people here.");
   if (drive(s, "pride") >= 50) say("happy", "I'm good at what I do.");
   if (s.hp < stats(s).hpMax * 0.7) say("sad", "Still hurting.");
@@ -218,18 +244,22 @@ const THOUGHTS = {
   mended:    { name: "Mended", icon: "🩹", mood: "happy", morale: 4, days: 2, stir: { fear: -10, warmth: 15 } },
   armed:     { name: "Well armed", icon: "⚔️", mood: "happy", morale: 4, days: 2, stir: { fear: -10, pride: 10 } },
   snapped:   { name: "Snapped", icon: "👻", mood: "scared", morale: -15, days: 4, stir: { anger: 25, grief: 10 } },
-  bored:     { name: "Bored", icon: "😐", mood: "sad", morale: -3, days: 2, stir: { restless: 15, pride: -10 } },
+  bored:     { name: "Bored", icon: "😐", mood: "sad", morale: -3, days: 2, stir: { restless: 10, pride: -10 } },
+  wish:      { name: "Got their wish", icon: "🙋", mood: "happy", morale: 10, days: 4, stir: { restless: -20, warmth: 15, pride: 5 } },
   tale:      { name: "A good story", icon: "🔥", mood: "happy", morale: 2, days: 1, stir: { restless: -5, grief: -5, warmth: 10 } },
 };
 const clampMorale = (n) => Math.max(0, Math.min(100, n));
-function think(s, k) {
+function think(s, k, who) {
   const t = THOUGHTS[k];
   S.thoughtN = (S.thoughtN || 0) + 1;
   s.thoughts = (s.thoughts || []).filter((x) => x.k !== k && x.until > S.day);
-  s.thoughts.push({ k, until: S.day + t.days, n: S.thoughtN });
+  s.thoughts.push({ k, until: S.day + t.days, n: S.thoughtN, who });
   s.morale = clampMorale(s.morale + t.morale);
   for (const [d, n] of Object.entries(t.stir || {})) stir(s, d, n);
-  note(s, { k });
+  note(s, { k, who });
+  // Big things can turn someone to something new to do with their evenings.
+  const to = Object.keys(PASTIMES).filter((p) => p !== s.pastime && PASTIMES[p].after.includes(k));
+  if (to.length && chance(0.15)) { s.pastime = pick(to); note(s, { text: `Took up ${PASTIMES[s.pastime].name}${k === "grief" && who ? ` after ${byId(who).name} died` : ""}.` }); }
 }
 
 // ---------- drives ----------
@@ -247,6 +277,7 @@ const topDrive = (s) => Object.keys(DRIVES).sort((a, b) => drive(s, b) - drive(s
 // Each night: drives ebb, and what's still true keeps stirring them.
 function ebb(home) {
   for (const s of living()) for (const d of Object.keys(DRIVES)) s.drive && (s.drive[d] = Math.floor(drive(s, d) * 0.8));
+  for (const s of living()) for (const k in s.ties) if (+k > s.id && chance(Math.abs(s.ties[k]) / 100)) tie(s, byId(+k), -Math.sign(s.ties[k]));
   for (const s of home) {
     if (living().some((t) => grudge(s, t))) stir(s, "anger", 8);
     if (s.morale < 30) stir(s, "restless", 8);
@@ -464,7 +495,16 @@ function settleIn(ids) {
   save();
 }
 
-function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify({ S, nextId })); } catch (e) { } }
+// The log is never cut short, unless storage fills: then the oldest goes, small stuff first.
+function save() {
+  for (let n = 0; n < 10; n++) {
+    try { return localStorage.setItem(SAVE_KEY, JSON.stringify({ S, nextId })); } catch (e) {
+      if (!/quota/i.test(e.name) || S.log.length < 50) return;
+      const asides = S.log.filter((l) => l.aside), shed = new Set(asides.slice(0, Math.ceil(asides.length / 2)));
+      S.log = shed.size ? S.log.filter((l) => !shed.has(l)) : S.log.slice(Math.ceil(S.log.length / 4));
+    }
+  }
+}
 function load() {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
@@ -484,6 +524,8 @@ function load() {
     for (const k of Object.keys(RESOURCES)) S.res[k] ??= 0;
     if (S.expedition) S.expedition.meals ??= 0;
     S.remains ??= [];
+    // Floors kept from before the save were one object with the expedition's map.
+    if (S.expedition) (siteOf().floors ||= {})[S.expedition.map.floor] = S.expedition.map;
     for (const j of S.forging || []) if (j.until) { delete j.until; j.left = 1; }
     S.guards ??= S.guard ? [S.guard] : []; delete S.guard;
     if (S.research.includes("walls")) S.ladders ??= S.day + 10 + rand(21);
@@ -503,6 +545,7 @@ function load() {
       const trade = Object.keys(s.skills).sort((a, b) => s.skills[b] - s.skills[a])[0] || pick(Object.keys(JOBS));
       s.story = [...pastOf(s, trade), ...(s.story || [])];
     }
+    for (const s of [...S.settlers, S.visitor].filter(Boolean)) s.pastime ??= pastimeOf(s);
     return true;
   } catch (e) { return false; }
 }
@@ -588,7 +631,7 @@ const below = (s) => !!S.expedition && S.expedition.party.includes(s.id);
 const away = (s) => below(s) || !!s.wander;
 const available = (s) => s && !s.dead && !away(s);
 // The grieving may not go below, likelier for someone they were close to. Decided once a day.
-const close = (s, o) => s.spouse === o.id || (s.heard || []).some((x) => x.about === o.id && x.v > 0);
+const close = (s, o) => s.spouse === o.id || tieOf(s, o) >= FRIEND || (s.heard || []).some((x) => x.about === o.id && x.v > 0);
 const lostOf = (s) => fresh(s).some((x) => x.k === "grief") ? S.settlers.filter((o) => o.dead && o.diedOn > S.day - THOUGHTS.grief.days) : [];
 // The grieving who are angry enough go below with the next party, whatever anyone says, once
 // they can stand: half their HP. Blood in their past gets them there faster (see stir).
@@ -624,7 +667,7 @@ function raid() {
     } else {
       if (w) w.job = null;
       S.grid[i] = null;
-      gameLog(`Something came up in the night and wrecked the ${def.name.toLowerCase()}.`, "bad", living());
+      gameLog(`Something came up in the night and wrecked the ${def.name.toLowerCase()}. Too far from the ward, and nobody watching.`, "bad", living());
     }
   });
 }
@@ -684,6 +727,8 @@ function trouble(home, hold) {
   }
   if (t && !hold) settle(t.kind === "fey" ? "no" : "ignore");
   ebb(home);
+  leisure(home);
+  wish(home);
   act(home);
   // Pasts catch up, once each.
   for (const s of home) {
@@ -713,7 +758,10 @@ function trouble(home, hold) {
       gameLog(`${s.name}'s old fever came back. Everyone caught it.`, "bad", living());
     } else if (pastHas(s, "Sold out a friend.") && home.length > 1) {
       s.caught = true;
-      for (const o of home) if (o !== s) think(o, "grudge");
+      for (const o of home) if (o !== s) {
+        (o.heard ||= []).push({ about: s.id, death: `sold${s.id}`, what: ["sold out a friend", "paid for what they did"], v: -1, hops: 0, until: fades() });
+        think(o, "grudge", s.id);
+      }
       gameLog(`Word got round that ${s.name} once sold out a friend.`, "bad", [s]);
     }
   }
@@ -755,8 +803,10 @@ function trouble(home, hold) {
     return gameLog(`A trader at the gate.`, "story");
   }
   // The haunted, deep in grief, sometimes shut themselves in the forge and want things for whatever they're making.
-  const fey = home.find((s) => haunted(s) && drive(s, "grief") >= 30 && chance(0.05));
+  // No one twice in twenty days.
+  const fey = home.find((s) => haunted(s) && drive(s, "grief") >= 30 && !(S.day - s.fey < 20) && chance(0.05));
   if (fey && S.grid.some((b) => b && b.type === "forge")) {
+    fey.fey = S.day;
     S.trouble = { kind: "fey", who: fey.id, take: { relics: 1 + rand(2), [pick(["ore", "herbs", "silver"])]: 3 + rand(3) } };
     return gameLog(`${fey.name} shut the forge door.`, "story", [fey]);
   }
@@ -780,13 +830,19 @@ const ruinable = (s, home) => { const f = foe(s, home); return [s.job, f?.job].f
 // A blow is held against someone a week or two; a wrecked building, as long as any story.
 const witness = (s, who, what, d, n, days) => who.filter((o) => o !== s).forEach((o) => {
   stir(o, d, n);
-  (o.heard ||= []).push({ about: s.id, death: `${what[0]}${S.day}`, what, v: -1, hops: 0, until: days ? S.day + days + rand(days) : fades() });
+  (o.heard ||= []).push({ about: s.id, death: `${what[0]}${S.day}`, what, v: -1, hops: 0, until: days ? S.day + Math.ceil((days + rand(days)) / (venues().some((k) => VENUES[k].steam) ? 2 : 1)) : fades() });
 });
 // Someone home they could help: the one they've taught least of their best trade, or the worst hurt.
 const pupil = (s, home) => { const k = best(s); return k && home.filter((o) => o !== s && s.skills[k] - (o.skills[k] || 0) >= 1.5).sort((a, b) => (a.skills[k] || 0) - (b.skills[k] || 0))[0]; };
 const best = (s) => Object.keys(s.skills).sort((a, b) => s.skills[b] - s.skills[a])[0];
 const hurtest = (s, home) => home.filter((o) => o !== s && o.hp < stats(o).hpMax * 0.6).sort((a, b) => a.hp / stats(a).hpMax - b.hp / stats(b).hpMax)[0];
-const sweetheart = (s, home) => !s.spouse && pick(home.filter((o) => o !== s && !o.spouse && drive(o, "warmth") >= 30 && !grudge(s, o) && !grudge(o, s)));
+// The widowed and the left-behind can love again.
+// Courting needs a tie first: whoever they're closest to. Some widowed swear never again.
+const free = (s) => !s.vow && !living().some((o) => o.id === s.spouse);
+// Some pairs are friends and nothing more; one asking finds out, and neither asks again.
+const spark = (a, b) => (a.id * b.id * 37 + a.id + b.id) % 10 < 8;
+const sweetheart = (s, home) => free(s) && home.filter((o) => o !== s && free(o) && !s.fz?.includes(o.id) && tieOf(s, o) >= 20 && (drive(o, "warmth") >= 30 || tieOf(s, o) >= FRIEND) && !grudge(s, o) && !grudge(o, s))
+  .sort((a, b) => tieOf(s, b) - tieOf(s, a))[0];
 const spend = (s, d, k = 0) => (s.drive[d] = Math.floor(drive(s, d) * k));
 const URGES = {
   brawl: { drive: "anger", min: 50, leans: PAST_VIOLENT, can: (s, home) => !!foe(s, home),
@@ -830,7 +886,7 @@ const URGES = {
     does(s, home) {
       const o = pupil(s, home), k = best(s);
       o.skills[k] = +((o.skills[k] || 0) + 0.5).toFixed(1);
-      spend(s, "warmth", 0.5); stir(o, "warmth", 10);
+      spend(s, "warmth", 0.5); stir(o, "warmth", 10); tie(s, o, 8);
       gameLog(`${s.name} showed ${o.name} some ${JOBS[k].toLowerCase()}.`, "good", [s, o]);
     } },
   mend: { drive: "warmth", min: 45, leans: ["Learned how to set bones.", "Nursed fever patients.", "Tended injured quarrymen.", "Trained under an old physician.", "Nursed the sick through a plague."],
@@ -838,20 +894,25 @@ const URGES = {
     does(s, home) {
       const o = hurtest(s, home), bones = pastHas(s, "Learned how to set bones.");
       o.hp = bones ? stats(o).hpMax : Math.min(stats(o).hpMax, o.hp + Math.ceil(stats(o).hpMax * 0.3));
-      spend(s, "warmth", 0.5); think(o, "mended");
+      spend(s, "warmth", 0.5); think(o, "mended", s.id); tie(s, o, 10);
       gameLog(bones ? `${s.name} set ${o.name}'s bones.` : `${s.name} sat up with ${o.name} and dressed the wounds.`, "good", [s, o]);
     } },
   forgive: { drive: "warmth", min: 45, leans: ["Fed the poor.", "Kept a country chapel."], can: (s, home) => home.some((o) => grudge(s, o)),
     does(s, home) {
       const o = home.filter((t) => grudge(s, t)).sort((a, b) => believes(s, b) - believes(s, a))[0];
       (s.heard || []).forEach((x) => { if (x.about === o.id && x.v < 0) x.until = S.day; });
-      spend(s, "warmth"); stir(o, "warmth", 15);
+      spend(s, "warmth"); stir(o, "warmth", 15); tie(s, o, 15);
       gameLog(`${s.name} sat with ${o.name} and let it go.`, "good", [s, o]);
     } },
-  court: { drive: "warmth", min: 50, leans: [], can: (s, home) => !S.trouble && !!sweetheart(s, home),
+  court: { drive: "warmth", min: 40, leans: [], can: (s, home) => !S.trouble && !!sweetheart(s, home),
     does(s, home) {
       const o = sweetheart(s, home);
       spend(s, "warmth");
+      if (!spark(s, o)) {
+        (s.fz ||= []).push(o.id); (o.fz ||= []).push(s.id);
+        stir(s, "grief", 15);
+        return gameLog(`${s.name} asked ${o.name} to marry. ${o.name} would rather stay friends.`, "story", [s, o]);
+      }
       S.trouble = { kind: "wedding", pair: [s.id, o.id], take: { food: 3 * home.length } };
       gameLog(`${s.name} and ${o.name} want to marry.`, "story", [s, o]);
     } },
@@ -869,6 +930,33 @@ const URGES = {
       gameLog(`${s.name} took the gate without being asked.`, "good", [s]);
     } },
 };
+// An evening to themselves now and then, doing what they like, settles someone, and whoever they did it with.
+// Each place built for it makes evenings likelier. Someone near the brawling mark goes to let off steam first.
+const venues = () => Object.keys(VENUES).filter((k) => S.grid.some((b) => b && b.type === k));
+function leisure(home) {
+  const v = venues(), free = home.filter((s) => s.pastime && !haunted(s) && s.morale >= 30);
+  if (!free.length || !chance(Math.min(0.7, 0.3 + 0.08 * v.length))) return;
+  const steam = v.filter((k) => VENUES[k].steam), hot = free.filter((s) => drive(s, "anger") >= 35).sort((a, b) => drive(b, "anger") - drive(a, "anger"))[0];
+  const s = steam.length && hot ? hot : pick(free), o = mate(s, home.filter((x) => x !== s));
+  const own = v.filter((k) => VENUES[k].for.includes(s.pastime));
+  const at = s === hot ? pick(steam) : own.length && chance(0.7) ? pick(own) : v.length && chance(0.3) ? pick(v) : null;
+  const t = pick((at ? VENUES[at] : PASTIMES[s.pastime]).does.filter((x) => o || !x.includes("{o}"))), line = roll(t.replace("{o}", o?.name));
+  if (s === hot) spend(s, "anger", 0.3);
+  stir(s, "restless", -15); stir(s, "grief", -5); stir(s, "warmth", 5);
+  s.morale = clampMorale(s.morale + 2);
+  if (t.includes("{o}")) { stir(o, "warmth", 5); tie(s, o, 4); }
+  note(s, { text: line[0].toUpperCase() + line.slice(1) + "." });
+  gameLog(`${s.name} ${line}.`, "good", t.includes("{o}") ? [s, o] : [s], s !== hot);
+}
+// Now and then someone asks for a place for what they like doing. Building it makes them glad.
+function wish(home) {
+  if (!chance(0.04)) return;
+  const s = pick(home.filter((o) => o.pastime && !Object.values(S.asks ||= {}).some((ids) => ids.includes(o.id))));
+  const k = s && pick(Object.keys(VENUES).filter((k) => VENUES[k].for.includes(s.pastime) && !S.grid.some((b) => b && b.type === k)));
+  if (!k) return;
+  (S.asks[k] ||= []).push(s.id);
+  gameLog(`${s.name} asks for ${/^[aeiou]/i.test(BUILDINGS[k].name) ? "an" : "a"} ${BUILDINGS[k].name.toLowerCase()}.`, "story", [s]);
+}
 function act(home) {
   const tries = home.flatMap((s) => Object.entries(URGES).map(([k, u]) => {
     const over = drive(s, u.drive) - u.min;
@@ -894,7 +982,7 @@ function leave(s) {
 }
 function brawl(a, b, lead = "") {
   hurt(a, 0.1, 0.3); hurt(b, 0.15, 0.35);
-  think(a, "brawl"); think(b, "brawl");
+  think(a, "brawl", b.id); think(b, "brawl", a.id); tie(a, b, -15);
   // Whoever came off worst after a brawl reaches for a potion, but the last two are kept for below.
   const sip = [a, b].filter((o) => o.hp < stats(o).hpMax * 0.5 && S.res.potions > 2 && S.res.potions--);
   sip.forEach((o) => (o.hp = Math.min(stats(o).hpMax, o.hp + 20)));
@@ -907,6 +995,7 @@ function seat(home) {
     const xs = (o.heard || []).filter((x) => x.about === n.id && x.v < 0 && !(x.until <= S.day));
     if (!xs.length) return;
     xs.forEach((x) => (x.until = S.day));
+    tie(o, n, 10);
     gameLog(`${o.name} sat beside ${n.name} and let it go.`, "good", [o, n]);
   }));
 }
@@ -950,15 +1039,19 @@ function settle(how) {
       const gear = [ran.gear.weapon, ran.gear.armor].filter(Boolean);
       if (gear.length && chance(0.8)) { S.dropped = { name: ran.name, gear }; ran.gear = { weapon: null, armor: null }; }
       leave(ran);
-      think(left, "jilted");
+      think(left, "jilted", ran.id); tie(left, ran, -60);
       (left.heard ||= []).push({ about: ran.id, death: `jilt${ran.id}`, what: [`left ${left.name} at the altar`, `was right to leave ${left.name}`], v: -1, hops: 0, until: fades() });
       return gameLog(`${ran.name} ran from the wedding and didn't come back.`, "bad", [left]);
     }
     a.spouse = b.id; b.spouse = a.id;
     note(a, { text: `Married ${b.name}.` }); note(b, { text: `Married ${a.name}.` });
+    (a.pals ||= []).push(b.id); (b.pals ||= []).push(a.id); // married is more news than friends
+    tie(a, b, 20);
+    // A wedding sets the others near asking thinking: most cool off a little, some warm to it.
+    living().filter((o) => !away(o) && o !== a && o !== b && free(o) && drive(o, "warmth") >= 25).forEach((o) => stir(o, "warmth", chance(0.75) ? -8 : 5));
     if (how !== "yes" || !afford(t.take)) return gameLog(`${a.name} and ${b.name} married quietly.`, "good", [a, b]);
     pay(t.take);
-    think(a, "wed"); think(b, "wed");
+    think(a, "wed", b.id); think(b, "wed", a.id);
     const home = living().filter((o) => !away(o));
     home.forEach((o) => think(o, "feast"));
     gameLog(`${a.name} and ${b.name} married. The whole village came. −${what}`, "good", home);
@@ -1059,6 +1152,8 @@ function build(i, type) {
   }
   if (type === "graveyard") bury();
   living().filter((s) => !away(s)).forEach((s) => think(s, "built"));
+  (S.asks?.[type] || []).map(byId).filter((s) => s && !s.dead).forEach((s) => think(s, "wish"));
+  if (S.asks) delete S.asks[type];
   save();
 }
 
@@ -1144,25 +1239,30 @@ function add(res, n) {
 // A day nobody acted on anything still has someone in it: a story, a lesson, a find, a long talk.
 function beat(home) {
   if (!home.length) return;
-  const s = pick(home), o = pick(home.filter((x) => x !== s)) || null;
+  const s = pick(home), o = mate(s, home.filter((x) => x !== s));
+  // A tale is news the first time it's told; after that, an aside.
   const tales = (s.story || []).filter((e) => e.kind === "past" && e.text);
   const best = Object.keys(s.skills).sort((a, b) => s.skills[b] - s.skills[a])[0];
   const r = Math.random();
   if (o && best && s.skills[best] - (o.skills[best] || 0) >= 2 && r < 0.3) {
     o.skills[best] = +((o.skills[best] || 0) + 0.5).toFixed(1);
+    tie(s, o, 8);
     return gameLog(`${s.name} showed ${o.name} some ${JOBS[best].toLowerCase()}.`, "good", [s, o]);
   }
   if (tales.length && home.length > 1 && r < 0.6) {
-    home.forEach((x) => think(x, "tale"));
-    return gameLog(`${s.name} told the old days by the fire: ${pick(tales).text}`, "story", home);
+    const t = pick(tales.filter((e) => !e.told)) || pick(tales), again = t.told;
+    t.told = true;
+    home.forEach((x) => { think(x, "tale"); tie(s, x, 2); });
+    return gameLog(`${s.name} told the old days by the fire: ${t.text}`, "story", home, again);
   }
   if (o && r < 0.75 && !grudge(s, o) && !grudge(o, s)) {
     think(s, "tale"); think(o, "tale");
-    return gameLog(`${s.name} and ${o.name} talked late.`, "story", [s, o]);
+    gameLog(`${s.name} and ${o.name} talked late.`, "story", [s, o], true);
+    return tie(s, o, 6);
   }
   const [res, n] = pick([["food", 2 + rand(3)], ["herbs", 1 + rand(3)], ["wood", 2 + rand(3)]]);
   add(res, n);
-  gameLog(`${s.name} came back from a walk with ${n}${RESOURCES[res].icon}.`, "good", [s]);
+  gameLog(`${s.name} came back from a walk with ${n}${RESOURCES[res].icon}.`, "good", [], true);
 }
 // What's under way, so a day of waiting still shows the wait shrinking.
 function underway() {
@@ -1430,7 +1530,14 @@ function reached(f) {
   siteOf().deepest = Math.max(siteOf().deepest || 0, f);
 }
 
+// A floor, once found, stays as it was left. Some cleared rooms fill again between visits.
 function genFloor(floor, site) {
+  const old = site.floors?.[floor];
+  if (old) {
+    for (const r of Object.values(old.rooms)) if (r.done && (r.type === "fight" && chance(0.4) || r.type === "shrine" && chance(0.5))) r.done = false;
+    old.at = old.from = Object.keys(old.rooms).find((k) => old.rooms[k].type === "entrance");
+    return lay(old, site);
+  }
   const rooms = {};
   const key = (x, y) => `${x},${y}`;
   let x = rand(MAP), y = MAP - 1;
@@ -1457,11 +1564,18 @@ function genFloor(floor, site) {
     r.type = t < 0.5 ? "fight" : t < 0.65 ? "treasure" : t < 0.8 ? "empty" : t < 0.88 ? "shrine" : "event";
     if (r.type === "event") r.event = pick(EVENTS).id;
   }
-  // The dead lie where they fell, in any room but the way in or out.
-  const here = S.remains.filter((x) => x.at === "below" && S.sites[x.site] === site && x.floor === floor);
-  const spots = Object.keys(rooms).filter((k) => !["entrance", "stairs", "boss"].includes(rooms[k].type));
-  for (const x of here) if (spots.length) rooms[spots.splice(rand(spots.length), 1)[0]].body = x.id;
-  return { floor, rooms, at: start, from: start };
+  return lay((site.floors ||= {})[floor] = { floor, rooms, at: start, from: start }, site);
+}
+// The dead lie where they fell; any without a room are put in one but the way in or out.
+function lay(m, site) {
+  const rooms = m.rooms;
+  Object.values(rooms).forEach((r) => delete r.body);
+  const here = S.remains.filter((x) => x.at === "below" && S.sites[x.site] === site && x.floor === m.floor);
+  for (const x of here) {
+    const k = rooms[x.room] ? x.room : pick(Object.keys(rooms).filter((k) => !rooms[k].body && !["entrance", "stairs", "boss"].includes(rooms[k].type)));
+    if (k) { rooms[k].body = x.id; x.room = k; }
+  }
+  return m;
 }
 
 function neighbours(rooms, k) {
@@ -1573,13 +1687,13 @@ function enterRoom() {
   r.done = true;
   if (r.type === "treasure") {
     const got = lootRoll(f, 2);
-    gameLog(`Floor ${f}: stash. ${got}`, "good", partyAlive());
+    gameLog(`Floor ${f}: stash. ${got}`, "good", [], true);
   } else if (r.type === "shrine") {
     partyAlive().forEach((s) => (s.hp = Math.min(stats(s).hpMax, s.hp + Math.ceil(stats(s).hpMax * 0.4))));
-    gameLog(`Floor ${f}: shrine. Party healed.`, "good", partyAlive());
+    gameLog(`Floor ${f}: shrine. Party healed.`, "good", [], true);
   } else if (r.type === "stairs") {
     reached(f);
-    gameLog(`Floor ${f}: stairs down.`, "story", partyAlive());
+    gameLog(`Floor ${f}: stairs down.`, "story", [], true);
   }
 }
 
@@ -1710,9 +1824,11 @@ function endFight(won) {
       s.dead = true;
       s.diedOn = S.day;
       fell.push(s.id);
-      S.remains.push({ id: s.id, site: e.site, floor: f, at: "below" });
+      S.remains.push({ id: s.id, site: e.site, floor: f, at: "below", room: e.map.at });
       gameLog(`${s.name} died on floor ${f}.`, "bad", [s, ...living()]);
-      living().forEach((o) => think(o, "grief"));
+      // Those close to them grieve; to the rest it's sad news, sometimes more.
+      living().forEach((o) => { if (o.spouse === s.id || tieOf(o, s) >= 20 || e.party.includes(o.id) || chance(0.3)) think(o, "grief", s.id); });
+      living().filter((o) => o.spouse === s.id && chance(0.3)).forEach((o) => { o.vow = true; gameLog(`${o.name} swore never to marry again.`, "story", [o]); });
     }
   }
   // Each of the fallen picks one who watched to haunt until they're buried.
@@ -1751,12 +1867,13 @@ function endFight(won) {
     gameLog("Party fled.", "bad", partyAlive());
   } else {
     r.done = true;
+    partyAlive().forEach((a, i, p) => p.slice(i + 1).forEach((b) => tie(a, b, 2)));
     const xp = fight.enemies.reduce((a, en) => a + (en.boss ? 20 : 3), 0) + f;
     partyAlive().forEach((s) => gainXp(s, xp));
     let got = lootRoll(f, fight.enemies.some((x) => x.boss) ? 5 : 1);
     if (has("field_rations") && chance(0.35)) { e.rations++; got += " +1🍞"; }
     const easy = fight.quick ? ` ${fight.enemies.map((x) => x.icon).join("")}${cuts.length ? `, ${cuts.join(", ")}` : ""}` : "";
-    gameLog(`Floor ${f}: won${easy}. ${got}`, "good", partyAlive());
+    gameLog(`Floor ${f}: won${easy}. ${got}`, "good", partyAlive(), fight.quick && !cuts.length);
     // by the fight, not the room: a camp ambush in a keeper's room isn't the keeper
     if (fight.enemies.some((x) => x.boss)) {
       reached(f);
