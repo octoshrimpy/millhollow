@@ -72,17 +72,23 @@ const roll = (t) => {
 // Gear made before weapons had a class finds it by name.
 const weaponCls = (g) => g.cls || [...RECIPES, ...LOOT_GEAR].find((r) => r.cls && g.name.startsWith(r.name))?.cls;
 const fitBonus = (g, s) => (g && g.atk && weaponCls(g) === s.cls ? Math.ceil(g.atk / 4) : 0);
+const PARTS = { larm: ["Left arm", 2, 0.175], rarm: ["Right arm", 2, 0.175], torso: ["Torso", 1.5, 0.3], lleg: ["Left leg", 2, 0.175], rleg: ["Right leg", 2, 0.175] };
+// 0 fine, 1 injured, 2 badly injured
+const sore = (s, p, max = stats(s).hpMax) => Math.min(2, Math.floor(((s.wounds?.[p] || 0) / (max * PARTS[p][2])) * 3));
+const arms = (s, max) => sore(s, "larm", max) + sore(s, "rarm", max);
+const laidUp = (s) => arms(s) === 4 || sore(s, "lleg") + sore(s, "rleg") === 4;
 function stats(s) {
   const c = CLASSES[s.cls];
   const g = [s.gear.weapon, s.gear.armor].filter(Boolean);
-  const sum = (k) => g.reduce((a, it) => a + (it[k] || 0), 0);
-  const atk = c.atk + Math.floor((s.level - 1) * 1.2) + sum("atk") + fitBonus(s.gear.weapon, s), spd = c.spd + sum("spd");
+  const sum = (k) => g.reduce((a, it) => a + (it[k] || 0), 0), hpMax = s.hpMax + sum("hp");
+  const atk = Math.ceil((c.atk + Math.floor((s.level - 1) * 1.2) + sum("atk") + fitBonus(s.gear.weapon, s)) * (1 - arms(s, hpMax) * 0.1));
+  const spd = c.spd + sum("spd") - Math.floor((sore(s, "lleg", hpMax) + sore(s, "rleg", hpMax)) / 2);
   const h = haunted(s);
   return {
-    hpMax: s.hpMax + sum("hp"),
+    hpMax,
     atk: h ? Math.ceil(atk * 0.75) : atk,
-    def: c.def + Math.floor((s.level - 1) / 2) + sum("def"),
-    spd: h ? Math.max(1, spd - 2) : spd,
+    def: Math.max(0, c.def + Math.floor((s.level - 1) / 2) + sum("def") - sore(s, "torso", hpMax)),
+    spd: Math.max(1, h ? spd - 2 : spd),
   };
 }
 
@@ -259,6 +265,7 @@ const topDrive = (s) => Object.keys(DRIVES).sort((a, b) => drive(s, b) - drive(s
 function ebb(home) {
   for (const s of living()) for (const d of Object.keys(DRIVES)) s.drive && (s.drive[d] = Math.floor(drive(s, d) * 0.8));
   for (const s of living()) for (const k in s.ties) if (+k > s.id && chance(Math.abs(s.ties[k]) / 100)) tie(s, byId(+k), -Math.sign(s.ties[k]));
+  for (const s of living()) recall(s);
   for (const s of home) {
     if (living().some((t) => grudge(s, t))) stir(s, "anger", 8);
     if (s.morale < 30) stir(s, "restless", 8);
@@ -461,7 +468,41 @@ function settleIn(ids) {
   save();
 }
 
+// HP is one bar, but the lost part of it sits in a body part: limbs take most hits. Armor cuts damage through def, not where it lands.
+function limbs(s) {
+  const max = stats(s).hpMax, w = (s.wounds ||= {}), cap = (p) => max * PARTS[p][2];
+  let d = Math.max(0, max - s.hp) - Object.values(w).reduce((a, b) => a + b, 0);
+  if (d < -0.5) { const k = (max - s.hp) / (max - s.hp - d); for (const p in w) w[p] *= k; }
+  for (let chunk = Math.max(1, Math.ceil(max / 10)); d > 0.5;) {
+    const open = Object.keys(PARTS).filter((p) => (w[p] || 0) < cap(p));
+    if (!open.length) break;
+    let r = Math.random() * open.reduce((a, p) => a + PARTS[p][1], 0), p = open.find((p) => (r -= PARTS[p][1]) < 0) || open[0];
+    const c = Math.min(chunk, d, cap(p) - (w[p] || 0));
+    w[p] = (w[p] || 0) + c; d -= c;
+  }
+  for (const p in w) if (w[p] < 0.5) delete w[p];
+}
+const injuries = (s) => Object.keys(PARTS).filter((p) => sore(s, p)).map((p) => `${PARTS[p][0]} ${sore(s, p) === 2 ? "badly injured" : "injured"}`);
+// Both arms or both legs wrecked: off work, abed in the infirmary (or any bed) till healed, then back to the old job.
+function rest(s) {
+  limbs(s);
+  const down = laidUp(s);
+  if (down && s.laid == null) {
+    if (s.job != null && S.grid[s.job]) { s.wasJob = { i: s.job, type: S.grid[s.job].type }; S.grid[s.job].worker = null; }
+    s.job = null; S.guards = S.guards.filter((id) => id !== s.id);
+    const bed = ["infirmary", "hut", "stonehouse", "townhall"].map((t) => S.grid.findIndex((b) => b?.type === t)).find((i) => i >= 0);
+    s.laid = bed ?? S.hall;
+    gameLog(`${s.name} can't work. Laid up in the ${BUILDINGS[S.grid[s.laid].type].name.toLowerCase()}.`, "bad", [s]);
+  } else if (!down && s.laid != null) {
+    delete s.laid;
+    const was = s.wasJob, b = was && S.grid[was.i];
+    s.wasJob = null;
+    if (b && b.type === was.type && !b.worker) { b.worker = s.id; s.job = was.i; }
+    gameLog(`${s.name} is back on their feet.`, "good", [s]);
+  }
+}
 function save() {
+  if (S?.settlers) living().forEach(limbs);
   for (let n = 0; n < 10; n++) {
     try { return localStorage.setItem(SAVE_KEY, JSON.stringify({ S, nextId })); } catch (e) {
       if (!/quota/i.test(e.name) || S.log.length < 50) return;
@@ -642,7 +683,7 @@ function standDown(off) {
 }
 function setGuard(id) {
   const s = byId(id);
-  if (!s || s.dead || away(s)) return;
+  if (!s || s.dead || away(s) || s.laid != null) return;
   S.guards = guards().map((g) => g.id);
   if (isGuard(s)) standDown(s);
   else {
@@ -784,7 +825,9 @@ const URGES = {
     } },
   smash: { drive: "anger", min: 70, leans: [PAST.bad[0]], can: (s, home) => ruinable(s, home).length > 0,
     does(s, home) {
-      const i = pick(ruinable(s, home)), what = BUILDINGS[S.grid[i].type].name.toLowerCase(), fire = pastHas(s, PAST.bad[0]);
+      const r = ruinable(s, home);
+      if (!r.length) return;
+      const i = pick(r), what = BUILDINGS[S.grid[i].type].name.toLowerCase(), fire = pastHas(s, PAST.bad[0]);
       burn(i);
       s.drive.anger = 0;
       think(s, "snapped");
@@ -863,11 +906,33 @@ const wet = () => S.land.some((k, i) => k === "water" && dist(i, S.hall ?? MID) 
 const doable = (x, s, o, at) => (o || !x.includes("{o}")) && (!x.includes("dungeon") || (x.includes("{o}") ? o : s).delved) && (at || !/river|pond|heron/.test(x) || wet());
 const can = (need) => !need || (need === "water" ? wet() : built(need));
 const venues = () => Object.keys(VENUES).filter(built);
+const vs = (a, b) => ((a.vs ||= {})[b.id] ||= { w: 0, l: 0, r: 0 });
+// Grudging memories outlast the nightly ebb: each one keeps stirring its drive till it fades.
+const MEMS = { beaten: { drive: "anger", by: 3 }, snubbed: { drive: "pride", by: -3 }, brawled: { drive: "anger", by: 5 } };
+function remember(s, o, k, n = 10) {
+  const m = (s.mem ||= []).find((x) => x.o === o.id && x.k === k);
+  if (m) m.n += n; else s.mem.push({ o: o.id, k, n });
+}
+function recall(s) {
+  s.mem = (s.mem || []).filter((m) => {
+    const o = byId(m.o);
+    if (!o || o.dead) return false;
+    stir(s, MEMS[m.k].drive, Math.round(MEMS[m.k].by * m.n / 10));
+    if (chance(m.n / 60)) tie(s, o, -1);
+    return (m.n *= 0.85) >= 2;
+  });
+}
 function leisure(home) {
-  const v = venues(), steam = v.filter((k) => VENUES[k].steam);
-  for (const s of home.filter((s) => s.pastime && !haunted(s))) {
+  const v = venues(), steam = v.filter((k) => VENUES[k].steam), all = home.filter((s) => s.pastime && !haunted(s));
+  // everyone unwinds, but only a few, the most stirred up, make the village log
+  const heat = (s) => Object.values(s.drive || {}).reduce((a, b) => a + b, 0);
+  const seen = new Set(all.map((s) => [s, Math.random() * (20 + heat(s))]).sort((a, b) => b[1] - a[1]).slice(0, 2 + rand(3)).map(([s]) => s));
+  for (const s of all) {
+    const best = Object.entries(s.wins || {}).sort((a, b) => b[1] - a[1])[0];
+    if (best && best[1] >= 2 && best[0] !== s.pastime && PASTIMES[best[0]] && chance(0.4)) s.pastime = best[0];
     const hot = steam.length && drive(s, "anger") >= 35;
-    let o = mate(s, home.filter((x) => x !== s));
+    let o = mate(s, home.filter((x) => x !== s && (x.id !== s.played || chance(0.2))));
+    s.played = o?.id;
     const own = v.filter((k) => VENUES[k].for.includes(s.pastime));
     const first = hot ? pick(steam) : own.length && chance(0.7) ? pick(own) : v.length && chance(0.3) ? pick(v) : null;
     const tries = hot ? steam : [first, null, ...own, ...v];
@@ -881,24 +946,37 @@ function leisure(home) {
           tie(s, o, -1); stir(s, "pride", -3); s.morale = clampMorale(s.morale - 3);
           snub = o;
           o = null;
+          remember(s, snub, "snubbed");
+          if (++vs(s, snub).r % 3 === 0) { tie(s, snub, -4); gameLog(`${s.name} gave up asking ${snub.name}.`, "story", [s]); }
           const solo = lines.filter((x) => !x.includes("{o}"));
           if (!solo.length) continue;
           if (t.includes("{o}")) t = pick(solo);
         }
       }
       const line = roll(t.replace("{o}", o?.name));
+      if (at) { const b = S.grid.find((b) => b?.type === at); if (b) b.maker ??= s.id; }
+      const game = /\bat (dice|cards|checkers|chess|backgammon)\b/.exec(t)?.[1], won = /^(beat|won)\b/.test(t);
+      if (game && (won || /^lost\b/.test(t))) {
+        const [w, l] = won ? [s, o] : [o, s];
+        if (w) (w.wins ||= {})[game] = (w.wins[game] || 0) + 1;
+        if (w && l && together) {
+          vs(w, l).w++;
+          remember(l, w, "beaten");
+          if (++vs(l, w).l % 5 === 0) { tie(l, w, -4); gameLog(`${l.name} lost to ${w.name} again.`, "story", [l]); }
+        }
+      }
       if (hot) spend(s, "anger", 0.3);
       stir(s, "restless", -15); stir(s, "grief", -5); stir(s, "warmth", 5);
       s.morale = clampMorale(s.morale + 2);
       const cap = (x) => x[0].toUpperCase() + x.slice(1) + ".", withO = t.includes("{o}");
       if (together) {
-        stir(s, "pride", 8); stir(o, "warmth", 8); tie(s, o, 4);
+        stir(s, "pride", 8); stir(o, "warmth", 8); tie(s, o, tieOf(s, o) < FRIEND ? 4 : 1);
         note(s, { text: cap(`I ${(withO ? line : `${line} with ${o.name}`).replace(/\btheir\b/g, "my")}`) });
         note(o, { text: cap(withO ? `${s.name} ${line.replace(o.name, "me")}` : `I ${line} with ${s.name}`) });
-        gameLog(`${s.name} ${withO ? line : `${line} with ${o.name}`}.`, "good", [], !hot);
+        if (hot || seen.has(s) || seen.has(o)) gameLog(`${s.name} ${withO ? line : `${line} with ${o.name}`}.`, "good", [], !hot);
       } else {
         note(s, { text: cap(`I ${line.replace(/\btheir\b/g, "my")}${snub ? " alone" : ""}`) });
-        gameLog(snub ? `${snub.name} turned down ${s.name}. ${s.name} ${line} alone.` : `${s.name} ${line}.`, snub ? "story" : "good", [], !hot);
+        if (hot || snub || seen.has(s)) gameLog(snub ? `${snub.name} turned down ${s.name}. ${s.name} ${line} alone.` : `${s.name} ${line}.`, snub ? "story" : "good", [], !hot);
       }
       break;
     }
@@ -950,6 +1028,7 @@ function leave(s) {
 function brawl(a, b, lead = "") {
   hurt(a, 0.1, 0.3); hurt(b, 0.15, 0.35);
   think(a, "brawl", b.id); think(b, "brawl", a.id); tie(a, b, -15);
+  remember(a, b, "brawled"); remember(b, a, "brawled");
   const sip = [a, b].filter((o) => o.hp < stats(o).hpMax * 0.5 && S.res.potions > 2 && S.res.potions--);
   sip.forEach((o) => (o.hp = Math.min(stats(o).hpMax, o.hp + 20)));
   gameLog(`${lead}${a.name} went for ${b.name}.${sip.length ? ` ${sip.map((o) => o.name).join(" and ")} drank a potion 🧪.` : ""}`, "bad", [a, b]);
@@ -1167,10 +1246,11 @@ function assign(i, settlerId) {
   if (b.worker) byId(b.worker).job = null;
   b.worker = null;
   const s = settlerId && byId(settlerId);
-  if (s) {
+  if (s && s.laid == null) {
     if (s.job != null && S.grid[s.job]) S.grid[s.job].worker = null;
     s.job = i;
     b.worker = s.id;
+    b.maker ??= s.id;
     S.guards = S.guards.filter((id) => id !== s.id);
     s.wasJob = null;
   }
@@ -1235,7 +1315,7 @@ function endDay(hold) {
     b.unpaid = !up.every(([r, n]) => S.res[r] >= n);
     if (!b.unpaid) for (const [r, n] of up) { S.res[r] -= n; spent[r] = (spent[r] || 0) + n; }
     const boost = 1 + boostOf(b) + besideBoost(i, b.type);
-    const eff = (1 + skill * 0.1) * (s.graft === S.day ? 1.5 : 1) * (s.morale < 30 ? 0.5 : 1) * (haunted(s) ? 0.5 : 1) * fedRate(s) * boost;
+    const eff = (1 + skill * 0.1) * (s.graft === S.day ? 1.5 : 1) * (s.morale < 30 ? 0.5 : 1) * (haunted(s) ? 0.5 : 1) * (1 - arms(s) * 0.1) * fedRate(s) * boost;
     for (const [r, n] of Object.entries(addCost({ ...def.yields }, besideYields(i, b.type)))) take(r, n * eff);
     if (b.type === "library" && S.study && --S.study.left <= 0) learn();
     if (b.type === "library" && S.res.relics > 0) {
@@ -1284,7 +1364,7 @@ function endDay(hold) {
     if (ate) {
       s.unfed = 0;
       s.morale = clampMorale(s.morale + 2);
-      s.hp = Math.min(stats(s).hpMax, s.hp + (staffed("infirmary") ? 9 : 3));
+      s.hp = Math.min(stats(s).hpMax, s.hp + (staffed("infirmary") ? 9 : 3) + (s.laid != null ? 2 : 0));
     } else {
       s.unfed = (s.unfed || 0) + 1;
       think(s, "hungry");
@@ -1297,7 +1377,7 @@ function endDay(hold) {
     r.haunts = l.length ? pick(l).id : null;
     if (r.haunts) gameLog(`${byId(r.id).name} haunts ${byId(r.haunts).name}.`, "bad", [byId(r.haunts)]);
   }
-  home.forEach((s) => { if (haunted(s)) think(s, "haunted"); });
+  home.forEach((s) => { rest(s); if (haunted(s)) think(s, "haunted"); });
   gossip(home);
   if (living().length > beds()) home.forEach((s) => think(s, "rough"));
   home.forEach((s) => { if (s.job != null && commute(s) > 4) think(s, "farwalk"); });
@@ -1435,6 +1515,7 @@ function unequip(settlerId, slot) {
   save();
 }
 
+const SCAV_CAP = 3;
 const partyMax = () => (has("tactics") ? 4 : 3);
 const roomsPer = (kind) => (kind === "meals" ? 3 : 1);
 const MEAL_HEAL = 4;
@@ -1446,6 +1527,7 @@ function keeper(site, floor) {
   return { name: site.boss, icon: SITES[site.kind].boss, hp: 30 + 35 * floor, atk: Math.round(6 + 1.5 * floor), def: 3 + floor / 3, spd: 7, aoeEvery: floor >= 6 ? 3 : 4 };
 }
 function reached(f) {
+  if (S.expedition.scav) return;
   if (f > (siteOf().deepest || 0)) {
     const n = 1 + Math.ceil(f / 2), e = S.expedition;
     e.loot.relics = (e.loot.relics || 0) + n;
@@ -1457,9 +1539,10 @@ function reached(f) {
   siteOf().deepest = Math.max(siteOf().deepest || 0, f);
 }
 
-const roomType = (r) => {
+const roomType = (r, scav) => {
   const t = Math.random();
-  r.type = t < 0.5 ? "fight" : t < 0.65 ? "treasure" : t < 0.8 ? "empty" : t < 0.88 ? "shrine" : "event";
+  r.type = scav ? (t < 0.2 ? "fight" : t < 0.6 ? "treasure" : t < 0.75 ? "empty" : t < 0.85 ? "shrine" : "event")
+    : t < 0.5 ? "fight" : t < 0.65 ? "treasure" : t < 0.8 ? "empty" : t < 0.88 ? "shrine" : "event";
   if (r.type === "event") r.event = pick(EVENTS).id;
   else delete r.event;
 };
@@ -1479,8 +1562,8 @@ function regrow(m) {
   return m;
 }
 
-function genFloor(floor, site) {
-  const old = site.floors?.[floor];
+function genFloor(floor, site, scav) {
+  const old = scav ? null : site.floors?.[floor];
   if (old) return lay(regrow(old), site);
   const rooms = {};
   const key = (x, y) => `${x},${y}`;
@@ -1502,10 +1585,10 @@ function genFloor(floor, site) {
   const far = Object.keys(dist).sort((a, b) => dist[b] - dist[a])[0];
   for (const [k, r] of Object.entries(rooms)) {
     if (r.type) continue;
-    if (k === far) { r.type = keeper(site, floor) ? "boss" : "stairs"; continue; }
-    roomType(r);
+    if (k === far) { r.type = !scav && keeper(site, floor) ? "boss" : "stairs"; continue; }
+    roomType(r, scav);
   }
-  return lay((site.floors ||= {})[floor] = { floor, rooms, at: start, from: start }, site);
+  return lay((scav ? (site.scav ||= {}) : (site.floors ||= {}))[floor] = { floor, rooms, at: start, from: start }, site);
 }
 function lay(m, site) {
   const rooms = m.rooms;
@@ -1523,11 +1606,12 @@ function neighbours(rooms, k) {
   return [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => `${x + dx},${y + dy}`).filter((n) => rooms[n]);
 }
 
-function depart(partyIds, rations, startFloor, meals = 0, siteIdx = 0) {
+function depart(partyIds, rations, startFloor, meals = 0, siteIdx = 0, scav = false) {
   const site = S.sites[siteIdx];
   if (!site || !S.seen[site.i]) return;
-  startFloor = Math.max(1, Math.min(startFloor, (site.deepest || 0) + 1));
-  if (startFloor === 1 && !S.remains.some((x) => x.at === "below" && S.sites[x.site] === site)) delete site.floors;
+  startFloor = scav ? 1 : Math.max(1, Math.min(startFloor, (site.deepest || 0) + 1));
+  if (scav) delete site.scav;
+  else if (startFloor === 1 && !S.remains.some((x) => x.at === "below" && S.sites[x.site] === site)) delete site.floors;
   const party = partyIds.map(byId).filter((s) => available(s) && !refuses(s)).slice(0, partyMax());
   if (!party.length || S.expedition) return;
   rations = Math.min(rations, S.res.food);
@@ -1542,11 +1626,11 @@ function depart(partyIds, rations, startFloor, meals = 0, siteIdx = 0) {
   });
   S.expedition = {
     party: party.map((s) => s.id), rations, meals, steps: 0, moves: 0,
-    loot: {}, gear: [], site: siteIdx, map: genFloor(startFloor, site), fight: null, event: null,
+    loot: {}, gear: [], site: siteIdx, map: genFloor(startFloor, site, scav), fight: null, event: null, scav,
   };
   party.forEach((s) => { if (party.some((o) => grudge(s, o))) think(s, "grudge"); });
   party.forEach((s) => { if (fitBonus(s.gear.weapon, s)) think(s, "armed"); });
-  gameLog(`Set out for ${site.name}: ${party.map((s) => s.name).join(", ")}, ${rations}🍞${meals ? ` ${meals}🥪` : ""}.`, "story", party);
+  gameLog(`Set out ${scav ? "to scavenge " : "for "}${site.name}: ${party.map((s) => s.name).join(", ")}, ${rations}🍞${meals ? ` ${meals}🥪` : ""}.`, "story", party);
   revealAround();
   save();
 }
@@ -1654,14 +1738,14 @@ function rollEnemies(floor) {
 
 function lootRoll(floor, rolls) {
   const e = S.expedition, found = [];
-  for (let i = 0; i < rolls; i++) {
+  for (let i = 0; i < rolls * (e.scav ? 2 : 1); i++) {
     const deep = Object.keys(ORE_FLOOR).filter((k) => floor >= ORE_FLOOR[k]);
     const r = pick(["ore", "ore", "herbs", "relics", "stone", "wood", ...deep, ...deep, ...SITES[siteOf().kind].loot]);
     const n = ORE_FLOOR[r] ? 1 + rand(1 + Math.floor((floor - ORE_FLOOR[r]) / 2)) : 2 + rand(1 + Math.ceil(floor / 2));
     e.loot[r] = (e.loot[r] || 0) + n;
     found.push(`+${n}${RESOURCES[r].icon}`);
   }
-  if (chance(0.12 + floor * 0.03)) {
+  if (!e.scav && chance(0.12 + floor * 0.03)) {
     const fits = LOOT_GEAR.filter((g) => !g.cls || partyAlive().some((s) => s.cls === g.cls));
     const g = { ...pick(chance(0.7) ? fits : LOOT_GEAR), uid: nextId++ };
     const bump = Math.floor(floor / 3);
@@ -1794,7 +1878,7 @@ function endFight(won) {
     r.done = true;
     r.quick = fight.quick;
     partyAlive().forEach((a, i, p) => p.slice(i + 1).forEach((b) => tie(a, b, 2)));
-    const xp = fight.enemies.reduce((a, en) => a + (en.boss ? 20 : 3), 0) + f;
+    const xp = Math.ceil((fight.enemies.reduce((a, en) => a + (en.boss ? 20 : 3), 0) + f) * (e.scav ? 0.25 : 1));
     partyAlive().forEach((s) => gainXp(s, xp));
     let got = lootRoll(f, fight.enemies.some((x) => x.boss) ? 5 : 1);
     if (has("field_rations") && chance(0.35)) { e.rations++; got += " +1🍞"; }
@@ -1831,10 +1915,10 @@ function camp() {
 const untouched = (m) => Object.values(m.rooms).filter((r) => r.seen && !r.done).length;
 function descend() {
   const e = S.expedition, r = e.map.rooms[e.map.at];
-  if (!e || e.fight || !["stairs", "boss"].includes(r.type) || !r.done) return;
+  if (!e || e.fight || !["stairs", "boss"].includes(r.type) || !r.done || (e.scav && e.map.floor >= SCAV_CAP)) return;
   (e.left ||= {})[e.map.floor] = untouched(e.map);
   passDays(1);
-  e.map = genFloor(e.map.floor + 1, siteOf());
+  e.map = genFloor(e.map.floor + 1, siteOf(), e.scav);
   revealAround();
   gameLog(`Down to floor ${e.map.floor}.`, "story", partyAlive());
   save();
@@ -1851,7 +1935,7 @@ function returnHome() {
   e.up ??= Object.entries({ ...e.left, [e.map.floor]: untouched(e.map) });
   while (e.up.length) {
     const [f, n] = e.up.pop();
-    if (!chance((1 - 0.93 ** n) * (has("rope") ? 0.5 : 1))) continue;
+    if (!chance((1 - 0.93 ** n) * (has("rope") ? 0.5 : 1) * (e.scav ? 1.5 : 1))) continue;
     e.homing = true;
     gameLog(`Floor ${f}: ambushed on the way up.`, "bad", partyAlive());
     return startFight(rollEnemies(+f));

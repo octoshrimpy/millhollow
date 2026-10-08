@@ -54,7 +54,7 @@ h.drive = { anger: 60 };
 for (let k = 0; k < 200 && drive(h, "anger") >= 35; k++) leisure(S.settlers);
 if (drive(h, "anger") >= 35) throw "vent";
 if (!S.settlers.every((s) => PASTIMES[s.pastime])) throw "pastime";
-console.log("vent ok:", S.log.filter((e) => e.text.startsWith(h.name)).at(-1).text);
+console.log("vent ok:", h.story.at(-1).text);
 }`, ctx);
 vm.runInContext(`{
 newGame(); settleIn(S.recruits.slice(0, 4).map((s) => s.id));
@@ -111,3 +111,21 @@ vm.runInContext(`(() => {
   if (bad.length) throw new Error("impossible: " + bad[0]);
   console.log("doable ok:", out.length, "lines");
 })()`, ctx);
+vm.runInContext(`
+newGame(); settleIn(S.recruits.slice(0, 4).map((s) => s.id));
+const s = S.settlers[0], max = stats(s).hpMax, sum = () => Object.values(s.wounds || {}).reduce((a, b) => a + b, 0);
+s.hp = Math.round(max * 0.3); limbs(s);
+if (Math.abs(sum() - (max - s.hp)) > 1) throw new Error("wounds " + sum() + " != " + (max - s.hp));
+if (!injuries(s).length) throw new Error("no injury at 30% hp");
+s.hp = max; limbs(s);
+if (sum() > 0.5 || injuries(s).length) throw new Error("wounds left at full hp");
+const j = S.grid.findIndex((g, i) => !g && i > S.hall);
+S.grid[j] = { type: "farm", worker: null, spent: {} }; assign(j, s.id);
+const atk = stats(s).atk;
+s.wounds = { larm: max * 0.175, rarm: max * 0.175 }; s.hp = max - Math.ceil(max * 0.35); rest(s);
+if (s.laid == null || s.job != null) throw new Error("not laid up");
+if (stats(s).atk >= atk) throw new Error("arms didn't weaken");
+s.hp = max; rest(s);
+if (s.laid != null || s.job !== j) throw new Error("not back at work");
+console.log("limbs ok");
+`, ctx);

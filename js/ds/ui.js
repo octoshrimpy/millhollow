@@ -187,7 +187,8 @@ function viewVillage() {
     if (t !== "meadow") return `<div class="tile still t-${t}${cls}" data-i="${i}"${newLand.includes(i) ? ` style="--d:${dist(i, origin)}"` : ""}>${ico}</div>`;
     if (!b) return `<button class="tile empty${cls}${S.hall == null ? " found" : ""}" ${at}>${S.hall == null ? "🏛️" : "＋"}</button>`;
     const def = BUILDINGS[b.type], w = b.worker && byId(b.worker);
-    const who = w ? `<img class="mini" src="${faceSrc(w)}" alt="${esc(w.name)}">` : "";
+    const sick = living().find((s) => s.laid === i);
+    const who = (w ? `<img class="mini" src="${faceSrc(w)}" alt="${esc(w.name)}">` : "") + (sick ? `<img class="mini laid" src="${faceSrc(sick)}" alt="${esc(sick.name)}">` : "");
     const lvl = b.lvl ? `<span class="lvl${b.unpaid ? " bad" : ""}">${"●".repeat(b.lvl)}</span>` : "";
     return `<button class="tile${cls}${b.type === "townhall" ? " hall" : ""}" ${at}><span class="ico">${def.icon}</span><small>${def.name}</small>${who}${lvl}</button>`;
   };
@@ -263,7 +264,7 @@ function sheetPlot(i) {
   const back = Object.entries(refundOf(i)).map(([k, v]) => tip(RESOURCES[k].name, `+${v}${RESOURCES[k].icon}`)).join(" ");
   const knock = b.type === "townhall" ? "" : `<button class="danger small" data-act="demolish">Demolish${back ? ` <small>♻ ${back}</small>` : ""}</button>`;
   const lv = b.lvl || 0, pips = IMPROVABLE(b.type) ? ` <span class="pips">${"●".repeat(lv)}${"○".repeat(IMPROVE.length - lv)}</span>` : "";
-  let body = `<div class="sheet-head"><h3>${d.icon} ${d.name}${pips}${besideTag(i, b.type)}</h3>${knock}</div><p class="dim desc">${d.desc}</p>`;
+  let body = `<div class="sheet-head"><h3>${d.icon} ${d.name}${pips}${besideTag(i, b.type)}</h3>${knock}</div><p class="dim desc">${d.desc}</p>${b.maker && byId(b.maker) ? `<p class="dim">🔨 ${esc(byId(b.maker).name)}</p>` : ""}`;
   if (d.up) {
     const to = BUILDINGS[d.up.to], locked = to.needs && !has(to.needs);
     body += `<button class="opt" data-act="upgrade" ${canUpgrade(i) ? "" : "disabled"}>
@@ -281,6 +282,7 @@ function sheetPlot(i) {
     const best = Math.max(...home.map(sk));
     body += `<div class="who">` + home.map((s) => {
       const here = b.worker === s.id, from = !here && s.job != null && S.grid[s.job];
+      if (s.laid != null) return `<button disabled><img src="${faceSrc(s)}" alt=""><b>${esc(s.name)}</b><small class="st bad">🩹</small></button>`;
       const st = here ? `<small class="st here">✓ Working</small>` : from
         ? `<small class="st">${BUILDINGS[from.type].icon} ${BUILDINGS[from.type].name}${(s.skills[BUILDINGS[from.type].job] || 0) >= 0.1 ? ` <b>${s.skills[BUILDINGS[from.type].job].toFixed(1)}</b>` : ""}</small>` : `<small class="st free">Free</small>`;
       return `<button class="${here ? "on" : ""}" data-act="assign" data-v="${here ? 0 : s.id}">
@@ -451,6 +453,7 @@ function sheetPerson() {
     ${s.dead || away(s) ? "" : `<button class="small ${isGuard(s) ? "on" : "ghost"}" data-act="guard" aria-label="Guard">👀</button>`}</div>
     ${s.dead ? restText(s) : ""}
     ${s.dead ? "" : `<div class="hpline">${bar(s.hp, st.hpMax, "hp")}</div>
+    ${injuries(s).length ? `<p class="bad hurts">${injuries(s).join(" · ")}</p>` : ""}
     <div class="stats">${statLine(st, `❤️${s.hp}/${st.hpMax}`, s)}</div>`}</div></div>
     ${!s.dead ? `<p class="said">“${esc(why(s))}”</p>` : ""}
     ${!s.dead && wants(s) ? `<div class="row center wrap">${Object.entries(S.asks).filter(([, ids]) => ids.includes(s.id))
@@ -545,8 +548,9 @@ function viewExpedition() {
       return `<select data-act="watch" data-i="${i}"><option value="">—</option>${home.filter((s) => s === on || !isGuard(s)).map((s) =>
         `<option value="${s.id}" ${s === on ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select>`; }).join("")}</span></div>` : ""}
     ${stepper("rations", "🍞", plan.rations)}${cook ? stepper("meals", "🥪", plan.meals) : ""}
-    <div class="row between"><span>Start at floor</span><select data-act="floor">${floors.map((f) =>
-      `<option ${f === plan.floor ? "selected" : ""}>${f}</option>`).join("")}</select></div>
+    <div class="row pair"><button class="${plan.scav ? "" : "on"}" data-act="mode" data-v="0">🤺 Delve</button><button class="${plan.scav ? "on" : ""}" data-act="mode" data-v="1">💰 Scavenge</button></div>
+    ${plan.scav ? "" : `<div class="row between"><span>Start at floor</span><select data-act="floor">${floors.map((f) =>
+      `<option ${f === plan.floor ? "selected" : ""}>${f}</option>`).join("")}</select></div>`}
     <button class="primary wide" data-act="depart" ${plan.party.length ? "" : "disabled"}>Set out</button></div></div>`;
 }
 
@@ -574,7 +578,7 @@ function viewDungeon() {
     const ev = EVENTS.find((x) => x.id === e.event);
     panel = `<div class="row wrap center acts"><button class="primary" data-act="asked">${ROOM_ICON.event} ${ev.text}</button></div>`;
   } else {
-    const down = ["stairs", "boss"].includes(r.type) && r.done;
+    const down = ["stairs", "boss"].includes(r.type) && r.done && !(e.scav && m.floor >= SCAV_CAP);
     panel = `<div class="row wrap center acts">${down ? `<button class="primary" data-act="descend">Down to floor ${m.floor + 1}${grim(m.floor + 1) > 1 ? " " + "💀".repeat(1 + Math.floor(Math.log2(grim(m.floor + 1)))) : ""}</button>` : ""}
       <button data-hold="push" ${nextStep() ? "" : "disabled"}>👣 Push on</button>
       ${has("camping") ? `<button data-act="camp" ${canCamp() ? "" : "disabled"}>🏕️ Camp (${partyAlive().length}🍞)</button>` : ""}
@@ -1044,7 +1048,8 @@ const ACTS = {
   },
   rations: (v) => (plan.rations = Math.max(0, Math.min(S.res.food, plan.rations + +v))),
   meals: (v) => (plan.meals = Math.max(0, Math.min(S.res.meals, (plan.meals || 0) + +v))),
-  depart: () => depart(plan.party, plan.rations, plan.floor, plan.meals || 0, plan.site || 0),
+  depart: () => depart(plan.party, plan.rations, plan.floor, plan.meals || 0, plan.site || 0, !!plan.scav),
+  mode: (v) => (plan.scav = v === "1"),
   site: (v) => { plan.site = +v; plan.floor = 1; },
   tosite: (v) => { plan.site = +v; plan.floor = 1; tab = "expedition"; sheet = null; },
   move: (v) => {

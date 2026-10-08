@@ -102,6 +102,7 @@
   .tile .lvl.bad { color: var(--bad); }
   .tile .mini { position: absolute; top: 3px; right: 3px; width: 34%; height: auto; aspect-ratio: 1; border-radius: 5px;
     box-shadow: 0 0 0 1.5px var(--card); }
+  .tile .mini.laid { top: auto; right: auto; bottom: 3px; left: 3px; outline: 2px solid var(--bad); }
   .tile.empty { color: var(--dim); background: transparent; border-style: dashed; }
   .tile.wild, .tile.still { --tint: var(--c-green); background: color-mix(in srgb, var(--tint) 7%, var(--bg)); border-color: color-mix(in srgb, var(--tint) 16%, var(--bg)); }
   .tile.wild, .tile.still { border-color: transparent !important; border-radius: 0; margin: -3px; }
@@ -146,6 +147,10 @@
   .arrival .chip { font-size: .9rem; }
   .arrival .pair { width: 100%; margin-top: .8em; gap: 8px; }
   .arrival .pair button { flex: 1; padding: .7em; }
+  .plan .pair { gap: 8px; }
+  .plan .pair button { flex: 1; padding: .6em; }
+  .plan .pair button small { display: block; font-size: .7rem; color: var(--dim); margin-top: .15em; }
+  .plan .pair button.on { background: color-mix(in srgb, var(--accent) 14%, var(--card)); }
   .arrival .pair button small { display: block; font-size: .7rem; color: var(--dim); margin-top: .15em; }
   .card.event { display: block; }
   .optrow { display: flex; gap: .5em; align-items: center; margin: .35em 0; }

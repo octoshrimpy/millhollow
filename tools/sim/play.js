@@ -7,7 +7,7 @@ const ctx = { console, localStorage: { getItem: () => null, setItem() {}, remove
 vm.createContext(ctx);
 vm.runInContext(["data.js", "names.js", "game.js", "combat.js"].map((f) => fs.readFileSync(R + f, "utf8")).join("\n"), ctx);
 vm.runInContext(`
-var LOG, from, ORDER, REST;
+var LOG, from, ORDER, REST, READY;
 const harvest = () => { LOG.push(...S.log.filter((e) => e.n > from)); from = S.logN; };
 const home = () => living().filter((s) => !away(s));
 const spot = (type) => S.grid.map((_, i) => i)
@@ -16,7 +16,7 @@ const spot = (type) => S.grid.map((_, i) => i)
 const count = (t) => S.grid.filter((b) => b && b.type === t).length;
 // Out of meadow: clear the nearest woods or hills inside the ward, if food allows.
 const clearOne = () => { const i = S.grid.map((_, i) => i).filter((i) => TERRAIN[S.land[i]].clear && S.seen[i] && !siteAt(i) && !contested(i)).sort((a, b) => dist(a, S.hall) - dist(b, S.hall))[0];
-  if (i != null && S.res.food - clearCost().food > 4 * living().length + 10) { clearLand(i); return true; } };
+  if (i != null && S.res.food - clearCost().food > 2 * living().length) { clearLand(i); return true; } };
 const tryBuild = (t) => { const i = spot(t) ?? (clearOne() ? spot(t) : null); if (i != null && afford(BUILDINGS[t].cost) && (!BUILDINGS[t].needs || has(BUILDINGS[t].needs))) { build(i, t); return S.grid[i]?.type === t; } };
 
 function manage() {
@@ -24,15 +24,24 @@ function manage() {
   const t = S.trouble;
   if (t) {
     if (["feast", "wedding", "fey"].includes(t.kind)) settle(afford(t.take) && chance(0.8) ? "yes" : "no");
-    else if (t.kind === "trader") { const k = t.offers.findIndex((o) => afford(o.take) && S.res.food - (o.take.food || 0) > 40); settle(k >= 0 && chance(0.6) ? String(k) : "none"); }
+    else if (t.kind === "trader") {
+      // trade a plenty for a little: pay only from a pile that stays big, and only for something nearly out
+      const k = t.offers.findIndex((o) => afford(o.take) && Object.entries(o.take).every(([r, n]) => S.res[r] - n >= (r === "food" ? 40 : 20)) && Object.keys(o.give).every((r) => S.res[r] < 6));
+      settle(k >= 0 ? String(k) : "none");
+    }
     else settle(holds(t.n) >= 0.6 ? "fight" : afford(t.take) ? "yes" : "fight");
   }
   if (S.visitor) welcomeVisitor(living().length < beds() + 2 && S.res.food > 10);
   // houses, then enough food, then the rest one of each
   const eat = living().length, grow = count("farm") * 3 + count("dock") * 2.5;
-  if (living().length >= beds()) has("masonry") ? tryBuild("stonehouse") : tryBuild("hut");
-  if (grow < eat + 2) tryBuild("dock") || tryBuild("farm");
-  for (const t of REST)
+  // open with farm, lumber, farm, farm; houses wait a day past that, since the hall has beds
+  const food = count("farm") + count("dock"), open = ["farm", "lumber", "farm", "farm"];
+  const next = open.find((x, i) => (x === "lumber" ? count("lumber") : food) < open.slice(0, i + 1).filter((y) => y === (x === "lumber" ? x : "farm")).length);
+  if (next) tryBuild(next) || (next === "farm" && tryBuild("dock"));
+  else READY ??= S.day;
+  if (!next && S.day > READY && living().length >= beds()) has("masonry") ? tryBuild("stonehouse") : tryBuild("hut");
+  if (!next && grow < eat + 2) tryBuild("dock") || tryBuild("farm");
+  if (!next) for (const t of REST)
     if (count(t) < (t === "lumber" || t === "quarry" ? 1 + (S.day > 60) : 1) && (t !== "graveyard" || S.remains.length) && (!BUILDINGS[t].needs || has(BUILDINGS[t].needs)) && tryBuild(t)) break;
   // idle hands to empty work, food first
   const empty = S.grid.map((b, i) => [b, i]).filter(([b]) => b && BUILDINGS[b.type].job && !b.worker)
@@ -50,7 +59,7 @@ function manage() {
   }
   for (const g of [...(S.stash || [])]) {
     const val = (x) => (x?.atk || 0) + (x?.def || 0) * 2;
-    const s = living().filter((o) => (g.slot !== "weapon" || !g.cls || g.cls === o.cls) && val(o.gear[g.slot]) < val(g)).sort((a, b) => val(a.gear[g.slot]) - val(b.gear[g.slot]))[0];
+    const s = living().filter((o) => (g.slot !== "weapon" || !g.cls || g.cls === o.cls) && val(o.gear[g.slot]) < val(g)).sort((a, b) => (b.cls === g.cls) - (a.cls === g.cls) || val(a.gear[g.slot]) - val(b.gear[g.slot]))[0];
     if (s) equip(s.id, g.uid);
   }
 }
@@ -76,11 +85,12 @@ function trip() {
   if (party.length < 2) return;
   const site = S.sites.map((x, i) => [x, i]).filter(([x]) => S.seen[x.i])[0];
   if (!site) return;
-  const start = Math.max(1, (site[0].deepest || 0) + +chance(0.4)), food = Math.min(30, Math.max(0, S.res.food - 4 * home().length));
+  const scav = has("smelting") && (S.res.ore < 6 || S.res.herbs < 3) && chance(0.6);
+  const start = scav ? 1 : Math.max(1, (site[0].deepest || 0) + +chance(0.4)), food = Math.min(30, Math.max(0, S.res.food - 4 * home().length));
   if (food < 6) return;
-  depart(party.map((s) => s.id), food, start, Math.min(6, S.res.meals), site[1]);
+  depart(party.map((s) => s.id), food, start, Math.min(6, S.res.meals), site[1], scav);
   if (!S.expedition) return;
-  const goal = start;
+  const goal = scav ? SCAV_CAP : start;
   for (let guard = 0; S.expedition && guard < 500; guard++) {
     harvest();
     const e = S.expedition;
@@ -102,7 +112,7 @@ function trip() {
 
 this.year = () => {
   newGame(); settleIn(S.recruits.slice(0, 4).map((s) => s.id));
-  LOG = []; from = S.logN || 0;
+  READY = null; LOG = []; from = S.logN || 0;
   const mix = (xs) => xs.map((x) => [x, Math.random()]).sort((a, b) => a[1] - b[1]).map(([x]) => x);
   // food and the forge first, mostly; the rest however this player fancies
   ORDER = [...mix(["herbalism", "smelting", "smoking", "rope"]), ...mix(Object.keys(RESEARCH))];
