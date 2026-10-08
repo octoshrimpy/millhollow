@@ -548,7 +548,7 @@ function viewExpedition() {
     <button class="primary wide" data-act="depart" ${plan.party.length ? "" : "disabled"}>Set out</button></div></div>`;
 }
 
-const ROOM_ICON = { entrance: "🚪", fight: "⚔️", boss: "☠️", treasure: "💰", empty: "·", shrine: "⛲", event: "❔", stairs: "🪜" };
+const ROOM_ICON = { entrance: "🚪", fight: "🤺", boss: "☠️", treasure: "💰", empty: "·", shrine: "⛲", event: "❔", stairs: "🪜" };
 
 function viewDungeon() {
   const e = S.expedition, m = e.map, near = neighbours(m.rooms, m.at);

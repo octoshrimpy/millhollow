@@ -231,6 +231,8 @@ const THOUGHTS = {
   snapped:   { name: "Snapped", icon: "👻", mood: "scared", morale: -15, days: 4, stir: { anger: 25, grief: 10 } },
   bored:     { name: "Bored", icon: "😐", mood: "sad", morale: -3, days: 2, stir: { restless: 10, pride: -10 } },
   wish:      { name: "Got their wish", icon: "🙋", mood: "happy", morale: 10, days: 4, stir: { restless: -20, warmth: 15, pride: 5 } },
+  liked:     { name: "Liked a poem", icon: "📜", mood: "happy", morale: 4, days: 2, stir: { grief: -10, restless: -10, warmth: 10 } },
+  groaned:   { name: "Sat through a poem", icon: "📜", mood: "angry", morale: -4, days: 2, stir: { anger: 10, restless: 10 } },
   tale:      { name: "A good story", icon: "🔥", mood: "happy", morale: 2, days: 1, stir: { restless: -5, grief: -5, warmth: 10 } },
 };
 const clampMorale = (n) => Math.max(0, Math.min(100, n));
@@ -673,6 +675,7 @@ function trouble(home, hold) {
   if (t && !hold) settle(t.kind === "fey" ? "no" : "ignore");
   ebb(home);
   leisure(home);
+  verse(home);
   wish(home);
   act(home);
   for (const s of home) {
@@ -875,6 +878,19 @@ function leisure(home) {
   if (t.includes("{o}")) { stir(o, "warmth", 5); tie(s, o, 4); }
   note(s, { text: line[0].toUpperCase() + line.slice(1) + "." });
   gameLog(`${s.name} ${line}.`, "good", t.includes("{o}") ? [s, o] : [s], s !== hot);
+}
+function verse(home) {
+  const poet = pick(home.filter((s) => s.pastime === "poetry" && !haunted(s) && s.morale >= 30));
+  if (!poet || !chance(0.3)) return;
+  const fans = home.filter((s) => s !== poet), pleased = [], bored = [];
+  for (const s of fans) {
+    const likes = ["poetry", "reading", "learning"].includes(s.pastime) ? 0.8 : 0.5, edge = (tieOf(s, poet) + drive(s, "warmth") - drive(s, "anger") - drive(s, "restless")) / 200;
+    (grudge(s, poet) || !chance(likes + edge) ? bored : pleased).push(s);
+  }
+  pleased.forEach((s) => { think(s, "liked"); tie(s, poet, 3); });
+  bored.forEach((s) => { think(s, "groaned"); tie(s, poet, -3); });
+  stir(poet, "pride", bored.length > pleased.length ? -10 : 15);
+  gameLog(`${poet.name} read a poem at night.${pleased.length ? ` ${pleased.map((o) => o.name).join(" and ")} liked it.` : ""}${bored.length ? ` ${bored.map((o) => o.name).join(" and ")} didn't.` : ""}`, "story", [poet, ...fans]);
 }
 function wish(home) {
   if (!chance(0.04)) return;

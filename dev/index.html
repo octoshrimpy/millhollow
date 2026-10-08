@@ -61,6 +61,7 @@
 <canvas id="fx"></canvas>
 <div id="floats"></div>
 <div id="toasts"></div>
+<script src="../js/ds/data.js"></script>
 <script src="../js/ds/sprite.js"></script>
 <script src="../js/ds/icons.js"></script>
 <script src="../js/ds/juice.js"></script>
@@ -80,7 +81,32 @@ const paint = () => {
 };
 sel.onchange = () => { applyTheme(sel.value); paint(); };
 paint();
-$("#icons").innerHTML = Object.entries(ICONS).map(([e, [id, hue]]) => `<div class="cell" title="${e}">${ic(e)}<span>${id}<br><code>${hue}</code></span></div>`).join("");
+const bare = (e) => e.replace(/\uFE0F/g, ""), uses = {};
+const use = (e, t) => e && (uses[bare(e)] ||= []).push(t);
+for (const v of Object.values(RESOURCES)) use(v.icon, `resource: ${v.name}`);
+for (const v of Object.values(CLASSES)) use(v.icon, `class: ${v.name}`);
+for (const v of Object.values(TERRAIN)) use(v.icon, `terrain: ${v.name}`);
+for (const v of Object.values(BUILDINGS)) use(v.icon, `building: ${v.name}`);
+for (const v of Object.values(ENEMIES)) use(v.icon, `enemy: ${v.name}`);
+for (const v of Object.values(BOSSES)) use(v.icon, `boss: ${v.name}`);
+for (const [k, v] of Object.entries(SITES)) { use(v.icon, `site: ${k}`); use(v.boss, `${k} boss`); }
+for (const v of Object.values(PASTIMES)) use(v.icon, `pastime: ${v.name}`);
+// ponytail: UI-only icons aren't in a data table, so they're listed here; unlisted ones show "unused".
+Object.entries({
+  "⚔": "attack · fight button", "🤺": "fight room", "🛡": "defense", "❤": "health", "💨": "speed", "🙋": "villager request",
+  "🔒": "locked", "✓": "confirm", "✕": "cancel · decline", "❯": "becomes · upgrade result", "▸": "end day", "▶": "play",
+  "⏸": "pause", "⏳": "days left (forge, research)", "⏫": "upgrade", "♻": "refund on demolish", "🏕": "camp",
+  "🦴": "body below · remains", "🛏": "no bed", "😔": "refuses to go", "↕": "show asides", "⇳": "hide asides",
+  "🏘": "village tab · home again", "👥": "people tab", "🧭": "expedition tab", "⚒": "forge tab", "📚": "research tab · library",
+  "📖": "log tab", "⚙": "menu", "📋": "copy save", "💾": "save to file", "📂": "load save", "📥": "import save", "📲": "install app",
+  "⛶": "fullscreen", "🦺": "armor slot", "📦": "stored gear", "🍽": "hungry · meals", "💔": "friend zone", "💍": "wedding · spouse",
+  "🏆": "slew a boss", "⭐": "level up · pride", "👣": "push on · wandering", "😄": "morale high", "🙂": "morale good",
+  "😐": "morale middling", "😠": "morale low · grudge · anger", "💬": "blamed", "👀": "guarding", "🚪": "dungeon entrance",
+  "💰": "treasure room · debt", "❔": "event room", "🪜": "stairs · below", "👑": "keeper's crown", "👊": "brawl", "✨": "sparkle",
+  "🗡": "bandits · dagger", "🔦": "party position", "🛣": "trader", "🎯": "target", "🎲": "reroll", "👻": "haunted",
+  "🪦": "grief · grave", "🔥": "warmth · fire", "👁": "fear", "🎣": "fishing", "⛲": "shrine room",
+}).forEach(([e, t]) => use(e, t));
+$("#icons").innerHTML = Object.keys(ICONS).map((e) => `<div class="cell" title="${e}">${ic(e)}<span>${(uses[bare(e)] || ["unused"]).join("<br>")}</span></div>`).join("");
 document.querySelectorAll(".dev .demo, .dev .card, .dev .opt, .dev .row.pair").forEach((el) => (el.innerHTML = iconize(el.innerHTML)));
 const mid = (el) => { const r = el.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; };
 const again = (el, cls) => { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); };
