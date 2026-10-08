@@ -194,7 +194,8 @@ function viewVillage() {
     const sick = living().find((s) => s.laid === i);
     const who = (w ? `<img class="mini" src="${faceSrc(w)}" alt="${esc(w.name)}">` : "") + (sick ? `<img class="mini laid" src="${faceSrc(sick)}" alt="${esc(sick.name)}">` : "");
     const lvl = b.lvl ? `<span class="lvl${b.unpaid ? " bad" : ""}">${"●".repeat(b.lvl)}</span>` : "";
-    return `<button class="tile${cls}${b.type === "townhall" ? " hall" : ""}" ${at}><span class="ico">${def.icon}</span><small>${def.name}</small>${who}${lvl}</button>`;
+    const warn = S.hall != null && contested(i) ? `<span class="warn">❗</span>` : "";
+    return `<button class="tile${cls}${b.type === "townhall" ? " hall" : ""}" ${at}><span class="ico">${def.icon}</span><small>${def.name}</small>${who}${warn}${lvl}</button>`;
   };
   let tiles = "";
   for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) tiles += tile(y * LAND + x);
@@ -269,7 +270,7 @@ function sheetPlot(i) {
   const back = Object.entries(refundOf(i)).map(([k, v]) => tip(RESOURCES[k].name, `+${v}${RESOURCES[k].icon}`)).join(" ");
   const knock = b.type === "townhall" ? "" : `<button class="danger small" data-act="demolish">Demolish${back ? ` <small>♻ ${back}</small>` : ""}</button>`;
   const lv = b.lvl || 0, pips = IMPROVABLE(b.type) ? ` <span class="pips">${"●".repeat(lv)}${"○".repeat(IMPROVE.length - lv)}</span>` : "";
-  let body = `<div class="sheet-head"><h3>${d.icon} ${d.name}${pips}${besideTag(i, b.type)}</h3>${knock}</div><p class="dim desc">${d.desc}</p>${b.maker && byId(b.maker) ? `<p class="dim">🔨 ${esc(byId(b.maker).name)}</p>` : ""}`;
+  let body = `<div class="sheet-head"><h3>${d.icon} ${d.name}${pips}${besideTag(i, b.type)}</h3>${knock}</div><p class="dim desc">${d.desc}</p>${contested(i) ? `<p class="bad">❗ Too far from town hall: unsafe location!</p>` : ""}${b.maker && byId(b.maker) ? `<p class="dim">🔨 ${esc(byId(b.maker).name)}</p>` : ""}`;
   if (d.up) {
     const to = BUILDINGS[d.up.to], locked = to.needs && !has(to.needs);
     body += `<button class="opt" data-act="upgrade" ${canUpgrade(i) ? "" : "disabled"}>

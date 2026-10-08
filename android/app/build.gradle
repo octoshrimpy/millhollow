@@ -21,8 +21,8 @@ android {
     applicationId "sh.octo.millhollow"
     minSdk 24
     targetSdk 36
-    versionCode 21
-    versionName "1.5.15"
+    versionCode 22
+    versionName "1.5.16"
   }
   signingConfigs {
     release {

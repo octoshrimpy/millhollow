@@ -70,6 +70,7 @@ const ICONS = {
   "⇳": ["lu-minimize-2", "currentColor"],
   "⏸": ["lu-pause", "currentColor"],
   "⏹": ["lu-square", "currentColor"],
+  "❗": ["lu-triangle-alert", "red"],
   "∞": ["lu-infinity", "currentColor"],
   "🤖": ["lu-bot", "blue"],
   "🏘": ["lu-tent-tree", "brown"],
