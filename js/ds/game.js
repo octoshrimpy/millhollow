@@ -171,8 +171,23 @@ function why(s) {
   if (ghost) say("scared", 90, `${name(ghost.id)} won't leave me be.`, `I keep seeing ${name(ghost.id)}.`, `${name(ghost.id)} was here last night.`);
   if (hp < 0.15) say("scared", 95, "I can't get up.", "I'm not going to make it.", "Everything hurts.");
   else if (hp < 0.3) say("scared", 80, "I can barely stand.", "I need rest.", "I'm in bad shape.");
-  else if (hp < 0.5) say("sad", 45, "Still hurting.", "Wounds are slow.", "It aches.");
+  const hurt = Object.keys(PARTS).map((p) => [p, sore(s, p)]).filter(([, n]) => n).sort((a, b) => b[1] - a[1]);
+  if (arms(s) === 4) say("sad", 65, "Can't use either arm.", "Someone has to feed me.", "Can't even hold a cup.");
+  else if (sore(s, "lleg") + sore(s, "rleg") === 4) say("sad", 65, "Can't stand.", "Neither leg will hold me.", "I crawl to the pot.");
+  else if (hurt.length) {
+    const [p, n] = hurt[0], part = PARTS[p][0].toLowerCase();
+    if (p === "torso") say("sad", n * 30, ...(n > 1 ? ["Hurts to breathe.", "My ribs are cracked.", "Can't bend."] : ["My ribs ache.", "Bruised all down my side.", "Hurts when I laugh."]));
+    else if (p.endsWith("arm")) say("sad", n * 30, ...(n > 1 ? [`My ${part} is useless.`, `Can't lift a thing with my ${part}.`, `Can't feel my ${part}.`] : [`My ${part} aches.`, `Favouring my ${part}.`, "Can't grip right."]));
+    else say("sad", n * 30, ...(n > 1 ? [`My ${part} won't hold me.`, `Can't put weight on my ${part}.`] : [`Limping on my ${part}.`, `My ${part}'s stiff.`, "Slow on the stairs."]));
+  } else if (hp < 0.5) say("sad", 45, "Still hurting.", "Wounds are slow.", "It aches.");
   else if (hp < 0.7) say("sad", 20, "Still sore.", "Nearly healed.", "A few bruises left.");
+  const bed = s.laid != null && S.grid[s.laid]?.type;
+  if (bed === "infirmary") say("sad", 70, "The infirmary smells of herbs.", "The healer won't let me up.", "Another day on the cot.");
+  else if (bed === "townhall") say("sad", 70, "Sleeping on the hall floor.", "Everyone walks past my bed.", "The hall's cold at night.");
+  else if (bed) say("sad", 70, "Stuck in bed.", "I've counted every roof beam.", "Another day lying down.");
+  const job = s.wasJob && BUILDINGS[s.wasJob.type].name.toLowerCase();
+  if (bed && job) say("sad", 50, `Who's minding the ${job}?`, `I should be at the ${job}.`, `The ${job} won't run itself.`);
+  if (!bed && S.day - s.upDay < 2) say("happy", 45, "Back on my feet.", "Good to be up again.", "Thought I'd never leave that bed.");
   if (has("neardeath")) say("scared", 75, "I nearly died down there.", "That was close. Too close.", "I thought that was it.");
   if (has("fled")) say("scared", 50, "We ran.", "We turned and ran.", "We got out. Barely.");
   for (const t of living()) {
@@ -193,6 +208,20 @@ function why(s) {
   if (s.vow) say("sad", 30, "I'll not marry again.", "Never again.", "I'm done with all that.");
   if (whom("mended")) say("happy", 45, `${whom("mended").name} patched me up.`, `${whom("mended").name} set my bones.`, `I owe ${whom("mended").name}.`);
   if (whom("brawl")) say("angry", 55, `${whom("brawl").name} and I came to blows.`, `${whom("brawl").name} hit me.`, `I'm not done with ${whom("brawl").name}.`);
+  const sp = s.spouse && byId(s.spouse);
+  if (sp && !sp.dead && !has("wed") && hash("spouse") % 4 === 0) say("happy", 30, ...(away(sp) && !away(s)
+    ? [`${sp.name}'s out there. I hope they're safe.`, `Waiting on ${sp.name} to come home.`]
+    : [`${sp.name}'s waiting at home.`, `Thinking about ${sp.name}.`, `${sp.name} makes it all worth it.`, `Lucky to have ${sp.name}.`]));
+  const met = s.met && S.day - s.met.day < 2 && byId(s.met.o), w = s.met?.what, tail = w?.startsWith("at ") ? ` ${w}` : `, ${w}`;
+  if (met && !met.dead) say(s.met.k === "lost" || s.met.k === "meh" || s.met.k === "snub" ? "sad" : "happy", 25, ...{
+    fun: [`Had fun with ${met.name}${tail}.`, `Enjoyed an evening with ${met.name}${tail}.`, `${met.name}'s good company.`],
+    liked: [`Always good with ${met.name}${tail}.`, `Liked the evening with ${met.name}${tail}.`, `Nobody I'd rather spend an evening with than ${met.name}.`],
+    meh: [`Didn't enjoy the evening with ${met.name}${tail}.`, `Spent the evening with ${met.name}. Never again.`, `${met.name} spoiled it.`],
+    won: [`Beat ${met.name} ${w}.`, `${met.name} can't beat me ${w}.`, `Took ${met.name} ${w}. Easy.`],
+    lost: [`${met.name} beat me ${w}.`, `Didn't enjoy losing to ${met.name}.`, `Next time, ${met.name}.`],
+    snub: [`${met.name} wouldn't join me.`, `Asked ${met.name} along. No.`, `${met.name} turned me down.`],
+    spurn: [`${met.name} keeps asking me along.`, `Didn't feel like company. Told ${met.name} no.`, `Not tonight, ${met.name}.`],
+  }[s.met.k]);
   if (has("wed") && s.spouse) say("happy", 70, `I married ${name(s.spouse)}.`, `${name(s.spouse)} and I are wed.`, `Married ${name(s.spouse)}. Best thing I did.`);
   const balk = refuses(s), due = avenges(s);
   if (due) say("angry", 75, `Something down there owes me ${due.name}.`, `I'm going back for ${due.name}.`, `Whatever killed ${due.name} dies next.`);
@@ -514,6 +543,7 @@ function rest(s) {
     gameLog(`${s.name} can't work. Laid up in the ${BUILDINGS[S.grid[s.laid].type].name.toLowerCase()}.`, "bad", [s]);
   } else if (!down && s.laid != null) {
     delete s.laid;
+    s.upDay = S.day;
     const was = s.wasJob, b = was && S.grid[was.i];
     s.wasJob = null;
     if (b && b.type === was.type && !b.worker) { b.worker = s.id; s.job = was.i; }
@@ -972,6 +1002,7 @@ function leisure(home) {
           tie(s, o, -1); stir(s, "pride", -3); s.morale = clampMorale(s.morale - 3);
           snub = o;
           o = null;
+          s.met = { o: snub.id, k: "snub", day: S.day }; snub.met = { o: s.id, k: "spurn", day: S.day };
           remember(s, snub, "snubbed");
           if (++vs(s, snub).r % 3 === 0) { tie(s, snub, -4); gameLog(`${s.name} gave up asking ${snub.name}.`, "story", [s]); }
           const solo = lines.filter((x) => !x.includes("{o}"));
@@ -996,6 +1027,9 @@ function leisure(home) {
       s.morale = clampMorale(s.morale + 2);
       const cap = (x) => x[0].toUpperCase() + x.slice(1) + ".", withO = t.includes("{o}");
       if (together) {
+        const what = game ? `at ${game}` : at ? `at the ${BUILDINGS[at].name.toLowerCase()}` : PASTIMES[s.pastime].name;
+        const felt = (a, b) => (game && (won ? a === s : a === o) ? "won" : game ? "lost" : tieOf(a, b) < 0 ? "meh" : tieOf(a, b) >= FRIEND ? "liked" : "fun");
+        s.met = { o: o.id, k: felt(s, o), what, day: S.day }; o.met = { o: s.id, k: felt(o, s), what, day: S.day };
         stir(s, "pride", 8); stir(o, "warmth", 8); tie(s, o, tieOf(s, o) < FRIEND ? 4 : 1);
         note(s, { text: cap(`I ${(withO ? line : `${line} with ${o.name}`).replace(/\btheir\b/g, "my")}`) });
         note(o, { text: cap(withO ? `${s.name} ${line.replace(o.name, "me")}` : `I ${line} with ${s.name}`) });

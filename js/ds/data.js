@@ -481,23 +481,23 @@ const bossFor = (floor) => BOSSES[floor] || (floor % 3 === 0 && floor > 6
 
 const EVENTS = [
   {
-    id: "prisoner", text: "A chained prisoner begs for water.",
+    id: "prisoner", name: "Prisoner", text: "A chained prisoner begs for water.",
     choices: [{ label: "Free them", act: "free" }, { label: "Leave", act: "none" }],
   },
   {
-    id: "altar", text: "A black altar. It wants blood.",
+    id: "altar", name: "Altar", text: "A black altar. It wants blood.",
     choices: [{ label: "Bleed (−5 HP each)", act: "altar" }, { label: "Leave", act: "none" }],
   },
   {
-    id: "cart", text: "An overturned ore cart.",
+    id: "cart", name: "Ore cart", text: "An overturned ore cart.",
     choices: [{ label: "Search", act: "cart" }, { label: "Leave", act: "none" }],
   },
   {
-    id: "mushrooms", text: "Glowing mushrooms.",
+    id: "mushrooms", name: "Mushrooms", text: "Glowing mushrooms.",
     choices: [{ label: "Harvest", act: "mushrooms" }, { label: "Leave", act: "none" }],
   },
   {
-    id: "marker", text: "A millstone carved with the village's mark.",
+    id: "marker", name: "Millstone", text: "A millstone carved with the village's mark.",
     choices: [{ label: "Pry it out", act: "marker" }, { label: "Leave", act: "none" }],
   },
 ];

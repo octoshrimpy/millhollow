@@ -100,7 +100,7 @@ function renderTop() {
   morph($("#savebtn"), iconize("💾"));
   const log = ["log", "Log", "📖"];
   const tabs = S.expedition ? [["dungeon", "Dungeon", "🪜"], ["people", "People", "👥"], log]
-    : [["village", "Village", "🏘"], ["people", "People", "👥"], ["forge", "Forge", "⚒"], ["research", "Research", "📚"], log, ["expedition", "Expedition", "🧭"]];
+    : [["village", "Village", "🏘"], ["people", "People", "👥"], ["forge", "Forge", "⚒"], ["research", "Research", "📜"], log, ["expedition", "Expedition", "🧭"]];
   morph($("#tabs"), iconize(tabs.map(([id, name, icon]) =>
     `<button data-act="tab" data-v="${id}" aria-label="${name}" class="${tab === id ? "on" : ""}">${icon}${tab === id ? `<small>${name}</small>` : id === "log" ? `<small class="lg-hide">Hide log</small><small class="lg-show">Show log</small>` : ""}</button>`).join("")));
 }
@@ -228,16 +228,17 @@ function troubleStakes(t) {
   }[t.kind] || [];
   return `<div class="stakes">${lines.map((l) => `<p>${l}</p>`).join("")}</div>`;
 }
+const TROUBLE_TITLE = { bandits: "Bandits!", pirates: "River pirates!", debt: "Debt collectors", fey: "Fey mood", feast: "Feast", wedding: "Wedding!", trader: "Trader" };
 function sheetTrouble() {
-  const t = S.trouble, ok = afford(t.take);
+  const t = S.trouble, ok = afford(t.take), title = `<h3>${TROUBLE_TITLE[t.kind]}</h3>`;
   const odds = t.n && holds(t.n), label = (x) => `<small>${x}</small>`;
   const [noText, yesText] = { wedding: ["Small ceremony", "Throw a feast"], feast: ["Skip", "Feast"], fey: ["Refuse", "Give"], debt: ["Refuse", "Pay"], bandits: ["", "Pay"], pirates: ["", "Pay"] }[t.kind] || ["", ""];
   const no = t.n ? `⚔ ${Math.round(odds * 100)}%${label(odds >= 0.65 ? "Likely win" : odds >= 0.4 ? "Even fight" : "Likely loss")}` : (t.pair ? "💍" : "✕") + label(noText);
-  const yes = costText(t.take) + (t.give ? ` ❯ ${goods(t.give)}` : t.n ? "" : " ✓") + label(yesText);
-  if (t.offers) return `<div class="arrival"><div class="row center">${troubleHead(t)}</div>${troubleStakes(t)}
+  const yes = costText(t.take) + (t.give ? ` ❯ ${goods(t.give)}` : "") + label(yesText);
+  if (t.offers) return `<div class="arrival">${title}<div class="row center">${troubleHead(t)}</div>${troubleStakes(t)}
     ${t.offers.map((o, i) => `<button class="wide" data-act="settle" data-v="${i}" ${afford(o.take) ? "" : "disabled"}>${costText(o.take)} ❯ ${goods(o.give)}</button>`).join("")}
     <button class="wide" data-act="settle" data-v="no">✕</button></div>`;
-  return `<div class="arrival"><div class="row center">${troubleHead(t)}</div>${troubleStakes(t)}
+  return `<div class="arrival">${title}<div class="row center">${troubleHead(t)}</div>${troubleStakes(t)}
     <div class="row pair"><button data-act="settle" data-v="no">${no}</button><button class="${t.n || t.pair ? "" : "primary"}" data-act="settle" data-v="yes" ${ok ? "" : "disabled"}>${yes}</button></div></div>`;
 }
 
@@ -321,6 +322,7 @@ function sheetEvent() {
   if (S.expedition.prisoner) return sheetPrisoner();
   const ev = EVENTS.find((x) => x.id === S.expedition.event);
   return `<div class="arrival">
+    <h3>${ev.name}</h3>
     <div class="omen">${ROOM_ICON.event}</div>
     <p>${ev.text}</p>
     <div class="row pair">${ev.choices.slice().reverse().map((x, i) =>
@@ -331,8 +333,9 @@ function sheetEvent() {
 function sheetPrisoner() {
   const p = S.expedition.prisoner, c = CLASSES[p.cls], ev = EVENTS.find((x) => x.id === "prisoner");
   return `<div class="arrival">
+    <h3>${ev.name}</h3>
     <img class="face" src="${faceSrc(p)}" alt="">
-    <h3>${esc(p.name)}</h3>
+    <h4>${esc(p.name)}</h4>
     <div>${c.icon} ${c.name}</div>
     <p>${ev.text}</p>
     <div class="row pair">${ev.choices.slice().reverse().map((x, i) =>
@@ -345,8 +348,9 @@ function sheetVisitor() {
   const skills = Object.entries(v.skills).filter(([, x]) => x >= 0.1)
     .map(([k, x]) => tip(k, `${jobIcon(k)} ${x.toFixed(1)}`, "chip")).join("");
   return `<div class="arrival">
+    <h3>Visitor</h3>
     <img class="face" src="${faceSrc(v)}" alt="">
-    <h3>${esc(v.name)}</h3>
+    <h4>${esc(v.name)}</h4>
     <div>${c.icon} ${c.name}</div>
     <div class="stats">${statLine(st, "❤️" + st.hpMax)}</div>
     <div class="row wrap">${skills}${full ? `<span class="chip bad">🛏️ ${living().length}/${beds()}</span>` : ""}</div>
@@ -546,10 +550,11 @@ function viewExpedition() {
         <br><small>HP ${s.hp}/${st.hpMax}${s.job != null && S.grid[s.job] ? ` · working: ${BUILDINGS[S.grid[s.job].type].icon}` : ""}</small></span></button></div>`;
     }).join("")}</div><div class="plan">
     ${plan.party.length ? formation(plan.party.map(byId), false) : ""}
-    ${home.length ? `<div class="row between"><span>👀</span><span class="row">${Array.from({ length: watchMax() }, (_, i) => {
-      const on = guards()[i];
-      return `<select data-act="watch" data-i="${i}"><option value="">—</option>${home.filter((s) => s === on || !isGuard(s)).map((s) =>
-        `<option value="${s.id}" ${s === on ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select>`; }).join("")}</span></div>` : ""}
+    ${home.length ? `<div class="row between"><span>👀</span><span class="keepers">${Array.from({ length: watchMax() }, (_, i) => {
+      const on = guards()[i], who = (s) => `<img class="mini" src="${faceSrc(s)}" alt=""><span><b>${esc(s.name)}</b> ${CLASSES[s.cls].icon} lv ${s.level}<br><small>${statLine(stats(s), `❤️${s.hp}/${stats(s).hpMax}`)}</small></span>`;
+      return `<div class="drop"><button class="pick" data-act="keepdrop" data-v="${i}">${on ? who(on) : "<span>—</span>"}<i>▾</i></button>
+        ${keepOpen === i ? `<div class="list"><button data-act="keep" data-i="${i}" data-v="">—</button>${home.filter((s) => s === on || !isGuard(s)).map((s) =>
+          `<button class="${s === on ? "on" : ""}" data-act="keep" data-i="${i}" data-v="${s.id}" ${s.laid != null ? "disabled" : ""}>${who(s)}</button>`).join("")}</div>` : ""}</div>`; }).join("")}</span></div>` : ""}
     ${stepper("rations", "🍞", plan.rations)}${cook ? stepper("meals", "🥪", plan.meals) : ""}
     <div class="row pair"><button class="${plan.scav ? "" : "on"}" data-act="mode" data-v="0">🤺 Delve</button><button class="${plan.scav ? "on" : ""}" data-act="mode" data-v="1">💰 Scavenge</button></div>
     ${plan.scav ? "" : `<div class="row between"><span>Start at floor</span><select data-act="floor">${floors.map((f) =>
@@ -800,19 +805,20 @@ function sheetMenu() {
       <button data-act="savecopy">📋<small>Copy</small></button><button data-act="savefile">💾<small>Save file</small></button>
       <button data-act="saveopen">📂<small>Open file</small></button><button data-act="saveload">📥<small>Load</small></button>
     </div><input id="savepick" type="file" accept=".txt,.json,text/plain,application/json" hidden></div>`;
-  if (sheet.slots) return `<div class="menu"><div class="slots">${[0, 1, 2].map((n) => {
+  if (sheet.slots) return `<div class="menu"><h3>Save slots</h3><div class="slots">${[0, 1, 2].map((n) => {
     const s = n === slot ? { town: S.town, day: S.recruits ? null : S.day } : slotInfo(n);
     return `<button class="${n === slot ? "on" : ""}" data-act="slot" data-v="${n}">${s ? `${esc(s.town)}${s.day ? `<small>Day ${s.day}</small>` : ""}` : "＋"}</button>`;
   }).join("")}</div>` + (sheet.sure
     ? `<div class="row pair"><button data-act="slots">Keep playing</button><button class="danger" data-act="wipe">Delete ${esc(S.town)}</button></div>`
     : `<button class="danger wide" data-act="newgame" ${S.recruits ? "disabled" : ""}>New game</button>`) + `</div>`;
-  return `<div class="menu"><div class="themes">${THEMES.map(swatch).join("")}</div>${saves}<button class="wide" data-act="slots">🗂 Save slots</button>`
+  return `<div class="menu"><h3>Settings</h3><div class="themes">${THEMES.map(swatch).join("")}</div>${saves}<button class="wide" data-act="slots">🗂 Save slots</button>`
     + `<div class="row pair acts">${installer ? `<button class="install" data-act="install">📲 Install</button>` : ""}`
     + `${document.fullscreenEnabled ? `<button class="${document.fullscreenElement ? "on" : ""}" data-act="fullscreen">⛶ Fullscreen</button>` : ""}</div>` + `<a class="src" href="https://github.com/octoshrimpy/millhollow" target="_blank" rel="noopener">${GITHUB_MARK}<small>Source</small></a></div>`;
 }
 
-const ask = (text, act, v) => (sheet = { ask: { text, act, v, back: sheet } });
-const sheetAsk = () => `<div class="menu"><p>${esc(sheet.ask.text)}</p><div class="row pair"><button data-act="no">✕<small>No</small></button><button class="primary" data-act="yes">✓<small>Yes</small></button></div></div>`;
+const ask = (title, text, act, v, labels, nay) => (sheet = { ask: { title, text, act, v, labels, nay, back: sheet } });
+const sheetAsk = () => { const a = sheet.ask, [no, yes] = a.labels || ["✕<small>No</small>", "✓<small>Yes</small>"];
+  return `<div class="menu"><h3>${a.title}</h3><p>${esc(a.text)}</p><div class="row pair"><button class="${a.nay ? "primary" : ""}" data-act="no">${no}</button><button class="${a.nay ? "" : "primary"}" data-act="yes">${yes}</button></div></div>`; };
 function renderSheet() {
   const box = $("#sheet"), inner = box.querySelector(".inner");
   if (!sheet) {
@@ -1035,7 +1041,7 @@ const ACTS = {
   },
   demolished: (v) => { demolish(+v); sheet = null; },
   yes: () => { const a = sheet.ask; sheet = a.back; ACTS[a.act](a.v); },
-  no: () => (sheet = sheet.ask.back),
+  no: () => { const a = sheet.ask; sheet = a.back; if (a.nay) ACTS[a.nay](); },
   upgrade: () => upgrade(sheet.i),
   improve: () => improve(sheet.i),
   assign: (v) => { assign(sheet.i, +v); sheet = null; },
@@ -1047,7 +1053,8 @@ const ACTS = {
   person: (v) => { sheet = { person: +v }; gearPick = null; },
   lifetab: (v) => { sheet.ties = v === "ties"; },
   guard: () => setGuard(sheet.person),
-  watch: (v, el) => { const on = guards()[+el.dataset.i]; if (on) setGuard(on.id); if (v) setGuard(+v); },
+  keepdrop: (v) => { keepOpen = keepOpen === +v ? null : +v; },
+  keep: (v, el) => { const on = guards()[+el.dataset.i]; if (on && on.id !== +v) setGuard(on.id); if (v && on?.id !== +v) setGuard(+v); },
   gearpick: (v) => (gearPick = gearPick && gearPick.id === sheet.person && gearPick.slot === v ? null : { id: sheet.person, slot: v }),
   equip: (v, el) => { equip(+v, +el.dataset.uid); gearPick = null; },
   unequip: (v, el) => { unequip(+v, el.dataset.slot); gearPick = null; },
@@ -1071,7 +1078,7 @@ const ACTS = {
   move: (v) => {
     const e = S.expedition;
     if (e && !e.warned && canMove(v) && onlyEnoughHome()) {
-      return ask(`Food left only covers the walk home (${homeDays()}d, ${homeFood()} rations). Keep going?`, "moved", v);
+      return ask("Not enough food!", `Food left only covers the walk home (${homeDays()}d, ${homeFood()} rations).`, "moved", v, ["🏘 Head home", "👣 Keep going"], "home");
     }
     move(v);
   },
@@ -1120,7 +1127,7 @@ const ACTS = {
 
 function loadCode(text) {
   if (!String(text).trim()) { $("#savecode").focus(); return "keep"; }
-  ask("Replace this game?", "imported", text);
+  ask("Load save", "Replace this game?", "imported", text);
 }
 function importCode(text) {
   importSave(text).then(() => {
@@ -1153,7 +1160,9 @@ function goBack() {
   return true;
 }
 
+let keepOpen = null;
 function run(act, v, el) {
+  if (act !== "keepdrop") keepOpen = null;
   const before = snap(), was = tab, life = act === "lifetab" && !!sheet.ties !== (v === "ties");
   if (ACTS[act](v, el) === "keep") return;
   const draw = () => { render(); celebrate(before); };
@@ -1244,7 +1253,6 @@ document.addEventListener("change", (e) => {
   if (el.id === "savepick") { const f = el.files[0]; el.value = ""; if (f) f.text().then(loadCode); return; }
   if (!el.dataset.act) return;
   if (el.dataset.act === "floor") plan.floor = +el.value;
-  if (el.dataset.act === "watch") return run("watch", el.value, el);
   render();
 });
 

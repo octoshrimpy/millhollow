@@ -32,6 +32,7 @@
   button:disabled { opacity: .4; cursor: default; }
   button.on { border-color: var(--accent); }
   button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: bold; }
+  button.primary svg.i { color: currentColor !important; }
   button.danger { border-color: var(--bad); color: var(--bad); background: transparent; }
   button.wide { width: 100%; margin-top: .6em; }
   small { font-size: .8em; }
@@ -76,7 +77,7 @@
   #tabs button.on { color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, var(--card)); }
   #tabs button.on small { font-weight: bold; }
   main.wrap { padding-top: .6em; padding-bottom: calc(var(--dock-h, 8em) + 1em); }
-  .menu h3 { margin-top: 0; }
+  .menu h3 { margin-top: 0; text-align: center; }
   .menu .pair button { flex: 1; }
   .saves { margin: 0 0 .9em; }
   .saves .pair button { display: flex; flex-direction: column; align-items: center; gap: .15em; padding: .5em 0; }
@@ -149,12 +150,24 @@
   .arrival { display: flex; flex-direction: column; align-items: center; gap: .35em; text-align: center; }
   .arrival .face { width: 110px; height: 110px; border-radius: 12px; }
   .arrival .said { margin: .3em 0 0; max-width: 32ch; font-style: italic; }
-  .arrival h3 { margin: .2em 0 0; }
+  .arrival h3 { margin: 0; }
+  .arrival h4 { margin: .2em 0 0; font-size: 1.1rem; }
   .arrival .omen { font-size: 3rem; line-height: 1; color: var(--story); }
   .arrival .row { justify-content: center; }
   .arrival .chip { font-size: .9rem; }
   .arrival .pair { width: 100%; margin-top: .8em; gap: 8px; }
   .arrival .pair button { flex: 1; padding: .7em; }
+  .keepers { display: flex; flex-direction: column; gap: 6px; flex: 1; margin-left: .8em; min-width: 0; }
+  .drop { position: relative; }
+  .drop button { display: flex; align-items: center; gap: .5em; width: 100%; text-align: left; padding: .35em .5em; }
+  .drop button > span { flex: 1; min-width: 0; }
+  .drop button small { color: var(--dim); }
+  .drop .pick i { color: var(--dim); font-style: normal; }
+  .drop .list { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 4; display: flex; flex-direction: column; gap: 4px; padding: 4px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 8px; max-height: 18em; overflow-y: auto; }
+  .drop small span { margin-right: .6em; }
+  .drop .list button.on { border-color: var(--accent); }
+  .drop .list button:disabled .mini { opacity: .4; }
   .plan .pair { gap: 8px; }
   .plan .pair button { flex: 1; padding: .6em; }
   .plan .pair button small { display: block; font-size: .7rem; color: var(--dim); margin-top: .15em; }
