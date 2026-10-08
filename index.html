@@ -53,8 +53,9 @@
   #menu, #savebtn { background: none; border: 0; padding: .4em; color: var(--dim); font-size: 1.15rem; line-height: 1; }
   .founding #dock { display: none; }
   .town { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: .8em; }
-  .town input { flex: 1 1 100%; font: inherit; font-size: 1.2rem; text-align: center; padding: .4em; background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; }
+  .town input { flex: 1 1 calc(100% - 3.5em); min-width: 0; font: inherit; font-size: 1.2rem; text-align: center; padding: .4em; background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; }
   .town button { flex: 1; }
+  .town [data-act=towns] { flex: none; }
   .menu .slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: .9em; }
   .menu .slots button { display: flex; justify-content: center; flex-direction: column; align-items: center; min-width: 0; overflow-wrap: anywhere; }
   .menu .slots small { color: var(--dim); }

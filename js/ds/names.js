@@ -36,11 +36,14 @@ function makeName(sex, taken = new Set(), rng = Math.random) {
 }
 
 const PLACE_HEAD = "ash brack thorn wil oak elm hart crow wether ald bram fen hol cold marl stan lang kes rush wyn".split(" ");
-const PLACE_TAIL = "ford ley wick thorpe mere holt stead dale combe wold ham ton well moor bury field".split(" ");
+// Tails like -ton, -ley, -field turned into surnames, so they read as people; these stay places.
+const PLACE_TAIL = "wick thorpe mere holt stead dale combe wold moor by cross hollow".split(" ");
 function makePlace(rng = Math.random) {
   const pickR = (xs) => xs[Math.floor(rng() * xs.length)];
-  let head = pickR(PLACE_HEAD);
-  if (rng() < 0.4) head = makeName("m", new Set(), rng).toLowerCase().slice(0, 4).replace(/[aeiouy]+$/, "").replace(/([^aeiouy])[^aeiouy]+$/, "$1");
-  const name = head + pickR(PLACE_TAIL);
-  return /([^aeiou])\1[^aeiou]|[^aeiouy]{4}|^.{9}/.test(name) ? makePlace(rng) : name[0].toUpperCase() + name.slice(1);
+  const tail = pickR(PLACE_TAIL), apart = tail === "cross" || tail === "hollow";
+  const head = pickR(apart ? ["ash", "oak", "elm", "crow", "thorn", "hart", "fen", "rush", "cold"] : PLACE_HEAD);
+  const name = head + (apart ? " " : "") + tail;
+  if (/([^aeiou ])\1[^aeiou]|[^aeiouy ]{4}|^[^ ]{10}/.test(name) || tail.startsWith(head.slice(0, 3))) return makePlace(rng);
+  const cap = (w) => w[0].toUpperCase() + w.slice(1), out = name.split(" ").map(cap).join(" ");
+  return !out.includes(" ") && rng() < 0.15 ? `${pickR(["Low", "High", "Old", "Nether"])} ${out}` : out;
 }

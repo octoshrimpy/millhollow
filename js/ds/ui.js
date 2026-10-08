@@ -77,7 +77,7 @@ let chosen = [], cooled = 0, shine = 0;
 function viewRecruits() {
   chosen = chosen.filter((id) => S.recruits.some((s) => s.id === id));
   const left = cooled - Date.now(), cooling = left > 0;
-  const town = `<div class="town"><input id="town" maxlength="20" spellcheck="false" autocomplete="off" value="${esc(S.town)}" aria-label="Town name">
+  const town = `<div class="town"><input id="town" maxlength="20" spellcheck="false" autocomplete="off" value="${esc(S.town)}" aria-label="Town name"><button class="ghost" data-act="towns" aria-label="Reroll names">🎲</button>
     ${S.towns.map((t) => `<button class="small ${t === S.town ? "on" : ""}" data-act="town" data-v="${esc(t)}">${esc(t)}</button>`).join("")}</div>`;
   return town + `<div class="who">` + S.recruits.map((s) => {
     const t = tradeOf(s), b = Object.values(BUILDINGS).find((x) => x.job === t);
@@ -998,6 +998,7 @@ const ACTS = {
   newgame: () => (sheet = { menu: true, slots: true, sure: true }),
   slots: () => (sheet = { menu: true, slots: true }),
   slot: (v) => { if (+v === slot) return "keep"; useSlot(+v); landPos = null; plan = { party: [], rations: 6, meals: 0, floor: 1 }; tab = "village"; sheet = null; knocked = null; chosen = []; },
+  towns: () => { S.towns = [makePlace(), makePlace(), makePlace()]; S.town = S.towns[0]; save(); const el = document.getElementById("town"); if (el) el.value = S.town; },
   town: (v) => { S.town = v; save(); const el = document.getElementById("town"); if (el) el.value = v; },
   recruit: (v) => {
     const id = +v;
