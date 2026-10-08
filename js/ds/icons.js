@@ -52,6 +52,8 @@ const ICONS = {
   "🪔": ["ra-candle", "yellow"],
   "👹": ["ra-monster-skull", "red"],
   "📕": ["lu-book-marked", "brown"],
+  "🔘": ["lu-circle-dot", "red"],
+  "🀄": ["lu-dice-5", "yellow"],
   "🤺": ["lu-swords", "ink"],
   "💨": ["lu-wind", "teal"],
   "❤": ["lu-heart", "red"],

@@ -26,7 +26,7 @@ public class MainActivity extends Activity {
   private static final String HOST = "appassets.androidplatform.net";
   private static final int SAVE = 1, OPEN = 2;
   private static final Map<String, String> TYPES = Map.of("html", "text/html", "js", "text/javascript",
-      "css", "text/css", "webp", "image/webp", "png", "image/png", "webmanifest", "application/manifest+json");
+      "css", "text/css", "avif", "image/avif", "png", "image/png", "webmanifest", "application/manifest+json");
 
   private WebView web;
   private String pending;

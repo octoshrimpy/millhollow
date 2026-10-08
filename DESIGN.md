@@ -198,7 +198,7 @@ old word or a generated root) plus an English ending: `Brackmere`, `Aldwick`.
 
 ## Portraits
 
-`assets/face-<id>-<age>-<mood>.webp`: 36 people, four ages (`child`, `young`, `mid`, `old`), five
+`assets/face-<id>-<age>-<mood>.avif`: 36 people, four ages (`child`, `young`, `mid`, `old`), five
 moods (`happy`, `neutral`, `sad`, `angry`, `scared`), 192px. Each person was drawn as one 5×4
 sheet, then sliced, so a face stays the same person across ages and moods. Originals of the 45
 replaced child panels are in `assets/.orig-child/`.

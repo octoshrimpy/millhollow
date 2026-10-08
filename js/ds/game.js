@@ -131,7 +131,8 @@ function gossip(home) {
     b.credulity ??= Math.random();
     v *= 0.4 + 0.6 * b.credulity;
     (b.heard ||= []).push({ about, death: x.death, crown: x.crown, what: x.what, v, hops: x.hops + 1, from: a.id, until: fades() });
-    gameLog(`${a.name} told ${b.name}: ${byId(about).name} ${deed(x, v)}.`, "story", [a, b]);
+    const who = pick([`${a.name} told ${b.name}`, `${b.name} listened to ${a.name}`, `${b.name} overheard ${a.name}`]);
+    gameLog(`${who}: ${byId(about).name} ${deed(x, v)}.`, "story", [a, b]);
   }
   home.forEach((t) => { if (home.filter((o) => grudge(o, t)).length >= Math.max(1, Math.ceil((home.length - 1) / 3))) think(t, "blamed"); });
 }
@@ -284,7 +285,7 @@ function mood(s) {
   if (s.hp < st.hpMax * 0.7) return "sad";
   return s.morale >= 75 ? "happy" : "neutral";
 }
-const faceSrc = (s) => `assets/face-${s.face}-${s.age}-${mood(s)}.webp`;
+const faceSrc = (s) => `assets/face-${s.face}-${s.age}-${mood(s)}.avif`;
 const living = () => S.settlers.filter((s) => !s.dead);
 const byId = (id) => S.settlers.find((s) => s.id === id) || (S.gone || []).find((s) => s.id === id);
 
@@ -733,7 +734,7 @@ function trouble(home, hold) {
   const mourning = !S.expedition && home.some((s) => fresh(s).some((x) => x.k === "grief"));
   if (!S.expedition && home.length > 2 && S.res.food > plate * 4 && chance(mourning ? 0.2 : 0.04)) {
     S.trouble = { kind: "feast", take: { food: plate } };
-    return gameLog(mourning ? `Talk of a wake.` : `Talk of a feast.`, "story", home);
+    return gameLog(mourning ? `Talk of a wake.` : `Talk of a feast.`, "story");
   }
   const piles = ["food", "wood", "stone", "herbs"].sort((a, b) => S.res[b] - S.res[a]).filter((r) => S.res[r] >= 20).slice(0, 2);
   if (S.day > 8 && piles.length && chance(Math.min(0.1, 0.03 + S.res[piles[0]] / 3000))) {
@@ -754,7 +755,7 @@ function trouble(home, hold) {
   if (S.day > 12 && chance(Math.min(0.06, (stock() - 120) / 2500) * 0.5 ** guards().length * (has("walls") && !pirates ? 0.5 : 1))) {
     const r = ["food", "wood", "stone", "ore", "herbs"].sort((a, b) => S.res[b] - S.res[a])[0];
     S.trouble = { kind: pirates ? "pirates" : "bandits", n: 2 + Math.floor(stock() / 150), take: { [r]: Math.ceil(S.res[r] / 3) } };
-    gameLog(pirates ? `River pirates at the landing.` : `Bandits at the gate.`, "bad", living());
+    gameLog(pirates ? `River pirates at the landing.` : `Bandits at the gate.`, "bad");
   }
 }
 const foe = (s, home) => home.filter((o) => grudge(s, o)).sort((a, b) => believes(s, a) - believes(s, b))[0]
@@ -863,21 +864,45 @@ const doable = (x, s, o, at) => (o || !x.includes("{o}")) && (!x.includes("dunge
 const can = (need) => !need || (need === "water" ? wet() : built(need));
 const venues = () => Object.keys(VENUES).filter(built);
 function leisure(home) {
-  const v = venues(), free = home.filter((s) => s.pastime && !haunted(s) && s.morale >= 30);
-  if (!free.length || !chance(Math.min(0.7, 0.3 + 0.08 * v.length))) return;
-  const steam = v.filter((k) => VENUES[k].steam), hot = free.filter((s) => drive(s, "anger") >= 35).sort((a, b) => drive(b, "anger") - drive(a, "anger"))[0];
-  const s = steam.length && hot ? hot : pick(free), o = mate(s, home.filter((x) => x !== s));
-  const own = v.filter((k) => VENUES[k].for.includes(s.pastime));
-  const at = s === hot ? pick(steam) : own.length && chance(0.7) ? pick(own) : v.length && chance(0.3) ? pick(v) : null;
-  const lines = at || can(PASTIMES[s.pastime].needs) ? (at ? VENUES[at] : PASTIMES[s.pastime]).does.filter((x) => doable(x, s, o, at)) : [];
-  if (!lines.length) return;
-  const t = pick(lines), line = roll(t.replace("{o}", o?.name));
-  if (s === hot) spend(s, "anger", 0.3);
-  stir(s, "restless", -15); stir(s, "grief", -5); stir(s, "warmth", 5);
-  s.morale = clampMorale(s.morale + 2);
-  if (t.includes("{o}")) { stir(o, "warmth", 5); tie(s, o, 4); }
-  note(s, { text: line[0].toUpperCase() + line.slice(1) + "." });
-  gameLog(`${s.name} ${line}.`, "good", t.includes("{o}") ? [s, o] : [s], s !== hot);
+  const v = venues(), steam = v.filter((k) => VENUES[k].steam);
+  for (const s of home.filter((s) => s.pastime && !haunted(s))) {
+    const hot = steam.length && drive(s, "anger") >= 35;
+    let o = mate(s, home.filter((x) => x !== s));
+    const own = v.filter((k) => VENUES[k].for.includes(s.pastime));
+    const first = hot ? pick(steam) : own.length && chance(0.7) ? pick(own) : v.length && chance(0.3) ? pick(v) : null;
+    const tries = hot ? steam : [first, null, ...own, ...v];
+    for (const at of tries) {
+      const lines = at || can(PASTIMES[s.pastime].needs) ? (at ? VENUES[at] : PASTIMES[s.pastime]).does.filter((x) => doable(x, s, o, at)) : [];
+      if (!lines.length) continue;
+      let t = pick(lines), together = false, snub = null;
+      if (o && (t.includes("{o}") || chance(0.35))) {
+        together = !grudge(o, s) && chance(0.6 + tieOf(o, s) / 100 - drive(o, "anger") / 200);
+        if (!together) {
+          tie(s, o, -1); stir(s, "pride", -3); s.morale = clampMorale(s.morale - 3);
+          snub = o;
+          o = null;
+          const solo = lines.filter((x) => !x.includes("{o}"));
+          if (!solo.length) continue;
+          if (t.includes("{o}")) t = pick(solo);
+        }
+      }
+      const line = roll(t.replace("{o}", o?.name));
+      if (hot) spend(s, "anger", 0.3);
+      stir(s, "restless", -15); stir(s, "grief", -5); stir(s, "warmth", 5);
+      s.morale = clampMorale(s.morale + 2);
+      const cap = (x) => x[0].toUpperCase() + x.slice(1) + ".", withO = t.includes("{o}");
+      if (together) {
+        stir(s, "pride", 8); stir(o, "warmth", 8); tie(s, o, 4);
+        note(s, { text: cap(`I ${(withO ? line : `${line} with ${o.name}`).replace(/\btheir\b/g, "my")}`) });
+        note(o, { text: cap(withO ? `${s.name} ${line.replace(o.name, "me")}` : `I ${line} with ${s.name}`) });
+        gameLog(`${s.name} ${withO ? line : `${line} with ${o.name}`}.`, "good", [], !hot);
+      } else {
+        note(s, { text: cap(`I ${line.replace(/\btheir\b/g, "my")}${snub ? " alone" : ""}`) });
+        gameLog(snub ? `${snub.name} turned down ${s.name}. ${s.name} ${line} alone.` : `${s.name} ${line}.`, snub ? "story" : "good", [], !hot);
+      }
+      break;
+    }
+  }
 }
 function verse(home) {
   const poet = pick(home.filter((s) => s.pastime === "poetry" && !haunted(s) && s.morale >= 30));
@@ -890,7 +915,8 @@ function verse(home) {
   pleased.forEach((s) => { think(s, "liked"); tie(s, poet, 3); });
   bored.forEach((s) => { think(s, "groaned"); tie(s, poet, -3); });
   stir(poet, "pride", bored.length > pleased.length ? -10 : 15);
-  gameLog(`${poet.name} read a poem at night.${pleased.length ? ` ${pleased.map((o) => o.name).join(" and ")} liked it.` : ""}${bored.length ? ` ${bored.map((o) => o.name).join(" and ")} didn't.` : ""}`, "story", [poet, ...fans]);
+  gameLog(`${poet.name} read a poem at night.${pleased.length ? ` ${pleased.map((o) => o.name).join(" and ")} liked it.` : ""}${bored.length ? ` ${bored.map((o) => o.name).join(" and ")} didn't.` : ""}`, "story");
+  note(poet, { text: "I read a poem at night." });
 }
 function wish(home) {
   if (!chance(0.04)) return;
@@ -946,7 +972,7 @@ function revel(home, couple = []) {
   const r = Math.random();
   if (ran && r < 0.3) { think(ran, "fled"); return gameLog(`${ran.name} nearly ran again.`, "story", couple); }
   if (pair && r < 0.45) return brawl(pair[0], pair[1], "Drink ran high. ");
-  if (r < 0.65 && home.some((o) => o.heard?.length)) { gameLog(`Tongues loosened.`, "story", home); return gossip(home), gossip(home); }
+  if (r < 0.65 && home.some((o) => o.heard?.length)) return gossip(home), gossip(home);
   if (r < 0.72) { pick(home).wander = { back: S.day + 2 + rand(4) }; return; }
   if (r < 0.8 && !S.visitor) {
     S.visitor = makeSettler();
@@ -1028,7 +1054,7 @@ function settle(how) {
   }
   const who = { debt: "The collectors", pirates: "The pirates" }[t.kind] || "The bandits";
   if (how === "yes") { grab(1); return gameLog(`Paid ${what}. ${who} left.`, "bad"); }
-  if (how === "ignore") { grab(2); return gameLog(`Nobody went to the gate. ${who} took ${what} twice over.`, "bad", living()); }
+  if (how === "ignore") { grab(2); return gameLog(`Nobody went to the gate. ${who} took ${what} twice over.`, "bad"); }
   const guard = living().filter((o) => !away(o));
   if (chance(holds(t.n))) {
     guard.forEach((o) => { hurt(o, 0.05, 0.25); gainXp(o, t.n * 3); });
@@ -1425,6 +1451,8 @@ function reached(f) {
     e.loot.relics = (e.loot.relics || 0) + n;
     gameLog(`Floor ${f}: first clear. +${n}🏺`, "good", partyAlive());
   }
+  const e = S.expedition;
+  if (!(e.cleared ||= []).includes(f)) e.cleared.push(f);
   S.deepest = Math.max(S.deepest, f);
   siteOf().deepest = Math.max(siteOf().deepest || 0, f);
 }
@@ -1686,7 +1714,7 @@ function resolveEvent(act) {
 
 function startFight(enemies) {
   const f = S.expedition.fight = newFight(partyAlive(), enemies);
-  if (f.enemies.some((x) => x.boss) || f.odds >= 1) return;
+  if (f.enemies.some((x) => x.boss) || f.odds >= 1 || S.expedition.homing) return;
   f.paused = false;
   if (f.odds >= 0.25) return;
   f.quick = true;
@@ -1764,6 +1792,7 @@ function endFight(won) {
     gameLog("Party fled.", "bad", partyAlive());
   } else {
     r.done = true;
+    r.quick = fight.quick;
     partyAlive().forEach((a, i, p) => p.slice(i + 1).forEach((b) => tie(a, b, 2)));
     const xp = fight.enemies.reduce((a, en) => a + (en.boss ? 20 : 3), 0) + f;
     partyAlive().forEach((s) => gainXp(s, xp));
@@ -1799,7 +1828,7 @@ function camp() {
   save();
 }
 
-const untouched = (m) => Object.values(m.rooms).filter((r) => !r.done).length;
+const untouched = (m) => Object.values(m.rooms).filter((r) => r.seen && !r.done).length;
 function descend() {
   const e = S.expedition, r = e.map.rooms[e.map.at];
   if (!e || e.fight || !["stairs", "boss"].includes(r.type) || !r.done) return;
@@ -1845,6 +1874,7 @@ function returnHome() {
     gameLog(`Set the keeper's crown 👑 in the hall. The ward reaches further.`, "good", living());
   }
   living().forEach((s) => think(s, "home"));
+  party.forEach((s) => stir(s, "restless", -15 - 5 * (e.cleared || []).length));
   gameLog(`Home after ${days}d: ${[...brought, ...e.gear.map((g) => g.name)].join(" ") || "nothing"}.${short ? ` ${short} rations short.` : ""}`, short ? "bad" : "story", party);
   S.remains.forEach((r) => { if (r.at === "carried") r.at = "home"; });
   bury();

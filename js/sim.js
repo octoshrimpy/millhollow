@@ -217,11 +217,11 @@ const ageOf = (n) => (AGES.find((a) => n <= a.hi) || AGES[AGES.length - 1]).id;
 
 // One person per id, drawn once as a 5x4 sheet and sliced: four ages down,
 // five moods across. Everyone in a run wears a different id.
-const FACES = 36; // sheets drawn so far — raise as assets/face-N-*.webp land
+const FACES = 36; // sheets drawn so far — raise as assets/face-N-*.avif land
 const FACE_IDS = Array.from({ length: FACES }, (_, i) => i + 1);
 const MOODS = ["happy", "neutral", "sad", "angry", "scared"];
 const portrait = (id, age = "young", mood = "neutral") =>
-  `assets/face-${FACE_IDS.includes(id) ? id : 1}-${age}-${mood}.webp`;
+  `assets/face-${FACE_IDS.includes(id) ? id : 1}-${age}-${mood}.avif`;
 
 // ---------- world gen ----------
 // Villagers are rolled the same way the leader is: a face, a name, a past life,

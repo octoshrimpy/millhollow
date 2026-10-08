@@ -13,7 +13,7 @@ let plan = { party: [], rations: 6, meals: 0, floor: 1 };
 function faceFor(s, hp, hpMax) {
   let m = mood(s);
   if (hp != null) m = hp <= 0 ? "sad" : hp < hpMax * 0.3 ? "scared" : hp < hpMax * 0.7 ? "sad" : m;
-  return `assets/face-${s.face}-${s.age}-${m}.webp`;
+  return `assets/face-${s.face}-${s.age}-${m}.avif`;
 }
 const bar = (v, max, cls = "") =>
   `<div class="bar ${cls}"><i style="width:${Math.max(0, Math.min(100, (v / max) * 100))}%"></i></div>`;
@@ -34,7 +34,7 @@ function formation(list, hp) {
 
 function render() {
   if (S.expedition) { if (!["dungeon", "people", "log"].includes(tab)) tab = "dungeon"; }
-  else if (tab === "dungeon" || (tab === "research" && !built("library"))) tab = "village";
+  else if (tab === "dungeon") tab = "village";
   renderTop();
   document.body.classList.toggle("founding", !!S.recruits);
   if (S.recruits) {
@@ -97,7 +97,7 @@ function renderTop() {
   morph($("#savebtn"), iconize("💾"));
   const log = ["log", "Log", "📖"];
   const tabs = S.expedition ? [["dungeon", "Dungeon", "🪜"], ["people", "People", "👥"], log]
-    : [["village", "Village", "🏘"], ["people", "People", "👥"], ["forge", "Forge", "⚒"], ...(built("library") ? [["research", "Research", "📚"]] : []), log, ["expedition", "Expedition", "🧭"]];
+    : [["village", "Village", "🏘"], ["people", "People", "👥"], ["forge", "Forge", "⚒"], ["research", "Research", "📚"], log, ["expedition", "Expedition", "🧭"]];
   morph($("#tabs"), iconize(tabs.map(([id, name, icon]) =>
     `<button data-act="tab" data-v="${id}" aria-label="${name}" class="${tab === id ? "on" : ""}">${icon}${tab === id ? `<small>${name}</small>` : id === "log" ? `<small class="lg-hide">Hide log</small><small class="lg-show">Show log</small>` : ""}</button>`).join("")));
 }
@@ -196,7 +196,7 @@ function viewVillage() {
   newLand = [];
   const n = living().length, over = n > beds();
   return `<div class="land" id="land"><div class="grid" style="--w:${x1 - x0 + 1}" data-x0="${x0}" data-y0="${y0}">${tiles}</div></div>
-    <div class="row between"><span class="row"><span class="housing ${over ? "bad" : ""}">🛏️ ${n}/${beds()}</span>
+    <div class="row between endbar"><span class="row"><span class="housing ${over ? "bad" : ""}">🛏️ ${n}/${beds()}</span>
     ${S.hall != null ? `<button class="small ghost" data-act="center" aria-label="Centre">🎯</button>` : ""}</span>
     <button class="primary" data-act="endday">End day ▸</button></div>
     ${visitor}${alarm}`;
@@ -219,22 +219,22 @@ function troubleStakes(t) {
     debt: [`Collectors want ${want} for ${esc(s?.name)}'s debts.`, ...armed],
     fey: [`${esc(s?.name)} wants ${want}.`, `Given: gear named for their ghost.`, `Refused or left: they smash where they work.`],
     feast: [`A feast for everyone home: ${want}.`],
-    wedding: [`They marry either way.`, `${want} buys the whole village a wedding.`],
-    trader: [`A trader at the gate. Pick one trade.`, `Gone at End day.`],
+    wedding: [`${want} buys the whole village a wedding.`],
+    trader: [`A trader at the gate.`],
   }[t.kind] || [];
   return `<div class="stakes">${lines.map((l) => `<p>${l}</p>`).join("")}</div>`;
 }
 function sheetTrouble() {
   const t = S.trouble, ok = afford(t.take);
   const odds = t.n && holds(t.n), label = (x) => `<small>${x}</small>`;
-  const [noText, yesText] = { wedding: ["Small", "Feast"], feast: ["Skip", "Feast"], fey: ["Refuse", "Give"], debt: ["Refuse", "Pay"], bandits: ["", "Pay"], pirates: ["", "Pay"] }[t.kind] || ["", ""];
+  const [noText, yesText] = { wedding: ["Small ceremony", "Throw a feast"], feast: ["Skip", "Feast"], fey: ["Refuse", "Give"], debt: ["Refuse", "Pay"], bandits: ["", "Pay"], pirates: ["", "Pay"] }[t.kind] || ["", ""];
   const no = t.n ? `⚔ ${Math.round(odds * 100)}%${label(odds >= 0.65 ? "Likely win" : odds >= 0.4 ? "Even fight" : "Likely loss")}` : (t.pair ? "💍" : "✕") + label(noText);
   const yes = costText(t.take) + (t.give ? ` ❯ ${goods(t.give)}` : t.n ? "" : " ✓") + label(yesText);
   if (t.offers) return `<div class="arrival"><div class="row center">${troubleHead(t)}</div>${troubleStakes(t)}
     ${t.offers.map((o, i) => `<button class="wide" data-act="settle" data-v="${i}" ${afford(o.take) ? "" : "disabled"}>${costText(o.take)} ❯ ${goods(o.give)}</button>`).join("")}
     <button class="wide" data-act="settle" data-v="no">✕</button></div>`;
   return `<div class="arrival"><div class="row center">${troubleHead(t)}</div>${troubleStakes(t)}
-    <div class="row pair"><button data-act="settle" data-v="no">${no}</button><button class="${t.n ? "" : "primary"}" data-act="settle" data-v="yes" ${ok ? "" : "disabled"}>${yes}</button></div></div>`;
+    <div class="row pair"><button data-act="settle" data-v="no">${no}</button><button class="${t.n || t.pair ? "" : "primary"}" data-act="settle" data-v="yes" ${ok ? "" : "disabled"}>${yes}</button></div></div>`;
 }
 
 function scatter(i, icon) {
@@ -503,6 +503,8 @@ function viewForge() {
 }
 
 function viewResearch() {
+  if (!built("library")) return `<p class="dim">Build a library first.</p>`;
+  if (!staffed("library")) return `<p class="dim">The library needs a worker.</p>`;
   return `<p class="dim">Staffed library: 1🏺 → research per day.</p><div class="picks">` +
     Object.entries(RESEARCH).map(([id, r]) => {
       const locked = r.after && !has(r.after), repeat = REPEAT_RESEARCH.includes(id), n = tech(id), cost = researchCost(id), now = S.study && S.study.id === id;
@@ -798,6 +800,8 @@ function sheetMenu() {
     + (document.fullscreenEnabled ? `<button class="wide ${document.fullscreenElement ? "on" : ""}" data-act="fullscreen">⛶ Fullscreen</button>` : "") + `<a class="src" href="https://github.com/octoshrimpy/millhollow" target="_blank" rel="noopener">${GITHUB_MARK}<small>Source</small></a></div>`;
 }
 
+const ask = (text, act, v) => (sheet = { ask: { text, act, v, back: sheet } });
+const sheetAsk = () => `<div class="menu"><p>${esc(sheet.ask.text)}</p><div class="row pair"><button data-act="no">✕<small>No</small></button><button class="primary" data-act="yes">✓<small>Yes</small></button></div></div>`;
 function renderSheet() {
   const box = $("#sheet"), inner = box.querySelector(".inner");
   if (!sheet) {
@@ -818,7 +822,7 @@ function renderSheet() {
     box.hidden = false;
     box.classList.add("open");
   }
-  morph(inner, iconize(sheet.menu ? sheetMenu() : sheet.event ? sheetEvent() : sheet.visitor ? sheetVisitor() : sheet.trouble ? sheetTrouble() : sheet.person ? sheetPerson()
+  morph(inner, iconize(sheet.ask ? sheetAsk() : sheet.menu ? sheetMenu() : sheet.event ? sheetEvent() : sheet.visitor ? sheetVisitor() : sheet.trouble ? sheetTrouble() : sheet.person ? sheetPerson()
     : sheetPlot(sheet.i)));
 }
 
@@ -997,6 +1001,7 @@ const ACTS = {
   wipe: () => { newGame(); landPos = null; plan = { party: [], rations: 6, meals: 0, floor: 1 }; tab = "village"; sheet = null; knocked = null; },
   plot: (v) => (sheet = { i: +v }),
   close: () => (sheet = null),
+  imported: (v) => importCode(v),
   clear: () => { clearLand(sheet.i); sheet = null; },
   build: (v) => {
     build(sheet.i, v);
@@ -1006,8 +1011,11 @@ const ACTS = {
   center: () => { placeLand(true); return "keep"; },
   demolish: () => {
     const back = Object.entries(refundOf(sheet.i)).map(([k, v]) => `${v} ${RESOURCES[k].name.toLowerCase()}`).join(", ");
-    if (confirm(back ? `Demolish? Get back ${back}.` : "Demolish? No refund.")) { demolish(sheet.i); sheet = null; }
+    ask(back ? `Demolish? Get back ${back}.` : "Demolish? No refund.", "demolished", sheet.i);
   },
+  demolished: (v) => { demolish(+v); sheet = null; },
+  yes: () => { const a = sheet.ask; sheet = a.back; ACTS[a.act](a.v); },
+  no: () => (sheet = sheet.ask.back),
   upgrade: () => upgrade(sheet.i),
   improve: () => improve(sheet.i),
   assign: (v) => { assign(sheet.i, +v); sheet = null; },
@@ -1042,11 +1050,11 @@ const ACTS = {
   move: (v) => {
     const e = S.expedition;
     if (e && !e.warned && canMove(v) && onlyEnoughHome()) {
-      if (!confirm(`Food left only covers the walk home (${homeDays()}d, ${homeFood()} rations). Keep going?`)) return;
-      e.warned = true;
+      return ask(`Food left only covers the walk home (${homeDays()}d, ${homeFood()} rations). Keep going?`, "moved", v);
     }
     move(v);
   },
+  moved: (v) => { S.expedition.warned = true; move(v); },
   event: (v) => { resolveEvent(v); if (sheet?.event) sheet = null; },
   asked: () => (sheet = { event: true }),
   forgetab: (v) => (forgeTab = v),
@@ -1086,12 +1094,14 @@ const ACTS = {
     return "keep";
   },
   saveopen: () => { $("#savepick").click(); return "keep"; },
-  saveload: () => { loadCode($("#savecode").value); return "keep"; },
+  saveload: () => loadCode($("#savecode").value),
 };
 
 function loadCode(text) {
-  if (!String(text).trim()) { $("#savecode").focus(); return; }
-  if (!confirm("Replace this game?")) return;
+  if (!String(text).trim()) { $("#savecode").focus(); return "keep"; }
+  ask("Replace this game?", "imported", text);
+}
+function importCode(text) {
   importSave(text).then(() => {
     plan = { party: [], rations: 6, meals: 0, floor: 1 };
     tab = "village"; sheet = null; knocked = null; landPos = null; fightBuilt = null; logSeen = Infinity;
@@ -1115,7 +1125,7 @@ function run(act, v, el) {
   const before = snap(), was = tab, life = act === "lifetab" && !!sheet.ties !== (v === "ties");
   if (ACTS[act](v, el) === "keep") return;
   const draw = () => { render(); celebrate(before); };
-  if ((tab === was && !life) || !document.startViewTransition || matchMedia("(prefers-reduced-motion: reduce)").matches) return draw();
+  if ((tab === was && !life) || !wide.matches || !document.startViewTransition || matchMedia("(prefers-reduced-motion: reduce)").matches) return draw();
   const order = [...document.querySelectorAll("#tabs button")].map((b) => b.dataset.v);
   root.dataset.vt = life ? "life" : "tab";
   root.dataset.slide = life ? (v === "ties" ? "on" : "back") : order.indexOf(tab) < order.indexOf(was) ? "back" : "on";
@@ -1162,6 +1172,16 @@ function celebrate(b) {
     Juice.burst(p.x, p.y + 12, { n: 26, colors: PAL.dust, speed: 150, up: 30, gravity: 120, life: 0.8, size: 5 });
     if (t) { Juice.pop(el, 1.25); Juice.burst(p.x, p.y, { n: 14, colors: PAL.gold, speed: 180, up: 80, life: 0.6 }); }
   });
+
+  if (b.exp && e && b.exp.floor === e.map.floor) {
+    for (const [k, r] of Object.entries(e.map.rooms)) {
+      const el = r.quick && r.done && !b.exp.done.includes(k) && document.querySelector(`.room[data-k="${k}"]`);
+      if (!el) continue;
+      const p = Juice.center(el);
+      Juice.pop(el, 1.15);
+      Juice.burst(p.x, p.y, { n: 30, colors: [...PAL.gold, "#9fe07a", "#b9a4d6"], speed: 220, up: 160, gravity: 520, life: 1.1, size: 3, drag: 0.95 });
+    }
+  }
 
   if (!b.exp && e) Juice.veil("Dungeon", `Floor ${e.map.floor}`);
   else if (b.exp && !e) Juice.veil("Millhollow", `Day ${S.day}`);
