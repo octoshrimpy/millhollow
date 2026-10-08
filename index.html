@@ -52,6 +52,12 @@
   .housing { display: inline-flex; align-items: center; gap: .35em; }
   #menu, #savebtn { background: none; border: 0; padding: .4em; color: var(--dim); font-size: 1.15rem; line-height: 1; }
   .founding #dock { display: none; }
+  .town { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: .8em; }
+  .town input { flex: 1 1 100%; font: inherit; font-size: 1.2rem; text-align: center; padding: .4em; background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; }
+  .town button { flex: 1; }
+  .menu .slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: .9em; }
+  .menu .slots button { display: flex; justify-content: center; flex-direction: column; align-items: center; min-width: 0; overflow-wrap: anywhere; }
+  .menu .slots small { color: var(--dim); }
   .reroll, .timed { position: relative; overflow: hidden; }
   .cooling::before { content: ""; position: absolute; inset: 0; background: color-mix(in srgb, var(--accent) 30%, transparent); transform-origin: left; animation: cool var(--dur, 3s) linear forwards; animation-delay: calc(var(--left) - var(--dur, 3s)); }
   @keyframes cool { from { transform: scaleX(0); } to { transform: scaleX(1); } }
@@ -73,7 +79,7 @@
   .saves { margin: 0 0 .9em; }
   .saves .pair button { display: flex; flex-direction: column; align-items: center; gap: .15em; padding: .5em 0; }
   .saves .pair small, .menu .src small { font-size: .68rem; color: var(--dim); }
-  .menu .install { margin-top: .6em; }
+  .menu .acts { gap: 8px; margin-top: .6em; }
   .menu .src { display: flex; align-items: center; justify-content: center; gap: .4em; margin-top: 1.2em; padding: .4em; color: var(--dim); text-decoration: none; }
   .menu .src svg { width: 1.1em; height: 1.1em; }
   .saves textarea { width: 100%; box-sizing: border-box; resize: none; font: .75rem/1.3 ui-monospace, monospace; word-break: break-all;

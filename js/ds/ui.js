@@ -44,7 +44,7 @@ function render() {
     return;
   }
   if (!living().length) {
-    morph($("#view"), iconize(`<div class="card event"><p>Everyone is dead. Millhollow is empty.</p>
+    morph($("#view"), iconize(`<div class="card event"><p>Everyone is dead. ${esc(S.town)} is empty.</p>
       <p class="dim">${S.day} days. Deepest floor: ${S.deepest}.</p></div>`));
     renderLog();
     $("#fight").hidden = true;
@@ -77,7 +77,9 @@ let chosen = [], cooled = 0, shine = 0;
 function viewRecruits() {
   chosen = chosen.filter((id) => S.recruits.some((s) => s.id === id));
   const left = cooled - Date.now(), cooling = left > 0;
-  return `<div class="who">` + S.recruits.map((s) => {
+  const town = `<div class="town"><input id="town" maxlength="20" spellcheck="false" autocomplete="off" value="${esc(S.town)}" aria-label="Town name">
+    ${S.towns.map((t) => `<button class="small ${t === S.town ? "on" : ""}" data-act="town" data-v="${esc(t)}">${esc(t)}</button>`).join("")}</div>`;
+  return town + `<div class="who">` + S.recruits.map((s) => {
     const t = tradeOf(s), b = Object.values(BUILDINGS).find((x) => x.job === t);
     return `<button class="${chosen.includes(s.id) ? "on" : ""} ${s.id === shine ? "shine" : ""}" data-act="recruit" data-v="${s.id}">
       <span class="me"><img src="${faceSrc(s)}" alt=""></span>
@@ -418,7 +420,7 @@ function viewPeople() {
   const crew = (xs) => `<div class="crew">${xs.map(settlerCard).join("")}</div>`;
   const cards = !down.length ? crew(living())
     : `<h4>${SITES[siteOf().kind].icon} ${esc(siteOf().name)}</h4>${crew(down)}
-      <h4 class="split">🏘 Millhollow</h4>${crew(living().filter((s) => !below(s)))}`;
+      <h4 class="split">🏘 ${esc(S.town)}</h4>${crew(living().filter((s) => !below(s)))}`;
   return cards + (dead.length ? `<h4>🪦</h4><div class="remembered">${dead.map((s) =>
     mug(s)).join("")}</div>` : "");
 }
@@ -797,11 +799,15 @@ function sheetMenu() {
       <button data-act="savecopy">📋<small>Copy</small></button><button data-act="savefile">💾<small>Save file</small></button>
       <button data-act="saveopen">📂<small>Open file</small></button><button data-act="saveload">📥<small>Load</small></button>
     </div><input id="savepick" type="file" accept=".txt,.json,text/plain,application/json" hidden></div>`;
-  return `<div class="menu"><div class="themes">${THEMES.map(swatch).join("")}</div>${saves}` + (sheet.sure
-    ? `<div class="row pair"><button data-act="close">Keep playing</button><button class="danger" data-act="wipe" ${S.recruits ? "disabled" : ""}>Delete save</button></div>`
-    : `<button class="danger wide" data-act="newgame" ${S.recruits ? "disabled" : ""}>New game</button>`)
-    + (installer ? `<button class="wide install" data-act="install">📲 Install</button>` : "")
-    + (document.fullscreenEnabled ? `<button class="wide ${document.fullscreenElement ? "on" : ""}" data-act="fullscreen">⛶ Fullscreen</button>` : "") + `<a class="src" href="https://github.com/octoshrimpy/millhollow" target="_blank" rel="noopener">${GITHUB_MARK}<small>Source</small></a></div>`;
+  if (sheet.slots) return `<div class="menu"><div class="slots">${[0, 1, 2].map((n) => {
+    const s = n === slot ? { town: S.town, day: S.recruits ? null : S.day } : slotInfo(n);
+    return `<button class="${n === slot ? "on" : ""}" data-act="slot" data-v="${n}">${s ? `${esc(s.town)}${s.day ? `<small>Day ${s.day}</small>` : ""}` : "＋"}</button>`;
+  }).join("")}</div>` + (sheet.sure
+    ? `<div class="row pair"><button data-act="slots">Keep playing</button><button class="danger" data-act="wipe">Delete ${esc(S.town)}</button></div>`
+    : `<button class="danger wide" data-act="newgame" ${S.recruits ? "disabled" : ""}>New game</button>`) + `</div>`;
+  return `<div class="menu"><div class="themes">${THEMES.map(swatch).join("")}</div>${saves}<button class="wide" data-act="slots">🗂 Save slots</button>`
+    + `<div class="row pair acts">${installer ? `<button class="install" data-act="install">📲 Install</button>` : ""}`
+    + `${document.fullscreenEnabled ? `<button class="${document.fullscreenElement ? "on" : ""}" data-act="fullscreen">⛶ Fullscreen</button>` : ""}</div>` + `<a class="src" href="https://github.com/octoshrimpy/millhollow" target="_blank" rel="noopener">${GITHUB_MARK}<small>Source</small></a></div>`;
 }
 
 const ask = (text, act, v) => (sheet = { ask: { text, act, v, back: sheet } });
@@ -989,7 +995,10 @@ const ACTS = {
   older: () => (older = true),
   menu: () => (sheet = { menu: true }),
   theme: (v) => { applyTheme(v); },
-  newgame: () => (sheet = { menu: true, sure: true }),
+  newgame: () => (sheet = { menu: true, slots: true, sure: true }),
+  slots: () => (sheet = { menu: true, slots: true }),
+  slot: (v) => { if (+v === slot) return "keep"; useSlot(+v); landPos = null; plan = { party: [], rations: 6, meals: 0, floor: 1 }; tab = "village"; sheet = null; knocked = null; chosen = []; },
+  town: (v) => { S.town = v; save(); const el = document.getElementById("town"); if (el) el.value = v; },
   recruit: (v) => {
     const id = +v;
     if (chosen.includes(id)) chosen = chosen.filter((x) => x !== id);
@@ -1189,7 +1198,7 @@ function celebrate(b) {
   }
 
   if (!b.exp && e) Juice.veil("Dungeon", `Floor ${e.map.floor}`);
-  else if (b.exp && !e) Juice.veil("Millhollow", `Day ${S.day}`);
+  else if (b.exp && !e) Juice.veil(S.town, `Day ${S.day}`);
   else if (b.exp && e && e.map.floor !== b.exp.floor) Juice.veil(`Floor ${e.map.floor}`, keeper(siteOf(), e.map.floor) ? "Boss floor" : "");
   else if (b.exp && e && e.map.at !== b.exp.at) {
     const here = $(".room.here"), r = e.map.rooms[e.map.at], fresh = r.done && !b.exp.done.includes(e.map.at);
@@ -1211,6 +1220,7 @@ function celebrate(b) {
     .forEach((l, i) => setTimeout(() => Juice.toast(l.text, l.kind), 300 + i * 350));
 }
 
+document.addEventListener("input", (e) => { if (e.target.id === "town") { S.town = e.target.value; save(); } });
 document.addEventListener("change", (e) => {
   const el = e.target;
   if (el.id === "savepick") { const f = el.files[0]; el.value = ""; if (f) f.text().then(loadCode); return; }

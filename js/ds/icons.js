@@ -78,6 +78,7 @@ const ICONS = {
   "📋": ["lu-clipboard-copy", "currentColor"],
   "💾": ["lu-download", "currentColor"],
   "📂": ["lu-folder-open", "currentColor"],
+  "🗂": ["lu-folders", "currentColor"],
   "📥": ["lu-log-in", "currentColor"],
   "📲": ["lu-smartphone", "currentColor"],
   "⛶": ["lu-maximize", "currentColor"],

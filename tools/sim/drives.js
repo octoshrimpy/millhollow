@@ -129,3 +129,13 @@ s.hp = max; rest(s);
 if (s.laid != null || s.job !== j) throw new Error("not back at work");
 console.log("limbs ok");
 `, ctx);
+vm.runInContext(`
+const mem = new Map();
+globalThis.localStorage = { getItem: (k) => mem.get(k) ?? null, setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k) };
+newGame(); settleIn(S.recruits.slice(0, 4).map((s) => s.id)); S.town = "Ashford"; S.day = 9; save();
+useSlot(1);
+if (!S.recruits || S.town === "Ashford" || S.towns.length !== 3) throw new Error("slot 1 not fresh");
+useSlot(0);
+if (S.town !== "Ashford" || S.day !== 9 || slotInfo(0).town !== "Ashford" || !slotInfo(1)?.founding) throw new Error("slot 0 not restored");
+console.log("slots ok");
+`, ctx);

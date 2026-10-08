@@ -1,5 +1,21 @@
 
 const SAVE_KEY = "millhollow-ds-v1";
+// Three save slots; slot 0 keeps the old key so existing saves land there.
+let slot = 0;
+try { slot = +localStorage.getItem("mh-slot") || 0; } catch (e) {}
+const slotKey = (n = slot) => (n ? `${SAVE_KEY}-${n}` : SAVE_KEY);
+function slotInfo(n) {
+  try {
+    const meta = localStorage.getItem(slotKey(n) + "-meta");
+    return meta ? JSON.parse(meta) : localStorage.getItem(slotKey(n)) ? { town: "Millhollow" } : null;
+  } catch (e) { return null; }
+}
+function useSlot(n) {
+  save();
+  slot = n;
+  try { localStorage.setItem("mh-slot", n); } catch (e) {}
+  if (!load()) newGame();
+}
 let LAND, MID;
 const setLand = (n) => { LAND = n; MID = (n >> 1) * LAND + (n >> 1); };
 setLand(17);
@@ -199,7 +215,7 @@ function why(s) {
   else if (friend) say("happy", 35, `${friend.name} and I go way back.`, `${friend.name}'s all right.`, `I can count on ${friend.name}.`);
   if (d("warmth") >= 75) say("happy", d("warmth") - 20, "This is home now.", "I love these people.", "I'd stay here forever.");
   else if (d("warmth") >= 50) say("happy", d("warmth") - 20, "Good people here.", "I like it here.", "Folk here look out for me.", "Nice to have neighbours.", "Glad I came.", "This place grows on you.");
-  if (d("pride") >= 75) say("happy", d("pride") - 20, "Nobody does it better.", "Best in Millhollow.", "Watch and learn.");
+  if (d("pride") >= 75) say("happy", d("pride") - 20, "Nobody does it better.", `Best in ${S.town}.`, "Watch and learn.");
   else if (d("pride") >= 50) say("happy", d("pride") - 20, "I'm good at what I do.", "I know my work.", "I pull my weight.");
   if (s.pastime && (s.id + S.day) % 4 === 0) say("happy", 15, `Wish I had more time for ${PASTIMES[s.pastime].name}.`, `Can't wait to get back to ${PASTIMES[s.pastime].name}.`, `Ask me about ${PASTIMES[s.pastime].name}.`);
   if (has("victory")) say("happy", 65, "We killed the keeper.", "The keeper's dead.", "We won down there.");
@@ -434,6 +450,8 @@ function newGame() {
     deepest: 0, visitor: null, expedition: null, log: [], remains: [], size: LAND, claim: 0, guards: [],
   };
   S.land = genLand(S.seed);
+  S.towns = [makePlace(), makePlace(), makePlace()];
+  S.town = S.towns[0];
   S.sites = genSites(S.seed, S.land);
   nextId = 1;
   const cls = Object.keys(CLASSES);
@@ -462,6 +480,7 @@ function reroll(keep) {
 const STARTERS = 4;
 function settleIn(ids) {
   if (!S.recruits || ids.length !== STARTERS) return;
+  S.town = String(S.town || "").trim() || S.towns[0];
   S.settlers = S.recruits.filter((s) => ids.includes(s.id));
   S.recruits = null;
   gameLog(`Arrived: ${S.settlers.map((s) => s.name).join(", ")}.`, "story", S.settlers);
@@ -504,7 +523,10 @@ function rest(s) {
 function save() {
   if (S?.settlers) living().forEach(limbs);
   for (let n = 0; n < 10; n++) {
-    try { return localStorage.setItem(SAVE_KEY, JSON.stringify({ S, nextId })); } catch (e) {
+    try {
+      localStorage.setItem(slotKey(), JSON.stringify({ S, nextId }));
+      return localStorage.setItem(slotKey() + "-meta", JSON.stringify({ town: S.town, day: S.day, founding: !!S.recruits }));
+    } catch (e) {
       if (!/quota/i.test(e.name) || S.log.length < 50) return;
       const asides = S.log.filter((l) => l.aside), shed = new Set(asides.slice(0, Math.ceil(asides.length / 2)));
       S.log = shed.size ? S.log.filter((l) => !shed.has(l)) : S.log.slice(Math.ceil(S.log.length / 4));
@@ -513,11 +535,13 @@ function save() {
 }
 function load() {
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
+    const raw = localStorage.getItem(slotKey());
     if (!raw) return false;
     ({ S, nextId } = JSON.parse(raw));
     setLand(S.size ||= 17);
     S.claim ??= 0;
+    S.towns ??= [makePlace(), makePlace(), makePlace()];
+    S.town ??= S.recruits ? S.towns[0] : "Millhollow";
     if (S.expedition && S.expedition.fight) S.expedition.fight = null; // a fight restarts on reload
     if (!S.seen) widenLand();
     if (!S.land) landFromWild();
@@ -600,7 +624,7 @@ const CODE_TAG = "mh1:";
 const pipe = (bytes, stream) => new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer();
 async function exportSave() {
   save();
-  const zipped = new Uint8Array(await pipe(new TextEncoder().encode(localStorage.getItem(SAVE_KEY)), new CompressionStream("gzip")));
+  const zipped = new Uint8Array(await pipe(new TextEncoder().encode(localStorage.getItem(slotKey())), new CompressionStream("gzip")));
   let bin = "";
   for (let i = 0; i < zipped.length; i += 0x8000) bin += String.fromCharCode(...zipped.subarray(i, i + 0x8000));
   return CODE_TAG + btoa(bin);
@@ -614,10 +638,10 @@ async function importSave(text) {
   }
   const data = JSON.parse(json);
   if (!data.S || !Array.isArray(data.S.settlers) || !Array.isArray(data.S.grid)) throw new Error("not a save");
-  const keep = localStorage.getItem(SAVE_KEY);
-  localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+  const keep = localStorage.getItem(slotKey());
+  localStorage.setItem(slotKey(), JSON.stringify(data));
   if (!load()) {
-    if (keep == null) localStorage.removeItem(SAVE_KEY); else localStorage.setItem(SAVE_KEY, keep);
+    if (keep == null) localStorage.removeItem(slotKey()); else localStorage.setItem(slotKey(), keep);
     load();
     throw new Error("bad save");
   }
@@ -1769,7 +1793,7 @@ function resolveEvent(act) {
     const s = freed || makeSettler();
     s.guest = S.day + 3 + rand(3);
     S.settlers.push(s);
-    gameLog(`Freed ${s.name}. Gone to Millhollow to rest.`, "good", [s, ...party]);
+    gameLog(`Freed ${s.name}. Gone to ${S.town} to rest.`, "good", [s, ...party]);
   } else if (act === "altar") {
     const lore = has("altar_lore"), cost = lore ? 10 : 5;
     if (party.some((s) => s.hp <= cost)) return gameLog("Altar: not enough blood.", "bad", party);

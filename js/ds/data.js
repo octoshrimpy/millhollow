@@ -286,7 +286,7 @@ const PAST = {
     "Wanted {quiet|land|to disappear|a fresh start}.",
     "Wanted {to see the frontier|adventure|to see where the road ended}.",
     "Followed {rumors of good farmland|rumors of treasure|an old friend|a wandering preacher|a drunk's map}.",
-    "Heard {there was work|Millhollow needed hands|nobody asks questions here}.",
+    "Heard {there was work|the village needed hands|nobody asks questions here}.",
     "Chased {a job that didn't exist|cheap land|a debtor|a lover}.",
     "Left {after a bad harvest|when their employer died|before the law arrived|after a family fight}.",
     "Inherited {nothing|trouble}.",
@@ -497,12 +497,12 @@ const EVENTS = [
     choices: [{ label: "Harvest", act: "mushrooms" }, { label: "Leave", act: "none" }],
   },
   {
-    id: "marker", text: "A millstone carved with Millhollow's mark.",
+    id: "marker", text: "A millstone carved with the village's mark.",
     choices: [{ label: "Pry it out", act: "marker" }, { label: "Leave", act: "none" }],
   },
 ];
 
-const FIRESIDE = ["told the old days by the fire", "talked about home by the fire", "told about before Millhollow",
+const FIRESIDE = ["told the old days by the fire", "talked about home by the fire", "told about life before the village",
   "told a story by the fire", "told how it was back then"];
 const FIRESIDE_AGAIN = ["told it again", "told that story again", "told it again, longer"];
 const PASTIMES = {
