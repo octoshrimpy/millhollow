@@ -1194,8 +1194,8 @@ function run(act, v, el) {
 function snap() {
   const e = S.expedition;
   return {
-    res: { ...S.res }, day: S.day, logN: S.logN || 0, grid: S.grid.map((b) => b && b.type),
-    exp: e && { at: e.map.at, floor: e.map.floor, seen: Object.keys(e.map.rooms).filter((k) => e.map.rooms[k].seen),
+    res: { ...S.res }, day: S.day, logN: S.logN || 0, grid: S.grid.map((b) => b && b.type), claim: S.claim,
+    exp: e && { crowns: e.crowns || (e.crown ? 1 : 0), at: e.map.at, floor: e.map.floor, seen: Object.keys(e.map.rooms).filter((k) => e.map.rooms[k].seen),
       done: Object.keys(e.map.rooms).filter((k) => e.map.rooms[k].done) },
   };
 }
@@ -1204,6 +1204,21 @@ const LOUD = /now level|died|joined|Learned|wiped out/;
 
 function celebrate(b) {
   const e = S.expedition;
+  if (e && b.exp && (e.crowns || (e.crown ? 1 : 0)) > b.exp.crowns) setTimeout(() => Juice.prize("👑", $("#res")), 400);
+  if (S.claim > b.claim) {
+    placeLand(true);
+    setTimeout(() => {
+      const hall = document.querySelector(`.tile[data-i="${S.hall}"]`);
+      if (!hall) return;
+      Juice.carry("👑", $("#res"), hall, () => {
+        const p = Juice.center(hall), step = hall.getBoundingClientRect().width + 6;
+        Juice.pop(hall, 1.3);
+        Juice.burst(p.x, p.y, { n: 24, colors: PAL.gold, speed: 160, up: 60, life: 0.7, size: 3, spark: true });
+        Juice.wave(p.x, p.y, (claimR() + 0.5) * step, { colors: PAL.gold, size: 3 });
+        setTimeout(() => Juice.wave(p.x, p.y, (claimR() + 0.5) * step, { n: 64, colors: PAL.gold, size: 2, life: 1.8 }), 180);
+      });
+    }, b.exp && !e ? 1500 : 300);
+  }
   for (const k in S.res) {
     const d = Math.round((S.res[k] - b.res[k]) * 10) / 10, el = document.querySelector(`#res [data-k="${k}"]`);
     if (!d || !el) continue;

@@ -401,6 +401,14 @@
   .toast.good { border-color: var(--good); } .toast.bad { border-color: var(--bad); } .toast.story { border-color: var(--story); }
   @keyframes toast { 0% { opacity: 0; translate: 0 20px; } 10% { opacity: 1; translate: 0 0; } 85% { opacity: 1; } 100% { opacity: 0; translate: 0 -10px; } }
 
+  .prize { position: fixed; inset: 0; z-index: 45; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--bg) 55%, transparent); cursor: pointer; animation: crownbg .4s ease-out; }
+  @keyframes crownbob { 50% { transform: translateY(-12px); } }
+  @keyframes crownin { from { transform: scale(.3); opacity: 0; } }
+  @keyframes crownbg { from { opacity: 0; } }
+  .prize b { font-size: 5rem; line-height: 1; animation: crownbob 2.4s ease-in-out infinite, crownin .6s ease-out; filter: drop-shadow(0 0 18px var(--accent)); }
+  .prize.gone { background: transparent; transition: background .4s; }
+  .prize.gone b { animation: none; }
+  .carry { position: fixed; z-index: 45; font-size: 2.4rem; pointer-events: none; filter: drop-shadow(0 0 10px var(--accent)); }
   .veil { position: fixed; inset: 0; z-index: 40; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: .3em; pointer-events: none; animation: veil 1.3s ease-in forwards; }
   .veil b { font-size: 2.2rem; color: var(--accent); letter-spacing: .1em; animation: veiltext 1.3s ease-out forwards; }

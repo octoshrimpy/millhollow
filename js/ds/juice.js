@@ -38,6 +38,47 @@ const Juice = (() => {
     loop();
   }
 
+  // A ring that slows to a stop on the square of radius r (drag sets where it settles).
+  function wave(x, y, r, o = {}) {
+    if (!ctx) return;
+    const { n = 96, colors = ["#fff"], life = 1.6, size = 2.5, drag = 0.85 } = o, k = -Math.log(drag) * 10;
+    for (let i = 0; i < (calm ? n / 3 : n); i++) {
+      const a = (i / n) * Math.PI * 2, d = r / Math.max(Math.abs(Math.cos(a)), Math.abs(Math.sin(a))) * (0.95 + Math.random() * 0.1);
+      parts.push({ x, y, vx: Math.cos(a) * d * k, vy: Math.sin(a) * d * k, t: 0, life, size, color: colors[i % colors.length], gravity: 0, spark: false, drag });
+    }
+    loop();
+  }
+
+  // Something won, bobbing mid-screen until tapped; then it flies to the top bar.
+  function prize(icon, to, done) {
+    const d = document.createElement("div");
+    d.className = "prize";
+    d.innerHTML = iconize(`<b>${icon}</b>`);
+    document.body.append(d);
+    const b = d.querySelector("b");
+    d.addEventListener("click", () => {
+      const from = b.getBoundingClientRect(), at = to.getBoundingClientRect();
+      d.classList.add("gone");
+      const fly = anim(b, [{ transform: "none" }, { transform: `translate(${at.left + at.width / 2 - from.left - from.width / 2}px, ${at.top + at.height / 2 - from.top - from.height / 2}px) scale(.25)`, opacity: 0.6 }],
+        { duration: 600, easing: "ease-in", fill: "forwards" });
+      const end = () => { d.remove(); if (done) done(); };
+      if (fly) fly.onfinish = end; else end();
+    }, { once: true });
+  }
+
+  // icon flies from one element to another, then calls done.
+  function carry(icon, from, to, done) {
+    const d = document.createElement("div"), a = center(from), z = center(to);
+    d.className = "carry";
+    d.innerHTML = iconize(icon);
+    d.style.left = `${a.x}px`; d.style.top = `${a.y}px`;
+    document.body.append(d);
+    const fly = anim(d, [{ transform: "translate(-50%, -50%) scale(.6)" }, { transform: `translate(calc(${z.x - a.x}px - 50%), calc(${z.y - a.y}px - 50%)) scale(1.4)`, offset: 0.6 },
+      { transform: `translate(calc(${z.x - a.x}px - 50%), calc(${z.y - a.y}px - 50%)) scale(.2)`, opacity: 0 }], { duration: 1300, easing: "ease-in-out", fill: "forwards" });
+    const end = () => { d.remove(); if (done) done(); };
+    if (fly) fly.onfinish = end; else end();
+  }
+
   function shot(from, to, o = {}) {
     if (!ctx) { if (o.onHit) o.onHit(); return; }
     shots.push({ from, to, t: 0, dur: 0.2, color: "#ffe9a8", size: 3, trail: 0, arc: 0, ...o });
@@ -185,7 +226,7 @@ const Juice = (() => {
     return true;
   }
 
-  return { center, burst, shot, float, solitaire, shake, lunge, pop, toast, veil };
+  return { center, burst, wave, prize, carry, shot, float, solitaire, shake, lunge, pop, toast, veil };
 })();
 
 const PAL = {
