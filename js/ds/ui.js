@@ -208,7 +208,7 @@ function troubleHead(t) {
   const s = t.who && byId(t.who);
   const face = s ? mug(s) : "";
   if (t.pair) { const [a, b] = t.pair.map(byId); return `<b class="row">${mug(a)} 💍 ${mug(b)}</b>`; }
-  return { bandits: `<b>🗡 ×${t.n}</b>`, pirates: `<b>🌊🗡 ×${t.n}</b>`, debt: `${face} 💰`, fey: `${face} ⚒🔒`, feast: `<b>🍖</b>`, trader: `<b>🤝</b>` }[t.kind];
+  return { bandits: `<b>🗡 ×${t.n}</b>`, pirates: `<b>🌊🗡 ×${t.n}</b>`, debt: `${face} 💰`, fey: `${face} ⚒🔒`, feast: `<b>🍖</b>`, trader: `<b>🛣</b>` }[t.kind];
 }
 function troubleStakes(t) {
   const s = t.who && byId(t.who), want = goods(t.take), twice = goods(Object.fromEntries(Object.entries(t.take).map(([r, n]) => [r, 2 * n])));
@@ -226,13 +226,15 @@ function troubleStakes(t) {
 }
 function sheetTrouble() {
   const t = S.trouble, ok = afford(t.take);
-  const no = t.n ? `⚔ ${Math.round(holds(t.n) * 100)}%` : t.pair ? "💍" : "✕";
-  const yes = costText(t.take) + (t.give ? ` ❯ ${goods(t.give)}` : t.n ? "" : " ✓");
+  const odds = t.n && holds(t.n), label = (x) => `<small>${x}</small>`;
+  const [noText, yesText] = { wedding: ["Small", "Feast"], feast: ["Skip", "Feast"], fey: ["Refuse", "Give"], debt: ["Refuse", "Pay"], bandits: ["", "Pay"], pirates: ["", "Pay"] }[t.kind] || ["", ""];
+  const no = t.n ? `⚔ ${Math.round(odds * 100)}%${label(odds >= 0.65 ? "Likely win" : odds >= 0.4 ? "Even fight" : "Likely loss")}` : (t.pair ? "💍" : "✕") + label(noText);
+  const yes = costText(t.take) + (t.give ? ` ❯ ${goods(t.give)}` : t.n ? "" : " ✓") + label(yesText);
   if (t.offers) return `<div class="arrival"><div class="row center">${troubleHead(t)}</div>${troubleStakes(t)}
     ${t.offers.map((o, i) => `<button class="wide" data-act="settle" data-v="${i}" ${afford(o.take) ? "" : "disabled"}>${costText(o.take)} ❯ ${goods(o.give)}</button>`).join("")}
     <button class="wide" data-act="settle" data-v="no">✕</button></div>`;
   return `<div class="arrival"><div class="row center">${troubleHead(t)}</div>${troubleStakes(t)}
-    <div class="row pair"><button data-act="settle" data-v="no">${no}</button><button class="primary" data-act="settle" data-v="yes" ${ok ? "" : "disabled"}>${yes}</button></div></div>`;
+    <div class="row pair"><button data-act="settle" data-v="no">${no}</button><button class="${t.n ? "" : "primary"}" data-act="settle" data-v="yes" ${ok ? "" : "disabled"}>${yes}</button></div></div>`;
 }
 
 function scatter(i, icon) {

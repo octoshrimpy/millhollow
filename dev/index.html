@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<script src="../js/ds/themes.js"></script>
+<title>Millhollow dev</title>
+<style>
+  .dev section { margin: 1.5em 0; }
+  .dev h2 { font-size: 1rem; border-bottom: 1px solid var(--line); padding-bottom: .3em; }
+  .dev .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(11em, 1fr)); gap: 6px; }
+  .dev .cell { display: flex; gap: .5em; align-items: center; padding: .3em .5em; border: 1px solid var(--line); border-radius: 6px; font-size: .78rem; min-width: 0; }
+  .dev .cell svg.i { width: 1.4em; height: 1.4em; flex: none; }
+  .dev .cell > span:last-child { min-width: 0; overflow-wrap: anywhere; }
+  .dev .cell code { color: var(--dim); font-size: .72rem; }
+  .dev .sw { width: 1.6em; height: 1.6em; border-radius: 4px; border: 1px solid var(--line); flex: none; }
+  .dev .demo { display: flex; flex-wrap: wrap; gap: .6em; align-items: center; }
+</style>
+</head>
+<body>
+<main class="wrap dev">
+  <div class="row between"><h1>Dev</h1><select id="theme"></select></div>
+  <section><h2>Colours</h2><div class="grid" id="colors"></div></section>
+  <section><h2>Icons</h2><div class="grid" id="icons"></div></section>
+  <section><h2>Buttons</h2><div class="demo">
+    <button>Button</button><button class="primary">Primary</button><button disabled>Disabled</button>
+    <button class="primary" disabled>Primary disabled</button><button class="ghost">Ghost</button>
+    <button class="reroll cooling" style="--left:3000ms" id="cool">🎲 Cooling</button>
+  </div>
+  <div class="arrival"><div class="row pair"><button>⚔ 74%<small>Likely win</small></button><button>3🍞<small>Pay</small></button></div></div>
+  <button class="opt"><span class="ico">🏠</span><span><b>Opt</b> 6🪵<br><small>Enabled option.</small></span></button>
+  <button class="opt" disabled><span class="ico">🏠</span><span><b>Opt</b> <span data-tooltip="Stone" class="bad">2/4🪨</span><br><small>🔒 📜 Masonry</small></span></button>
+  </section>
+  <section><h2>Chips &amp; tooltips</h2><div class="demo">
+    <span class="chip">chip</span><span class="chip potion">🧪3</span>
+    <span data-tooltip="Wood">6🪵</span><span data-tooltip="Bottom" data-placement="bottom">⬇ bottom</span>
+    <span class="bad">bad</span><span class="good">good</span><span class="dim">dim</span><u class="nm">Name</u>
+  </div></section>
+  <section><h2>Cards</h2>
+    <div class="card"><span class="ico">🌾</span><div>Card</div></div>
+    <div class="card event"><p>Event card</p><p class="dim">Dim line.</p></div>
+    <div class="stakes"><p>Stakes line one.</p><p>Stakes line two.</p></div>
+  </section>
+  <section><h2>Bars</h2>
+    <div class="bar"><i style="width:70%"></i></div>
+    <div class="bar atb"><i style="width:40%"></i></div>
+    <div class="bar wind"><i style="width:55%"></i></div>
+    <div class="foe due"><div class="bar wind"><i style="width:90%"></i></div></div>
+  </section>
+  <section><h2>Animations</h2>
+    <div class="founding"><div class="who" style="max-width:8em"><button id="shine"><span class="me"><img class="face" src="../icons/icon-192.png" alt=""></span><b>Sheen</b></button></div></div>
+    <div class="map" style="max-width:6em"><button class="room here">🔦</button></div>
+    <div class="demo">
+      <button id="replay">↻ Sheen</button><button id="toast">Toast</button><button id="float">Float</button>
+      <button id="banner">Banner</button><button id="burst">Burst</button><button id="veil">Veil</button>
+    </div>
+    <div id="log" style="position:static"><p class="good new"><small>d3</small> New good log line</p><p class="story new"><small>d3</small> New story line</p></div>
+  </section>
+</main>
+<canvas id="fx"></canvas>
+<div id="floats"></div>
+<div id="toasts"></div>
+<script src="../js/ds/sprite.js"></script>
+<script src="../js/ds/icons.js"></script>
+<script src="../js/ds/juice.js"></script>
+<script>
+// ponytail: the game's CSS lives inline in index.html, so it's borrowed from there instead of copied.
+fetch("../index.html").then((r) => r.text()).then((html) => {
+  const css = [...new DOMParser().parseFromString(html, "text/html").querySelectorAll("style")].map((s) => s.textContent).join("\n");
+  document.head.insertAdjacentHTML("afterbegin", `<style>${css}</style>`);
+});
+const $ = (s) => document.querySelector(s);
+const sel = $("#theme");
+sel.innerHTML = THEMES.map((t) => `<option value="${t.id}" ${t === theme ? "selected" : ""}>${t.name}</option>`).join("");
+const paint = () => {
+  const cs = getComputedStyle(document.documentElement);
+  const vars = ["bg", "card", "line", "ink", "dim", "accent", "good", "bad", "story", "on-accent", ...HUES.map((h) => `c-${h}`)];
+  $("#colors").innerHTML = vars.map((v) => `<div class="cell"><span class="sw" style="background:var(--${v})"></span><span>--${v}<br><code>${cs.getPropertyValue(`--${v}`).trim()}</code></span></div>`).join("");
+};
+sel.onchange = () => { applyTheme(sel.value); paint(); };
+paint();
+$("#icons").innerHTML = Object.entries(ICONS).map(([e, [id, hue]]) => `<div class="cell" title="${e}">${ic(e)}<span>${id}<br><code>${hue}</code></span></div>`).join("");
+document.querySelectorAll(".dev .demo, .dev .card, .dev .opt, .dev .row.pair").forEach((el) => (el.innerHTML = iconize(el.innerHTML)));
+const mid = (el) => { const r = el.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; };
+const again = (el, cls) => { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); };
+$("#replay").onclick = () => again($("#shine"), "shine");
+$("#toast").onclick = () => Juice.toast("📥 Toast", "good");
+$("#float").onclick = (e) => Juice.float(...mid(e.target), "+3🪵");
+$("#banner").onclick = (e) => Juice.float(...mid(e.target), "Victory", "banner", 1800);
+$("#burst").onclick = (e) => Juice.burst(...mid(e.target), { n: 30, colors: ["#ffe08a", "#9fe07a", "#b9a4d6"], up: 200, gravity: 520 });
+$("#veil").onclick = () => Juice.veil("Day 4", "dawn");
+$("#cool").onclick = (e) => { e.target.style.setProperty("--left", "3000ms"); again(e.target, "cooling"); };
+</script>
+</body>
+</html>

@@ -114,7 +114,7 @@ const ICONS = {
   "🪜": ["lu-door-stairwell", "gray"],
   "🌬": ["mh-windmill", "brown"], "👑": ["lu-crown", "yellow"],
   "👊": ["lu-hand-fist", "red"], "✨": ["lu-sparkles", "yellow"], "🗡": ["ra-plain-dagger", "red"], "💍": ["lu-gem", "pink"],
-  "🔦": ["ra-torch", "orange"], "🤝": ["lu-handshake", "yellow"],
+  "🔦": ["ra-torch", "orange"], "🛣": ["lu-route", "yellow"],
 };
 
 const ic = (e) => {
