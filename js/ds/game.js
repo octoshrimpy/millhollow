@@ -450,7 +450,7 @@ function newGame() {
     deepest: 0, visitor: null, expedition: null, log: [], remains: [], size: LAND, claim: 0, guards: [],
   };
   S.land = genLand(S.seed);
-  S.towns = [makePlace(), makePlace(), makePlace()];
+  S.towns = places();
   S.town = S.towns[0];
   S.sites = genSites(S.seed, S.land);
   nextId = 1;
@@ -540,7 +540,7 @@ function load() {
     ({ S, nextId } = JSON.parse(raw));
     setLand(S.size ||= 17);
     S.claim ??= 0;
-    S.towns ??= [makePlace(), makePlace(), makePlace()];
+    S.towns ??= places();
     S.town ??= S.recruits ? S.towns[0] : "Millhollow";
     if (S.expedition && S.expedition.fight) S.expedition.fight = null; // a fight restarts on reload
     if (!S.seen) widenLand();

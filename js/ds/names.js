@@ -35,15 +35,23 @@ function makeName(sex, taken = new Set(), rng = Math.random) {
   return pick(namesFor(sex).filter((n) => !taken.has(n)).concat(NAMES.any));
 }
 
-const PLACE_HEAD = "ash brack thorn wil oak elm hart crow wether ald bram fen hol cold marl stan lang kes rush wyn".split(" ");
+// Old-English-ish fragments and whole landscape words. Whole words can also stand alone ("Rook Cross").
+const PLACE_HEAD = "ash brack thorn wil ald bram fen hol marl stan lang kes wyn wether elder sedge".split(" ");
+const PLACE_WORD = "oak elm crow hart rush cold mill salt bell rook otter heron willow alder hazel moss flint chalk raven wren hawk barley ember frost mist apple cinder lark heath".split(" ");
 // Tails like -ton, -ley, -field turned into surnames, so they read as people; these stay places.
-const PLACE_TAIL = "wick thorpe mere holt stead dale combe wold moor by cross hollow".split(" ");
+const PLACE_TAIL = "wick thorpe mere holt stead dale combe wold moor by brook beck burn ness gate fold shaw hurst den garth mead hythe barrow hollow".split(" ");
+const PLACE_APART = "Cross Hollow Green End Bridge Ford Rise Hythe Bottom".split(" ");
+const PLACE_PRE = "Low High Old Nether Upper Little Great".split(" ");
 function makePlace(rng = Math.random) {
-  const pickR = (xs) => xs[Math.floor(rng() * xs.length)];
-  const tail = pickR(PLACE_TAIL), apart = tail === "cross" || tail === "hollow";
-  const head = pickR(apart ? ["ash", "oak", "elm", "crow", "thorn", "hart", "fen", "rush", "cold"] : PLACE_HEAD);
-  const name = head + (apart ? " " : "") + tail;
-  if (/([^aeiou ])\1[^aeiou]|[^aeiouy ]{4}|^[^ ]{10}/.test(name) || tail.startsWith(head.slice(0, 3))) return makePlace(rng);
-  const cap = (w) => w[0].toUpperCase() + w.slice(1), out = name.split(" ").map(cap).join(" ");
-  return !out.includes(" ") && rng() < 0.15 ? `${pickR(["Low", "High", "Old", "Nether"])} ${out}` : out;
+  const pickR = (xs) => xs[Math.floor(rng() * xs.length)], cap = (w) => w[0].toUpperCase() + w.slice(1);
+  if (rng() < 0.2) return `${cap(pickR(PLACE_WORD))} ${pickR(PLACE_APART)}`;
+  const head = pickR(rng() < 0.5 ? PLACE_HEAD : PLACE_WORD), tail = pickR(PLACE_TAIL), name = head + tail;
+  if (/([^aeiou])\1[^aeiou]|[^aeiouy]{4}|^.{12}|(.)\2\2/.test(name) || tail.startsWith(head.slice(-3)) || head.endsWith(tail[0]) && tail[0] === "h") return makePlace(rng);
+  return rng() < 0.12 ? `${pickR(PLACE_PRE)} ${cap(name)}` : cap(name);
+}
+// n distinct names.
+function places(n = 3, rng = Math.random) {
+  const out = new Set();
+  while (out.size < n) out.add(makePlace(rng));
+  return [...out];
 }

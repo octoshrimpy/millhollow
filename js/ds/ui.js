@@ -998,7 +998,7 @@ const ACTS = {
   newgame: () => (sheet = { menu: true, slots: true, sure: true }),
   slots: () => (sheet = { menu: true, slots: true }),
   slot: (v) => { if (+v === slot) return "keep"; useSlot(+v); landPos = null; plan = { party: [], rations: 6, meals: 0, floor: 1 }; tab = "village"; sheet = null; knocked = null; chosen = []; },
-  towns: () => { S.towns = [makePlace(), makePlace(), makePlace()]; S.town = S.towns[0]; save(); const el = document.getElementById("town"); if (el) el.value = S.town; },
+  towns: () => { S.towns = places(); S.town = S.towns[0]; save(); const el = document.getElementById("town"); if (el) el.value = S.town; },
   town: (v) => { S.town = v; save(); const el = document.getElementById("town"); if (el) el.value = v; },
   recruit: (v) => {
     const id = +v;
