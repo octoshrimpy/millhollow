@@ -92,7 +92,7 @@ function viewRecruits() {
 
 function renderTop() {
   const packing = !S.expedition && tab === "expedition" ? { food: plan.rations, meals: plan.meals || 0 } : {};
-  if (S.recruits) return morph($("#res"), iconize(backTo == null ? "" : `<button class="ghost back" data-act="back" aria-label="Back">⬅</button>`));
+  if (S.recruits) return morph($("#res"), iconize(`<button class="ghost back" data-act="back" aria-label="Back">⬅</button>`));
   morph($("#res"), iconize(`<span class="day">Day ${S.day}</span>` + Object.entries(RESOURCES)
     .filter(([k]) => S.res[k] > 0 || k === "food" || k === "wood")
     .map(([k, r]) => `<span data-tooltip="${r.name}" data-placement="bottom" data-k="${k}" class="${packing[k] ? "packed" : ""}">${r.icon}${S.res[k] - (packing[k] || 0)}</span>`).join("")));
@@ -1016,10 +1016,10 @@ const ACTS = {
   wipe: () => { newGame(); landPos = null; plan = { party: [], rations: 6, meals: 0, floor: 1 }; tab = "village"; sheet = null; knocked = null; },
   plot: (v) => (sheet = { i: +v }),
   close: () => (sheet = null),
-  // An unfounded slot is dropped, not saved, so it reads empty again.
   back: () => {
-    try { localStorage.removeItem(slotKey()); localStorage.removeItem(slotKey() + "-meta"); } catch (e) {}
-    useSlot(backTo, false); backTo = null; landPos = null; tab = "village"; sheet = { menu: true, slots: true };
+    const to = backTo ?? [0, 1, 2].find((n) => n !== slot && slotInfo(n) && !slotInfo(n).founding);
+    if (to != null) { useSlot(to); backTo = null; landPos = null; tab = "village"; }
+    sheet = { menu: true, slots: true };
   },
   imported: (v) => importCode(v),
   clear: () => { clearLand(sheet.i); sheet = null; },
@@ -1142,11 +1142,13 @@ document.addEventListener("click", (e) => {
   run(act, el.dataset.v, el);
 });
 
-// Android's back key lands here: close the open sheet, or leave an unfounded village.
+// Android's back key lands here: close the open sheet, leave an unfounded village, or go to the first tab.
 let backTo = null;
 function goBack() {
+  const home = S.expedition ? "dungeon" : "village";
   if (sheet) run("close");
-  else if (S.recruits && backTo != null) run("back");
+  else if (S.recruits) run("back");
+  else if (tab !== home) run("tab", home);
   else return false;
   return true;
 }

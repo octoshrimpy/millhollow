@@ -10,8 +10,8 @@ function slotInfo(n) {
     return meta ? JSON.parse(meta) : localStorage.getItem(slotKey(n)) ? { town: "Millhollow" } : null;
   } catch (e) { return null; }
 }
-function useSlot(n, keep = true) {
-  if (keep) save();
+function useSlot(n) {
+  save();
   slot = n;
   try { localStorage.setItem("mh-slot", n); } catch (e) {}
   if (!load()) newGame();
@@ -520,7 +520,9 @@ function rest(s) {
     gameLog(`${s.name} is back on their feet.`, "good", [s]);
   }
 }
+// A village isn't kept until it's founded; until then its slot stays empty.
 function save() {
+  if (S?.recruits) try { return localStorage.removeItem(slotKey()), localStorage.removeItem(slotKey() + "-meta"); } catch (e) { return; }
   if (S?.settlers) living().forEach(limbs);
   for (let n = 0; n < 10; n++) {
     try {

@@ -83,7 +83,7 @@ if (!S.log.at(-1).aside || a.story.length !== n + 1) throw "aside";
 console.log("friendzone ok:", S.log.at(-2).text);
 }`, ctx);
 vm.runInContext(`{
-newGame(); for (let k = 0; k < 400; k++) gameLog("x" + k, "", [], k % 2);
+newGame(); settleIn(S.recruits.slice(0, 4).map((s) => s.id)); S.log = []; for (let k = 0; k < 400; k++) gameLog("x" + k, "", [], k % 2);
 let calls = 0; localStorage.setItem = (k, v) => { if (v.length > 25000 && ++calls) { const e = new Error("full"); e.name = "QuotaExceededError"; throw e; } };
 save(); if (S.log.length >= 400 || !S.log.some((l) => !l.aside && l.text === "x0")) throw "shed";
 console.log("shed ok:", S.log.length, "left, asides first");
@@ -136,6 +136,6 @@ newGame(); settleIn(S.recruits.slice(0, 4).map((s) => s.id)); S.town = "Ashford"
 useSlot(1);
 if (!S.recruits || S.town === "Ashford" || S.towns.length !== 3) throw new Error("slot 1 not fresh");
 useSlot(0);
-if (S.town !== "Ashford" || S.day !== 9 || slotInfo(0).town !== "Ashford" || !slotInfo(1)?.founding) throw new Error("slot 0 not restored");
+if (S.town !== "Ashford" || S.day !== 9 || slotInfo(0).town !== "Ashford" || slotInfo(1)) throw new Error("slot 0 not restored");
 console.log("slots ok");
 `, ctx);
