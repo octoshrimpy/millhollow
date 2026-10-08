@@ -1699,10 +1699,10 @@ function equip(settlerId, uid) {
   S.stash = S.stash || [];
   const k = S.stash.findIndex((it) => it.uid === uid);
   if (!s || k < 0) return;
-  const item = S.stash.splice(k, 1)[0];
+  const item = S.stash.splice(k, 1)[0], was = stats(s).hpMax;
   if (s.gear[item.slot]) S.stash.push(s.gear[item.slot]);
   s.gear[item.slot] = item;
-  s.hp = Math.min(s.hp, stats(s).hpMax);
+  s.hp = Math.min(s.hp + Math.max(0, stats(s).hpMax - was), stats(s).hpMax);
   save();
 }
 

@@ -129,6 +129,8 @@ if (s.laid == null || s.job != null) throw new Error("not laid up");
 if (stats(s).atk >= atk) throw new Error("arms didn't weaken");
 s.hp = max; rest(s);
 if (s.laid != null || s.job !== j) throw new Error("not back at work");
+{ const t = S.settlers[1]; t.hp = stats(t).hpMax; (S.stash ||= []).push({ uid: "t1", slot: "armor", def: 1, hp: 6 }); equip(t.id, "t1");
+if (t.hp !== stats(t).hpMax) throw new Error("armor wounds the wearer"); }
 console.log("limbs ok");
 `, ctx);
 vm.runInContext(`
