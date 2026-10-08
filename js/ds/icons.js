@@ -1,10 +1,6 @@
-// Millhollow — icons. The game's text keeps its emoji (tables, log lines, saves); iconize()
-// swaps each one for a tinted SVG from the sprite at render time, so no string anywhere has
-// to know about markup. Ids prefixed lu- are Lucide, ra- are RPG Awesome, mh- are drawn in the build script; tools/build_icons.py
-// reads this table and writes only the icons it names into js/ds/sprite.js.
+// After adding an emoji here, run tools/build_icons.py: sprite.js only holds the icons this table names.
 
 const ICONS = {
-  // resources
   "🍞": ["lu-croissant", "orange"],
   "🪵": ["mh-log", "brown"],
   "🪨": ["lu-stone", "gray"],
@@ -19,14 +15,12 @@ const ICONS = {
   "🔧": ["lu-wrench", "gray"],
   "⏫": ["lu-circle-arrow-up", "currentColor"],
   "♻": ["lu-recycle", "green"],
-  // classes
   "🛡": ["lu-shield", "blue"],
   "🪖": ["lu-chess-knight", "blue"],
   "🏹": ["lu-bow-arrow", "green"],
   "🔥": ["lu-flame", "orange"],
   "✚": ["lu-cross", "yellow"],
   "🏕": ["lu-flame-kindling", "orange"],
-  // buildings
   "🛖": ["lu-tent", "brown"],
   "🏠": ["lu-house", "brown"],
   "🌾": ["lu-wheat", "yellow"],
@@ -43,12 +37,16 @@ const ICONS = {
   "🎣": ["lu-fish", "blue"],
   "⛪": ["lu-church", "gray"],
   "🦴": ["lu-bone", "ink"],
-  // land
+  "🛝": ["lu-ferris-wheel", "orange"],
+  "🛐": ["lu-bell", "yellow"],
+  "🎻": ["lu-music", "purple"],
+  "🪚": ["lu-hammer", "brown"],
+  "🐎": ["ra-horseshoe", "gray"],
+  "🍺": ["lu-beer", "orange"],
   "🗻": ["ra-mountains", "brown"],
   "🏔": ["lu-mountain-snow", "gray"],
   "🌊": ["lu-waves", "blue"],
   "🧱": ["lu-brick-wall", "orange"],
-  // stats and state
   "⚔": ["lu-sword", "ink"],
   "💨": ["lu-wind", "teal"],
   "❤": ["lu-heart", "red"],
@@ -60,8 +58,10 @@ const ICONS = {
   "❯": ["lu-chevron-right", "currentColor"],
   "▸": ["lu-chevron-right", "currentColor"],
   "▶": ["lu-play", "currentColor"],
+  "🙋": ["lu-hand", "yellow"],
+  "↕": ["lu-maximize-2", "currentColor"],
+  "⇳": ["lu-minimize-2", "currentColor"],
   "⏸": ["lu-pause", "currentColor"],
-  // navigation
   "🏘": ["lu-tent-tree", "brown"],
   "👥": ["lu-users", "ink"],
   "🧭": ["lu-compass", "teal"],
@@ -76,7 +76,6 @@ const ICONS = {
   "⛶": ["lu-maximize", "currentColor"],
   "🦺": ["lu-shirt", "brown"],
   "📦": ["lu-package", "brown"],
-  // thoughts and morale
   "🍽": ["lu-utensils-crossed", "orange"],
   "🪦": ["ra-tombstone", "gray"],
   "💔": ["lu-heart-crack", "red"],
@@ -89,7 +88,6 @@ const ICONS = {
   "😐": ["lu-meh", "gray"],
   "😠": ["lu-angry", "red"],
   "💬": ["lu-message-circle-warning", "red"],
-  // enemies
   "🐀": ["lu-rat", "brown"],
   "🟢": ["ra-gloop", "green"],
   "💀": ["lu-skull", "ink"],
@@ -105,12 +103,10 @@ const ICONS = {
   "🐺": ["ra-wolf-head", "gray"],
   "🕷": ["ra-spider-face", "purple"],
   "👻": ["lu-ghost", "teal"],
-  // sites
   "🌀": ["lu-loader-pinwheel", "brown"],
   "🛒": ["ra-mine-wagon", "gray"],
   "🎄": ["lu-trees", "green"],
   "⛩": ["ra-ankh", "teal"],
-  // dungeon map
   "🚪": ["lu-door-open", "brown"],
   "💰": ["lu-coins", "yellow"],
   "⛲": ["ra-ankh", "teal"],
@@ -118,11 +114,9 @@ const ICONS = {
   "🪜": ["lu-door-stairwell", "gray"],
   "🌬": ["mh-windmill", "brown"], "👑": ["lu-crown", "yellow"],
   "👊": ["lu-hand-fist", "red"], "✨": ["lu-sparkles", "yellow"], "🗡": ["ra-plain-dagger", "red"], "💍": ["lu-gem", "pink"],
-  "🔦": ["ra-torch", "orange"],
+  "🔦": ["ra-torch", "orange"], "🤝": ["lu-handshake", "yellow"],
 };
 
-// Each icon names a hue; the theme decides what that hue looks like. "ink" and "currentColor"
-// follow the text.
 const ic = (e) => {
   const [id, hue] = ICONS[e];
   const color = hue === "currentColor" ? hue : hue === "ink" ? "var(--ink)" : `var(--c-${hue})`;

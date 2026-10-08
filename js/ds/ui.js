@@ -1,13 +1,11 @@
-// Millhollow — rendering and input. Every button carries data-act; one click
-// handler routes them, so re-rendering never loses a listener.
 
 const $ = (sel) => document.querySelector(sel);
 const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 let tab = "village";
-let sheet = null; // open modal: { i } for a plot, { visitor: true } for someone at the gate
-let knocked = null; // the visitor whose popup already opened by itself
-let pleaded = null; // the same, for a room below that wants an answer
-let alarmed = null; // the night's trouble whose popup already opened by itself
+let sheet = null;
+let knocked = null;
+let pleaded = null;
+let alarmed = null;
 // Ask the browser not to clear the save when it tidies up storage (Safari does after a week away).
 navigator.storage?.persist?.().catch(() => {});
 let plan = { party: [], rations: 6, meals: 0, floor: 1 };
@@ -20,11 +18,9 @@ function faceFor(s, hp, hpMax) {
 const bar = (v, max, cls = "") =>
   `<div class="bar ${cls}"><i style="width:${Math.max(0, Math.min(100, (v / max) * 100))}%"></i></div>`;
 
-// A face with the name under it. Either opens their sheet, even inside another button.
-const mug = (s, cls = "mini") => `<span class="mug" data-act="person" data-v="${s.id}"><img class="${cls}" src="${faceSrc(s)}" alt=""><span><u>${esc(s.name)}</u>${s.dead ? " 🪦" : ""}</span></span>`;
+const wants = (s) => Object.values(S.asks || {}).some((ids) => ids.includes(s.id));
+const mug = (s, cls = "mini") => `<span class="mug" data-act="person" data-v="${s.id}"><span class="pic"><img class="${cls}" src="${faceSrc(s)}" alt="">${wants(s) ? `<i class="wants">🙋</i>` : ""}</span><span><u>${esc(s.name)}</u>${s.dead ? " 🪦" : ""}</span></span>`;
 
-// Two lanes under the foes. Foes that walk hit the front lane; a sword in the back lane waits its turn (⏸)
-// and steps up when the front thins. Drag someone onto the other lane, or tap them then the lane.
 const rowOf = (s) => s.row || defaultRow(s.cls);
 let picked = null;
 function formation(list, hp) {
@@ -38,40 +34,37 @@ function formation(list, hp) {
 
 function render() {
   if (S.expedition) { if (!["dungeon", "people", "log"].includes(tab)) tab = "dungeon"; }
-  else if (tab === "dungeon") tab = "village";
+  else if (tab === "dungeon" || (tab === "research" && !built("library"))) tab = "village";
   renderTop();
   document.body.classList.toggle("founding", !!S.recruits);
   if (S.recruits) {
-    $("#view").innerHTML = iconize(viewRecruits());
+    morph($("#view"), iconize(viewRecruits()));
     $("#fight").hidden = true;
     renderSheet();
     return;
   }
   if (!living().length) {
-    $("#view").innerHTML = iconize(`<div class="card event"><p>Everyone is dead. Millhollow is empty.</p>
-      <p class="dim">${S.day} days. Deepest floor: ${S.deepest}.</p></div>`);
+    morph($("#view"), iconize(`<div class="card event"><p>Everyone is dead. Millhollow is empty.</p>
+      <p class="dim">${S.day} days. Deepest floor: ${S.deepest}.</p></div>`));
     renderLog();
     $("#fight").hidden = true;
     return;
   }
-  // A new arrival knocks once, in the village; swiping them away leaves them at the gate.
   if (S.visitor && S.visitor.id !== knocked && tab === "village" && !sheet && !S.expedition) {
     knocked = S.visitor.id;
     sheet = { visitor: true };
   }
   if (sheet && sheet.visitor && !S.visitor) sheet = null;
-  // A room that wants an answer asks once; swiped away, the room's button asks again.
   const ev = S.expedition?.event, here = ev && `${S.expedition.map.floor}:${S.expedition.map.at}`;
   if (ev && here !== pleaded && tab === "dungeon" && !sheet && !S.expedition.fight) { pleaded = here; sheet = { event: true }; }
   if (sheet && sheet.event && !ev) sheet = null;
-  // Trouble at home reaches the party below too, so it can be answered from there.
   if (S.trouble && S.trouble !== alarmed && ["village", "dungeon"].includes(tab) && !sheet && !S.expedition?.fight) {
     alarmed = S.trouble;
     sheet = { trouble: true };
   }
   if (sheet && sheet.trouble && !S.trouble) sheet = null;
   const view = { village: viewVillage, people: viewPeople, forge: viewForge, research: viewResearch, expedition: viewExpedition, dungeon: viewDungeon, log: viewLog }[tab];
-  $("#view").innerHTML = iconize(view());
+  morph($("#view"), iconize(wide.matches && tab !== "log" ? `<div class="duo"><div class="page">${view()}</div><aside class="sidelog">${viewLog()}</aside></div>` : view()));
   placeLand();
   renderLog();
   renderPinned();
@@ -80,8 +73,7 @@ function render() {
   else $("#fight").hidden = true;
 }
 
-// A new game: six at the gate, tap four, ✓ to start.
-let chosen = [], cooled = 0, shine = 0; // a reroll needs 3s before the next, shown filling the button
+let chosen = [], cooled = 0, shine = 0;
 function viewRecruits() {
   chosen = chosen.filter((id) => S.recruits.some((s) => s.id === id));
   const left = cooled - Date.now(), cooling = left > 0;
@@ -97,64 +89,89 @@ function viewRecruits() {
 }
 
 function renderTop() {
-  // Food and wood always show; the rest appear once there is some. Food being packed leaves the counter as you pack it.
   const packing = !S.expedition && tab === "expedition" ? { food: plan.rations, meals: plan.meals || 0 } : {};
-  $("#res").innerHTML = iconize(`<span class="day">Day ${S.day}</span>` + Object.entries(RESOURCES)
+  morph($("#res"), iconize(`<span class="day">Day ${S.day}</span>` + Object.entries(RESOURCES)
     .filter(([k]) => S.res[k] > 0 || k === "food" || k === "wood")
-    .map(([k, r]) => `<span title="${r.name}" data-k="${k}" class="${packing[k] ? "packed" : ""}">${r.icon}${S.res[k] - (packing[k] || 0)}</span>`).join(""));
-  $("#menu").innerHTML = iconize("⚙");
-  $("#savebtn").innerHTML = iconize("💾");
+    .map(([k, r]) => `<span data-tooltip="${r.name}" data-placement="bottom" data-k="${k}" class="${packing[k] ? "packed" : ""}">${r.icon}${S.res[k] - (packing[k] || 0)}</span>`).join("")));
+  morph($("#menu"), iconize("⚙"));
+  morph($("#savebtn"), iconize("💾"));
   const log = ["log", "Log", "📖"];
   const tabs = S.expedition ? [["dungeon", "Dungeon", "🪜"], ["people", "People", "👥"], log]
-    : [["village", "Village", "🏘"], ["people", "People", "👥"], ["forge", "Forge", "⚒"], ["research", "Research", "📚"], log, ["expedition", "Expedition", "🧭"]];
-  // Icons carry the tabs; only the one you're on says its name.
-  $("#tabs").innerHTML = iconize(tabs.map(([id, name, icon]) =>
-    `<button data-act="tab" data-v="${id}" aria-label="${name}" class="${tab === id ? "on" : ""}">${icon}${tab === id ? `<small>${name}</small>` : ""}</button>`).join(""));
+    : [["village", "Village", "🏘"], ["people", "People", "👥"], ["forge", "Forge", "⚒"], ...(built("library") ? [["research", "Research", "📚"]] : []), log, ["expedition", "Expedition", "🧭"]];
+  morph($("#tabs"), iconize(tabs.map(([id, name, icon]) =>
+    `<button data-act="tab" data-v="${id}" aria-label="${name}" class="${tab === id ? "on" : ""}">${icon}${tab === id ? `<small>${name}</small>` : id === "log" ? `<small class="lg-hide">Hide log</small><small class="lg-show">Show log</small>` : ""}</button>`).join("")));
 }
 
-let logSeen = Infinity; // entries past this are new since the last render and slide in
-const logLine = (l) => `<p class="${l.kind} ${l.aside ? "aside" : ""} ${l.n > logSeen ? "new" : ""}"><small>d${l.day}</small> ${esc(l.text)}</p>`;
-// Every page keeps the last few lines underneath; tapping them opens the whole log.
+const wide = matchMedia("(min-width: 64em)");
+wide.addEventListener("change", () => render());
+const root = document.documentElement;
+try { root.classList.toggle("nolog", localStorage.getItem("mh-sidelog") === "0"); } catch {}
+
+// Redraws patch the live DOM to match: untouched nodes keep their scroll, focus, loaded images and running animations.
+// Keyed children (data-key) move instead of being rewritten, so a prepended log line changes one node, not all.
+function patch(to, from) {
+  const keyed = new Map([...to.children].filter((n) => n.dataset.key).map((n) => [n.dataset.key, n]));
+  const b = [...from.childNodes];
+  b.forEach((n, i) => {
+    let o = to.childNodes[i];
+    const k = n.dataset?.key, mine = k && keyed.get(k);
+    if (mine && mine !== o) { to.insertBefore(mine, o || null); o = mine; }
+    if (!o) return to.append(n);
+    if (o.nodeType !== n.nodeType || o.nodeName !== n.nodeName || (k || "") !== (o.dataset?.key || "")) return o.replaceWith(n);
+    if (n.nodeType !== 1) { if (o.nodeValue !== n.nodeValue) o.nodeValue = n.nodeValue; return; }
+    for (const { name } of [...o.attributes]) if (!n.hasAttribute(name)) o.removeAttribute(name);
+    for (const { name, value } of [...n.attributes]) if (o.getAttribute(name) !== value) o.setAttribute(name, value);
+    patch(o, n);
+    if (o.nodeName === "SELECT") o.value = n.value;
+  });
+  while (to.childNodes.length > b.length) to.lastChild.remove();
+}
+const morph = (el, html) => { const t = document.createElement("template"); t.innerHTML = html; patch(el, t.content); };
+
+let logSeen = Infinity;
+const logLine = (l) => `<p data-key="${l.n}" class="${l.kind} ${l.aside ? "aside" : ""} ${l.n > logSeen ? "new" : ""}"><small>d${l.day}</small> ${named(esc(l.text))}</p>`;
+// Anyone named in a line opens their sheet. ponytail: names are matched as words, so two settlers with one name both open the first.
+let nameRe = null, nameKey = "";
+const named = (html) => {
+  const ns = S.settlers.map((s) => esc(s.name)), key = ns.join("|");
+  if (key !== nameKey) {
+    nameKey = key;
+    const alt = [...new Set(ns)].sort((a, b) => b.length - a.length).map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    nameRe = alt.length ? new RegExp(`(?<!\\p{L})(${alt.join("|")})(?!\\p{L})`, "gu") : null;
+  }
+  return nameRe ? html.replace(nameRe, (n) => `<u class="nm" data-act="person" data-v="${S.settlers[ns.indexOf(n)].id}">${n}</u>`) : html;
+};
 function renderLog() {
   const el = $("#log");
   el.hidden = tab === "log";
-  el.innerHTML = iconize(S.log.filter((l) => !l.aside).slice(-3).reverse().map(logLine).join(""));
+  morph(el, iconize(S.log.filter((l) => !l.aside).slice(-3).reverse().map(logLine).join("")));
   logSeen = S.logN || 0;
 }
-// The forge's finished pieces sit folded in the dock, above the log.
 function renderPinned() {
   const st = tab === "forge" ? S.stash || [] : [];
-  $("#pinned").innerHTML = st.length ? iconize(`<details data-keep="stores" ${kept.stores ? "open" : ""}><summary>📦 ${st.length}</summary>
-    <div class="row wrap">${st.map((g) => `<span class="chip">${esc(g.name)} ${gearText(g)}</span>`).join("")}</div></details>`) : "";
+  morph($("#pinned"), st.length ? iconize(`<details data-keep="stores" ${kept.stores ? "open" : ""}><summary>📦 ${st.length}</summary>
+    <div class="row wrap">${st.map((g) => `<span class="chip">${esc(g.name)} ${gearText(g)}</span>`).join("")}</div></details>`) : "");
 }
-// Keep main's bottom padding equal to whatever the dock is right now.
-if (window.ResizeObserver) new ResizeObserver(([e]) =>
-  document.documentElement.style.setProperty("--dock-h", `${e.target.offsetHeight}px`)).observe($("#dock"));
+if (window.ResizeObserver) {
+  const ro = new ResizeObserver((es) => es.forEach((e) =>
+    document.documentElement.style.setProperty(e.target.id === "dock" ? "--dock-h" : "--head-h", `${e.target.offsetHeight}px`)));
+  ro.observe($("#dock")); ro.observe($("header"));
+}
 
-// Asides fold into a ··· between the main lines; tapping one opens them all in place.
-// The newest 2000 show; the rest wait behind a ··· at the bottom.
-let asides = false, older = false;
+let older = false;
 function viewLog() {
-  const out = [], shown = older ? S.log : S.log.slice(-2000);
-  let run = 0;
-  for (const l of shown.slice().reverse()) {
-    if (l.aside && !asides) { run++; continue; }
-    if (run) out.push(`<p class="more" data-act="asides">··· ${run}</p>`), (run = 0);
-    out.push(logLine(l));
-  }
-  if (run) out.push(`<p class="more" data-act="asides">··· ${run}</p>`);
-  if (shown.length < S.log.length) out.push(`<p class="more" data-act="older">▾ ${S.log.length - shown.length}</p>`);
-  return `<div class="fulllog ${asides ? "all" : ""}">${asides ? `<p class="more" data-act="asides">▴</p>` : ""}${out.join("")}</div>`;
+  const shown = older ? S.log : S.log.slice(-2000);
+  const out = shown.slice().reverse().map(logLine);
+  if (shown.length < S.log.length) out.push(`<button class="more" data-act="older">▾ ${S.log.length - shown.length}</button>`);
+  const fold = shown.some((l) => l.aside) ? `<button class="logfold" data-act="asides" aria-label="Asides"><span class="lg-more">↕</span><span class="lg-less">⇳</span></button>` : "";
+  return `<div class="fulllog">${out.join("")}</div>${fold}`;
 }
 
-// ---------- village ----------
 function viewVillage() {
   const v = S.visitor;
-  // Someone at the gate whose popup was swiped away: tap to see them again.
   const visitor = v ? `<button class="knock" data-act="knock"><span class="mug"><img class="mini" src="${faceSrc(v)}" alt=""><span><u>${esc(v.name)}</u></span></span>
     <b></b> ${CLASSES[v.cls].icon} <span class="dim">❯</span></button>` : "";
   const alarm = alarmButton();
-  // Only the known land is drawn, with a ring of fog around it.
   const known = S.seen.map((v, i) => v && xy(i)).filter(Boolean);
   const x0 = Math.max(0, Math.min(...known.map(([x]) => x)) - 1), x1 = Math.min(LAND - 1, Math.max(...known.map(([x]) => x)) + 1);
   const y0 = Math.max(0, Math.min(...known.map(([, y]) => y)) - 1), y1 = Math.min(LAND - 1, Math.max(...known.map(([, y]) => y)) + 1);
@@ -164,15 +181,12 @@ function viewVillage() {
     const at = `data-i="${i}" data-act="plot" data-v="${i}"` + (newLand.includes(i) ? ` style="--d:${dist(i, origin)}"` : "");
     const cls = (newLand.includes(i) ? " fresh" : "") + (S.hall != null && contested(i) ? " out" : "");
     if (!S.seen[i]) return `<div class="tile fog" data-i="${i}"></div>`;
-    // Untouched land is ground, not a thing: a few small marks with no card around them.
     const t = S.land[i], site = siteAt(i), ico = scatter(i, TERRAIN[t].icon);
     if (site) return `<button class="tile site t-${t}${cls}" ${at}><span class="ico">${SITES[site.kind].icon}</span><small>${esc(site.name)}</small>${site.deepest ? `<span class="lvl">🪜${site.deepest}</span>` : ""}</button>`;
     if (wild(i)) return `<button class="tile wild t-${t}${cls}" ${at}>${ico}</button>`;
     if (t !== "meadow") return `<div class="tile still t-${t}${cls}" data-i="${i}"${newLand.includes(i) ? ` style="--d:${dist(i, origin)}"` : ""}>${ico}</div>`;
-    // Before anything else: the town hall's place, pulsing.
     if (!b) return `<button class="tile empty${cls}${S.hall == null ? " found" : ""}" ${at}>${S.hall == null ? "🏛️" : "＋"}</button>`;
     const def = BUILDINGS[b.type], w = b.worker && byId(b.worker);
-    // The worker sits in the corner as a badge, so the icon and name keep the middle.
     const who = w ? `<img class="mini" src="${faceSrc(w)}" alt="${esc(w.name)}">` : "";
     const lvl = b.lvl ? `<span class="lvl${b.unpaid ? " bad" : ""}">${"●".repeat(b.lvl)}</span>` : "";
     return `<button class="tile${cls}${b.type === "townhall" ? " hall" : ""}" ${at}><span class="ico">${def.icon}</span><small>${def.name}</small>${who}${lvl}</button>`;
@@ -180,7 +194,6 @@ function viewVillage() {
   let tiles = "";
   for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) tiles += tile(y * LAND + x);
   newLand = [];
-  // Housing: red only when someone is sleeping rough.
   const n = living().length, over = n > beds();
   return `<div class="land" id="land"><div class="grid" style="--w:${x1 - x0 + 1}" data-x0="${x0}" data-y0="${y0}">${tiles}</div></div>
     <div class="row between"><span class="row"><span class="housing ${over ? "bad" : ""}">🛏️ ${n}/${beds()}</span>
@@ -190,32 +203,29 @@ function viewVillage() {
 }
 
 const alarmButton = () => S.trouble ? `<button class="knock" data-act="alarm">${troubleHead(S.trouble)} <span class="dim">❯</span></button>` : "";
-// The night's trouble, or chance: who or what, what it costs, and two ways to answer.
-const goods = (c) => Object.entries(c).map(([r, n]) => `${n}${RESOURCES[r].icon}`).join(" ");
+const goods = (c) => Object.entries(c).map(([r, n]) => tip(RESOURCES[r].name, `${n}${RESOURCES[r].icon}`)).join(" ");
 function troubleHead(t) {
   const s = t.who && byId(t.who);
   const face = s ? mug(s) : "";
   if (t.pair) { const [a, b] = t.pair.map(byId); return `<b class="row">${mug(a)} 💍 ${mug(b)}</b>`; }
-  return { bandits: `<b>🗡 ×${t.n}</b>`, pirates: `<b>🌊🗡 ×${t.n}</b>`, debt: `${face} 💰`, fey: `${face} ⚒🔒`, feast: `<b>🍖</b>`, trader: `<b>🛒</b>` }[t.kind];
+  return { bandits: `<b>🗡 ×${t.n}</b>`, pirates: `<b>🌊🗡 ×${t.n}</b>`, debt: `${face} 💰`, fey: `${face} ⚒🔒`, feast: `<b>🍖</b>`, trader: `<b>🤝</b>` }[t.kind];
 }
-// What's at stake, said plainly: what they want, and what each answer and doing nothing costs.
 function troubleStakes(t) {
   const s = t.who && byId(t.who), want = goods(t.take), twice = goods(Object.fromEntries(Object.entries(t.take).map(([r, n]) => [r, 2 * n])));
   const armed = [`⚔ Lost: they take ${twice}, everyone home hurt.`, `Left till End day: they take ${twice}.`];
   const lines = {
     bandits: [`${t.n} bandits want ${want}.`, ...armed],
     pirates: [`${t.n} river pirates want ${want}.`, ...armed],
-    debt: [`Collectors want ${want} for ${s?.name}'s debts.`, ...armed],
-    fey: [`${s?.name} wants ${want}.`, `Given: gear named for their ghost.`, `Refused or left: they smash where they work.`],
-    feast: [`A feast for everyone home: ${want}.`, `Two side by side may let a grudge go.`],
+    debt: [`Collectors want ${want} for ${esc(s?.name)}'s debts.`, ...armed],
+    fey: [`${esc(s?.name)} wants ${want}.`, `Given: gear named for their ghost.`, `Refused or left: they smash where they work.`],
+    feast: [`A feast for everyone home: ${want}.`],
     wedding: [`They marry either way.`, `${want} buys the whole village a wedding.`],
-    trader: [`Until End day.`],
+    trader: [`A trader at the gate. Pick one trade.`, `Gone at End day.`],
   }[t.kind] || [];
-  return `<div class="stakes">${lines.map((l) => `<p>${esc(l)}</p>`).join("")}</div>`;
+  return `<div class="stakes">${lines.map((l) => `<p>${l}</p>`).join("")}</div>`;
 }
 function sheetTrouble() {
   const t = S.trouble, ok = afford(t.take);
-  // Trouble that comes armed can be fought; the rest is yes or no.
   const no = t.n ? `⚔ ${Math.round(holds(t.n) * 100)}%` : t.pair ? "💍" : "✕";
   const yes = costText(t.take) + (t.give ? ` ❯ ${goods(t.give)}` : t.n ? "" : " ✓");
   if (t.offers) return `<div class="arrival"><div class="row center">${troubleHead(t)}</div>${troubleStakes(t)}
@@ -225,7 +235,6 @@ function sheetTrouble() {
     <div class="row pair"><button data-act="settle" data-v="no">${no}</button><button class="primary" data-act="settle" data-v="yes" ${ok ? "" : "disabled"}>${yes}</button></div></div>`;
 }
 
-// Three marks at spots of the tile's own, so a stretch of woods doesn't look stamped.
 function scatter(i, icon) {
   const r = seeded(S.seed + i * 9973), spots = [[8, 10], [52, 6], [30, 40], [62, 46], [12, 58]];
   for (let k = spots.length - 1; k > 0; k--) { const j = Math.floor(r() * (k + 1)); [spots[k], spots[j]] = [spots[j], spots[k]]; }
@@ -242,14 +251,14 @@ function sheetPlot(i) {
       <span class="ico">${S.land[i] === "forest" ? "🪓" : "⛏️"}</span><span><b>Clear</b> ${costText(clearCost())} → ${gainText(t.clear)}</span></button>`;
   }
   if (!b) {
-    return `<h3>Build</h3>` + Object.entries(BUILDINGS).filter(([id]) => (S.hall == null) === (id === "townhall")).map(([id, d]) => {
+    return `<h3>Build</h3><div class="picks">` + Object.entries(BUILDINGS).filter(([id]) => (S.hall == null) === (id === "townhall")).map(([id, d]) => {
       const locked = d.needs && !has(d.needs), far = d.near && !beside(i, d.near);
       return `<button class="opt" data-act="build" data-v="${id}" ${locked || far || !afford(d.cost) ? "disabled" : ""}>
-        <span class="ico">${d.icon}</span><span><b>${d.name}</b>${S.asks?.[id]?.length ? ` 🙋${S.asks[id].length}` : ""} ${costText(d.cost)}${besideTag(i, id)}<br><small>${locked ? `🔒 📜 ${RESEARCH[d.needs].name}` : far ? `🔒 ${TERRAIN[d.near].icon}` : d.desc}</small></span></button>`;
-    }).join("");
+        <span class="ico">${d.icon}</span><span><b>${d.name}</b>${S.asks?.[id]?.length ? ` ${tip("Asked for", `🙋${S.asks[id].length}`)}` : ""} ${costText(d.cost)}${besideTag(i, id)}<br><small>${locked ? `🔒 📜 ${RESEARCH[d.needs].name}` : far ? `🔒 ${TERRAIN[d.near].icon}` : d.desc}</small></span></button>`;
+    }).join("") + `</div>`;
   }
   const d = BUILDINGS[b.type];
-  const back = Object.entries(refundOf(i)).map(([k, v]) => `+${v}${RESOURCES[k].icon}`).join(" ");
+  const back = Object.entries(refundOf(i)).map(([k, v]) => tip(RESOURCES[k].name, `+${v}${RESOURCES[k].icon}`)).join(" ");
   const knock = b.type === "townhall" ? "" : `<button class="danger small" data-act="demolish">Demolish${back ? ` <small>♻ ${back}</small>` : ""}</button>`;
   const lv = b.lvl || 0, pips = IMPROVABLE(b.type) ? ` <span class="pips">${"●".repeat(lv)}${"○".repeat(IMPROVE.length - lv)}</span>` : "";
   let body = `<div class="sheet-head"><h3>${d.icon} ${d.name}${pips}${besideTag(i, b.type)}</h3>${knock}</div><p class="dim desc">${d.desc}</p>`;
@@ -264,8 +273,6 @@ function sheetPlot(i) {
       <span class="ico">⏫</span><span><b>${b.type === "forge" ? `−${Math.round((1 - 1 / (1 + next.boost)) * 100)}%` : `+${Math.round(next.boost * 100)}%`}</b> ${costText(next.cost)} · ${goods(next.upkeep)}/d${has(next.needs) ? "" : `<br><small>🔒 📜 ${RESEARCH[next.needs].name}</small>`}</span></button>`;
   }
   if (d.job) {
-    // Current worker, then free people, then people who'd leave another building (its icon in the corner).
-    // Tapping the current worker takes them off.
     const sk = (s) => s.skills[d.job] || 0;
     const rank = (s) => (s.id === b.worker ? 0 : s.job == null ? 1 : 2);
     const home = living().filter((s) => !away(s)).sort((x, y) => rank(x) - rank(y) || sk(y) - sk(x));
@@ -283,26 +290,24 @@ function sheetPlot(i) {
   return body;
 }
 
-// A site: how deep it's been walked, how long the road is, who waits every third floor.
 function sheetSite(site) {
   const d = SITES[site.kind], k = S.sites.indexOf(site), days = travelDays(site);
   const dead = S.remains.filter((r) => r.at === "below" && r.site === k).map((r) => `🦴 ${esc(byId(r.id).name)} · ${r.floor}`);
-  const chips = [site.deepest ? `🪜 ${site.deepest}` : "", days ? `👣 ${days}d` : "", site.boss ? `${d.boss} ${esc(site.boss)}` : "", ...dead]
+  const chips = [site.deepest ? tip("Deepest floor", `🪜 ${site.deepest}`) : "", days ? tip("Travel", `👣 ${days}d`) : "", site.boss ? `${d.boss} ${esc(site.boss)}` : "", ...dead]
     .filter(Boolean).map((x) => `<span class="chip">${x}</span>`).join("");
   return `<h3>${d.icon} ${esc(site.name)}</h3><div class="row wrap">${chips}</div>
     <button class="primary wide" data-act="tosite" data-v="${k}" ${S.expedition ? "disabled" : ""}>🧭 Set out</button>`;
 }
 
-// The land that helps a workplace here, e.g. "🌊+25%", and what it adds, e.g. "🏔️⛏️".
 const besideTag = (i, type) => {
-  const boost = besideBoost(i, type) ? `${TERRAIN[BESIDE[type].find((k) => beside(i, k))].icon}+${BESIDE_BOOST * 100}%` : "";
+  const near = besideBoost(i, type) && TERRAIN[BESIDE[type].find((k) => beside(i, k))];
+  const boost = near ? tip(near.name, `${near.icon}+${Math.round(besideBoost(i, type) * 100)}%`) : "";
   const extra = Object.keys(BESIDE_YIELDS[type] || {}).filter((k) => beside(i, k))
-    .map((k) => TERRAIN[k].icon + Object.keys(BESIDE_YIELDS[type][k]).map((r) => RESOURCES[r].icon).join("")).join(" ");
+    .map((k) => tip(TERRAIN[k].name, TERRAIN[k].icon + Object.keys(BESIDE_YIELDS[type][k]).map((r) => RESOURCES[r].icon).join(""))).join(" ");
   const tag = [boost, extra].filter(Boolean).join(" ");
   return tag ? ` <span class="beside">${tag}</span>` : "";
 };
 
-// A skill's icon is the building that trains it: 🌾 farming, 🪓 woodcutting…
 const jobIcon = (job) => Object.values(BUILDINGS).find((d) => d.job === job).icon;
 
 function sheetEvent() {
@@ -331,7 +336,7 @@ function sheetPrisoner() {
 function sheetVisitor() {
   const v = S.visitor, c = CLASSES[v.cls], st = stats(v), full = living().length >= beds();
   const skills = Object.entries(v.skills).filter(([, x]) => x >= 0.1)
-    .map(([k, x]) => `<span class="chip">${jobIcon(k)} ${x.toFixed(1)}</span>`).join("");
+    .map(([k, x]) => tip(k, `${jobIcon(k)} ${x.toFixed(1)}`, "chip")).join("");
   return `<div class="arrival">
     <img class="face" src="${faceSrc(v)}" alt="">
     <h3>${esc(v.name)}</h3>
@@ -343,18 +348,15 @@ function sheetVisitor() {
   </div>`;
 }
 
-// With someone given, each stat carries what their gear adds to it, green or red.
 const gearAdds = (s, k) => ["weapon", "armor"].reduce((a, slot) => a + (s.gear[slot] ? gearStat(s.gear[slot], k, s) : 0), 0);
-const statLine = (st, hp = "", s = null) => [[hp, "hp"], [`⚔${st.atk}`, "atk"], [`🛡${st.def}`, "def"], [`💨${st.spd}`, "spd"]].filter(([x]) => x)
-  .map(([x, k]) => { const d = s ? gearAdds(s, k) : 0;
-    return `<span>${x}${d ? `<small class="${d > 0 ? "up" : "down"}">${d > 0 ? "+" : "−"}${Math.abs(d)}</small>` : ""}</span>`; }).join("");
+const statLine = (st, hp = "", s = null) => [[hp, "hp", "Health"], [`⚔${st.atk}`, "atk", "Attack"], [`🛡${st.def}`, "def", "Defense"], [`💨${st.spd}`, "spd", "Speed"]].filter(([x]) => x)
+  .map(([x, k, name]) => { const d = s ? gearAdds(s, k) : 0;
+    return `<span data-tooltip="${name}">${x}${d ? `<small class="${d > 0 ? "up" : "down"}">${d > 0 ? "+" : "−"}${Math.abs(d)}</small>` : ""}</span>`; }).join("");
 
-// ---------- people ----------
-// A card is a glance: who, how hurt, how they feel, what they hit for. Everything else is in their sheet.
 function settlerCard(s) {
   const st = stats(s), c = CLASSES[s.cls];
   const feel = fresh(s).sort((x, y) => y.n - x.n).slice(0, 3)
-    .map((x) => `<span class="${THOUGHTS[x.k].morale > 0 ? "good" : "bad"}" title="${THOUGHTS[x.k].name}">${THOUGHTS[x.k].icon}</span>`).join("");
+    .map((x) => `<span class="${THOUGHTS[x.k].morale > 0 ? "good" : "bad"}" data-tooltip="${THOUGHTS[x.k].name}">${THOUGHTS[x.k].icon}</span>`).join("");
   return `<div class="card person" data-act="person" data-v="${s.id}">
     ${mug(s, "face")}
     <div class="grow">
@@ -363,12 +365,10 @@ function settlerCard(s) {
       <div class="row between"><span class="feel">${moraleFace(s)}${feel}</span><span class="stats">${statLine(st, "", s)}</span></div>
     </div></div>`;
 }
-// Where they are: the building they work, the dungeon, or nothing when idle.
 const jobText = (s) => below(s) ? "🪜" : s.wander?.seen ? "👣" : isGuard(s) ? "👀" : s.job != null && S.grid[s.job] ? BUILDINGS[S.grid[s.job].type].icon : "";
-const moraleFace = (s) => `<span title="Morale">${s.morale >= 75 ? "😄" : s.morale >= 50 ? "🙂" : s.morale >= 30 ? "😐" : "😠"} ${s.morale}</span>`;
+const moraleFace = (s) => `<span data-tooltip="Morale" data-placement="bottom">${s.morale >= 75 ? "😄" : s.morale >= 50 ? "🙂" : s.morale >= 30 ? "😐" : "😠"} ${s.morale}</span>`;
 
-// Two slots. Tapping one opens what the stores hold for it, each with how it changes the stats.
-let gearPick = null; // { id, slot } while a slot's list is open
+let gearPick = null;
 const SLOT_ICON = { weapon: "⚔️", armor: "🦺" };
 const STAT_ICON = { atk: "⚔️", def: "🛡️", hp: "❤️", spd: "💨" };
 function gearRow(s) {
@@ -383,14 +383,12 @@ function gearRow(s) {
 }
 function gearList(s, slot) {
   const cur = s.gear[slot];
-  // their own class's weapons first, then the strongest
   const worth = (g) => (weaponCls(g) === s.cls ? 1000 : 0) + Object.keys(STAT_ICON).reduce((t, k) => t + gearStat(g, k, s), 0);
   const rows = (S.stash || []).filter((g) => g.slot === slot).sort((a, b) => worth(b) - worth(a)).map((g) =>
     `<button class="pick" data-act="equip" data-v="${s.id}" data-uid="${g.uid}"><b>${esc(g.name)}</b><small>${weaponCls(g) ? `${CLASSES[weaponCls(g)].icon} ` : ""}${gearDelta(g, cur, s)}</small></button>`);
   if (cur) rows.push(`<button class="pick off" data-act="unequip" data-v="${s.id}" data-slot="${slot}">✕</button>`);
   return `<div class="picker">${rows.join("")}</div>`;
 }
-// "⚔️+3 💨−1" against what's worn now, green for better and red for worse.
 const gearDelta = (g, cur, s) => Object.keys(STAT_ICON).map((k) => {
   const d = gearStat(g, k, s) - (cur ? gearStat(cur, k, s) : 0);
   return d ? `<span class="${d > 0 ? "up" : "down"}">${STAT_ICON[k]}${d > 0 ? "+" : "−"}${Math.abs(d)}</span>` : "";
@@ -399,30 +397,28 @@ const gearStat = (g, k, s) => (g[k] || 0) + (k === "atk" && s ? fitBonus(g, s) :
 const gearText = (g, s, bare = false) => (!bare && weaponCls(g) ? `${CLASSES[weaponCls(g)].icon} ` : "") +
   Object.keys(STAT_ICON).filter((k) => g[k]).map((k) => { const v = gearStat(g, k, s); return `${STAT_ICON[k]}${v > 0 ? "+" : "−"}${Math.abs(v)}`; }).join(" ");
 
-// Each drive as five diamonds, one per 20. Nothing stirred, no row.
 const DRIVE_ICON = { anger: "😠", fear: "👁", grief: "🪦", restless: "👣", warmth: "🔥", pride: "⭐" };
 const drivePips = (s) => Object.keys(DRIVES).some((d) => drive(s, d) >= 10) ? `<div class="drives">${Object.keys(DRIVES).map((d) => {
   const n = Math.round(drive(s, d) / 20);
-  return `<span class="drive" title="${d}">${DRIVE_ICON[d]} <b class="${DRIVES[d] === "happy" ? "good" : "bad"}">${"◆".repeat(n)}</b>${"◇".repeat(5 - n)}</span>`;
+  return `<span class="drive" data-tooltip="${d}">${DRIVE_ICON[d]} <b class="${DRIVES[d] === "happy" ? "good" : "bad"}">${"◆".repeat(n)}</b>${"◇".repeat(5 - n)}</span>`;
 }).join("")}</div>` : "";
 const moraleChip = (s) => `<span class="thought">${moraleFace(s)}</span>`;
 const thoughtChip = (x) => {
   const t = THOUGHTS[x.k], v = t.morale;
-  return `<span class="thought ${v > 0 ? "good" : "bad"}" title="${t.name}">${t.icon} ${v > 0 ? "+" : "−"}${Math.abs(v)}</span>`;
+  return `<span class="thought ${v > 0 ? "good" : "bad"}" data-tooltip="${t.name}">${t.icon} ${v > 0 ? "+" : "−"}${Math.abs(v)}</span>`;
 };
 
 function viewPeople() {
   const dead = S.settlers.filter((s) => s.dead);
-  // During an expedition: the party under the site, then who stayed home.
   const down = living().filter(below);
-  const cards = !down.length ? living().map(settlerCard).join("")
-    : `<h4>${SITES[siteOf().kind].icon} ${esc(siteOf().name)}</h4>${down.map(settlerCard).join("")}
-      <h4 class="split">🏘 Millhollow</h4>${living().filter((s) => !below(s)).map(settlerCard).join("")}`;
+  const crew = (xs) => `<div class="crew">${xs.map(settlerCard).join("")}</div>`;
+  const cards = !down.length ? crew(living())
+    : `<h4>${SITES[siteOf().kind].icon} ${esc(siteOf().name)}</h4>${crew(down)}
+      <h4 class="split">🏘 Millhollow</h4>${crew(living().filter((s) => !below(s)))}`;
   return cards + (dead.length ? `<h4>🪦</h4><div class="remembered">${dead.map((s) =>
     mug(s)).join("")}</div>` : "");
 }
 
-// Where the dead lie: below, on the way up, waiting for a graveyard.
 function restText(s) {
   const r = S.remains.find((x) => x.id === s.id);
   if (!r) return "";
@@ -430,8 +426,6 @@ function restText(s) {
   return `<div class="chip">🦴 ${where}</div>`;
 }
 
-// Someone's own story: how they feel now, then what happened to and around them, newest first.
-// Whoever this person blames for a death, as faces.
 const blames = (s) => {
   const ts = living().filter((t) => grudge(s, t));
   return ts.length ? `<div class="row wrap center">😠 ${ts.map((t) => mug(t)).join("")}</div>` : "";
@@ -441,48 +435,60 @@ function sheetPerson() {
   const days = (e) => e.to > e.day ? `d${e.day}–${e.to}` : `d${e.day}`;
   const line = (e) => {
     if (e.kind === "past") return `<p class="past">${esc(e.text)}</p>`;
-    if (!e.k) return `<p class="${e.kind || ""}"><small>${days(e)}</small> ${esc(e.text)}</p>`;
+    if (!e.k) return `<p class="${e.kind || ""}"><small>${days(e)}</small> ${named(esc(e.text))}</p>`;
     const t = THOUGHTS[e.k];
     return `<p class="felt ${t.morale > 0 ? "good" : "bad"}"><small>${days(e)}</small> ${t.icon} ${t.name}${e.x > 1 ? ` ×${e.x}` : ""}</p>`;
   };
   const st = stats(s);
   const skills = Object.entries(s.skills).filter(([, x]) => x >= 0.1)
-    .map(([k, x]) => `<span class="chip">${jobIcon(k)} ${x.toFixed(1)}</span>`).join("");
-  return `<div class="arrival ${s.dead ? "gone" : ""}">
-    ${s.dead ? `<img class="face" src="${faceSrc(s)}" alt="">` : `<button class="ask" data-act="why" aria-label="Why?"><img class="face" src="${faceSrc(s)}" alt=""></button>`}
-    ${sheet.why && !s.dead ? `<p class="said">“${esc(why(s))}”</p>` : ""}
-    <h3>${esc(s.name)}</h3>
+    .map(([k, x]) => tip(k, `${jobIcon(k)} ${x.toFixed(1)}`, "chip")).join("");
+  return `<div class="personsheet"><div class="arrival ${s.dead ? "gone" : ""}"><div class="idcard">
+    <img class="face" src="${faceSrc(s)}" alt="">
+    <div><div class="nameline"><h3>${esc(s.name)}</h3>${s.dead ? "" : moraleChip(s)}</div>
     <div class="row center">${c.icon} ${c.name} · lv ${s.level}${isGuard(s) ? (s.wasJob ? ` · <span class="dim">${BUILDINGS[s.wasJob.type].icon}</span>` : "") : jobText(s) ? ` · ${jobText(s)}` : ""}
     ${s.dead || away(s) ? "" : `<button class="small ${isGuard(s) ? "on" : "ghost"}" data-act="guard" aria-label="Guard">👀</button>`}</div>
     ${s.dead ? restText(s) : ""}
     ${s.dead ? "" : `<div class="hpline">${bar(s.hp, st.hpMax, "hp")}</div>
-    <div class="stats">${statLine(st, `❤️${s.hp}/${st.hpMax}`, s)}</div>
-    <div class="thoughts">${moraleChip(s)}${fresh(s).sort((x, y) => y.n - x.n).map(thoughtChip).join("")}</div>
+    <div class="stats">${statLine(st, `❤️${s.hp}/${st.hpMax}`, s)}</div>`}</div></div>
+    ${!s.dead ? `<p class="said">“${esc(why(s))}”</p>` : ""}
+    ${!s.dead && wants(s) ? `<div class="row center wrap">${Object.entries(S.asks).filter(([, ids]) => ids.includes(s.id))
+      .map(([t]) => tip("Asked for", `🙋 ${BUILDINGS[t].icon} ${BUILDINGS[t].name}`, "chip")).join("")}</div>` : ""}
+    ${s.dead ? "" : `<div class="thoughts">${fresh(s).sort((x, y) => y.n - x.n).map(thoughtChip).join("")}</div>
     ${drivePips(s)}
-    <div class="row wrap center">${skills}${s.pastime ? `<span class="chip">${PASTIMES[s.pastime].icon} ${PASTIMES[s.pastime].name}</span>` : ""}</div>
+    <div class="row wrap center">${skills}${s.pastime ? tip("Pastime", `${PASTIMES[s.pastime].icon} ${PASTIMES[s.pastime].name}`, "chip") : ""}</div>
     ${blames(s)}
     ${gearRow(s)}`}
   </div>
-  <div class="lifelog">${(s.story || []).slice().reverse().map(line).join("")}</div>`;
+  <div><div class="sites lifetabs"><button class="${sheet.ties ? "" : "on"}" data-act="lifetab" data-v="log" aria-label="Log">📖</button><button class="${sheet.ties ? "on" : ""}" data-act="lifetab" data-v="ties" aria-label="Relationships">👥</button></div>
+  <div class="lifelog">${sheet.ties ? tiesOf(s) : (s.story || []).slice().reverse().map(line).join("")}</div></div></div>`;
+}
+const FEELS = [[90, "would die for"], [75, "would do anything for"], [60, "devoted to"], [45, "close to"], [30, "fond of"],
+  [15, "enjoys company of"], [5, "gets along with"], [1, "warming to"], [0, "indifferent to"], [-4, "unsure of"],
+  [-14, "annoyed at"], [-29, "irritated by"], [-44, "dislikes"], [-59, "resents"], [-74, "can't stand"], [-89, "loathes"], [-100, "hates"]];
+const feels = (v, dead) => dead && v >= 15 ? "misses" : FEELS.find(([at]) => v >= at)[1];
+function tiesOf(s) {
+  const os = [...S.settlers, ...(S.gone || [])].filter((o) => o.id !== s.id && (tieOf(s, o) || s.spouse === o.id || grudge(s, o)));
+  return os.sort((a, b) => tieOf(s, b) - tieOf(s, a)).map((o) => {
+    const v = tieOf(s, o);
+    const marks = (s.spouse === o.id ? "💍" : "") + (s.fz?.includes(o.id) ? "💔" : "") + (grudge(s, o) ? "😠" : "") + (o.dead ? "🪦" : "");
+    return `<p class="tie"><span><u class="nm" data-act="person" data-v="${o.id}">${esc(o.name)}</u> <i>${feels(v, o.dead)}</i></span><span>${marks} <small>${v > 0 ? "+" : ""}${Math.round(v)}</small></span><span class="tiebar ${v < 0 ? "neg" : ""}" style="--v:${Math.abs(v)}"><i></i></span></p>`;
+  }).join("");
 }
 
-// ---------- forge / research ----------
 let forgeTab = null;
 function viewForge() {
-  if (!S.grid.some((b) => b && b.type === "forge")) return `<p class="dim">Build a forge first.</p>`;
+  if (!built("forge")) return `<p class="dim">Build a forge first.</p>`;
   if (!staffed("forge")) return `<p class="dim">The forge needs a worker.</p>`;
-  // a piece on the anvil fills its button; with every forge busy, the rest wait
   const free = forgeFree();
   const job = (id) => (S.forging || []).filter((x) => x.id === id).sort((a, b) => a.left - b.left)[0];
   const timer = (id) => (job(id) ? " on" : "");
-  const days = (id) => ` ⏳ ${job(id) ? job(id).left : forgeDays(id)}d`;
+  const days = (id) => ` ${tip("Days", `⏳ ${job(id) ? job(id).left : forgeDays(id)}d`)}`;
   const recipe = (r) => {
     const locked = r.needs && !has(r.needs);
     return `<button class="opt${timer(r.id)}" data-act="craft" data-v="${r.id}" ${locked || !free || !afford(forgeCost(r.cost)) ? "disabled" : ""}>
       <span><b>${r.name}</b> ${costText(forgeCost(r.cost))}${days(r.id)}<br><small>${locked ? `🔒 📜 ${RESEARCH[r.needs].name}` : gearText(r, null, true)}</small></span></button>`;
   };
   const potion = `<button class="opt${timer("potion")}" data-act="brew" ${free && afford(forgeCost(POTION_COST)) ? "" : "disabled"}><span><b>Potion</b> ${costText(forgeCost(POTION_COST))}${days("potion")}<br><small>❤️+20</small></span></button>`;
-  // a tab per class, armour, and potions once known; a tab with something on the anvil fills too
   const groups = [...Object.entries(CLASSES).map(([k, c]) => [k, c.icon, c.name, RECIPES.filter((r) => r.cls === k).map(recipe).join(""), RECIPES.some((r) => r.cls === k && timer(r.id))]),
     ["armor", SLOT_ICON.armor, "Armour", RECIPES.filter((r) => r.slot === "armor").map(recipe).join(""), RECIPES.some((r) => r.slot === "armor" && timer(r.id))],
     ...(has("herbalism") ? [["potion", "🧪", "Potion", potion, !!timer("potion")]] : [])];
@@ -495,16 +501,14 @@ function viewForge() {
 }
 
 function viewResearch() {
-  const lib = S.grid.some((b) => b && b.type === "library");
-  return `<p class="dim">${lib ? "Staffed library: 1🏺 → research per day." : "Needs a library and relics (🏺) from the dungeon."}</p>` +
+  return `<p class="dim">Staffed library: 1🏺 → research per day.</p><div class="picks">` +
     Object.entries(RESEARCH).map(([id, r]) => {
       const locked = r.after && !has(r.after), repeat = REPEAT_RESEARCH.includes(id), n = tech(id), cost = researchCost(id), now = S.study && S.study.id === id;
       return `<button class="opt ${has(id) || now ? "on" : ""}" data-act="research" data-v="${id}" ${(!repeat && has(id)) || locked || S.study || S.res.research < cost ? "disabled" : ""}>
-      <span><b>${r.name}</b> ${now ? `⏳ ${S.study.left}d` : has(id) && !repeat ? "✓" : `${costText({ research: cost })} ⏳ ${studyDays(id)}d`}${repeat && n ? ` <small>lv ${n}</small>` : ""}<br><small>${locked ? `🔒 📜 ${RESEARCH[r.after].name}` : r.desc}</small></span></button>`;
-    }).join("");
+      <span><b>${r.name}</b> ${now ? tip("Days", `⏳ ${S.study.left}d`) : has(id) && !repeat ? "✓" : `${costText({ research: cost })} ${tip("Days", `⏳ ${studyDays(id)}d`)}`}${repeat && n ? ` <small>lv ${n}</small>` : ""}<br><small>${locked ? `🔒 📜 ${RESEARCH[r.after].name}` : r.desc}</small></span></button>`;
+    }).join("") + `</div>`;
 }
 
-// ---------- expedition ----------
 function viewExpedition() {
   const ready = living().filter((s) => s.hp > 0);
   const sworn = ready.filter(avenges).map((s) => s.id);
@@ -518,20 +522,19 @@ function viewExpedition() {
   const floors = Array.from({ length: site.deepest + 1 }, (_, k) => k + 1);
   const where = known.length > 1 ? `<div class="sites">${known.map((x) => `<button class="${x === site ? "on" : ""}" data-act="site" data-v="${S.sites.indexOf(x)}"
     aria-label="${esc(x.name)}">${SITES[x.kind].icon}</button>`).join("")}</div>` : "";
-  // whoever stays behind can be put on the gate from here
   const home = living().filter((s) => !away(s) && !plan.party.includes(s.id));
   const per = (k) => `${roomsPer(k)} ${roomsPer(k) > 1 ? "rooms" : "room"}`;
   const cook = has("smoking") || S.res.meals > 0;
   const stepper = (act, icon, n) => `<div class="row between"><span>${icon}</span><span class="row">
       <button data-act="${act}" data-v="-1" data-hold>−</button><b>${n}</b><button data-act="${act}" data-v="1" data-hold>＋</button></span></div>`;
-  return `${where}<div class="row between"><h3>${SITES[site.kind].icon} ${esc(site.name)}</h3>${days ? `<span class="chip">👣 ${days}d</span>` : ""}</div>
+  return `${where}<div class="row between"><h3>${SITES[site.kind].icon} ${esc(site.name)}</h3>${days ? tip("Travel", `👣 ${days}d`, "chip") : ""}</div>
     <p class="dim">Party of up to ${partyMax()}. 🍞 ${per("food")}${cook ? ` · 🥪 ${per("meals")}, +${MEAL_HEAL}❤️` : ""}. No food: starving. Death is permanent.</p>
-    ${ready.map((s) => {
+    <div class="exped"><div class="roster">${ready.map((s) => {
       const on = plan.party.includes(s.id), st = stats(s), no = refuses(s), due = avenges(s);
       return `<div class="optrow">${mug(s)}
         <button class="opt ${on ? "on" : ""}" data-act="pick" data-v="${s.id}" ${no || due ? "disabled" : ""}><span>${no ? "😔 " : due ? "🔒 " : ""}${plan.party.some((id) => grudge(s, byId(id)) || grudge(byId(id), s)) ? " 😠" : ""} ${CLASSES[s.cls].icon} lv ${s.level}${lensOf(s).length ? ` <span class="chip">${[...new Set(lensOf(s).map((t) => ROOM_ICON[t === "boss" ? "stairs" : t]))].join("")}</span>` : ""}
         <br><small>HP ${s.hp}/${st.hpMax}${s.job != null && S.grid[s.job] ? ` · working: ${BUILDINGS[S.grid[s.job].type].icon}` : ""}</small></span></button></div>`;
-    }).join("")}
+    }).join("")}</div><div class="plan">
     ${plan.party.length ? formation(plan.party.map(byId), false) : ""}
     ${home.length ? `<div class="row between"><span>👀</span><span class="row">${Array.from({ length: watchMax() }, (_, i) => {
       const on = guards()[i];
@@ -540,7 +543,7 @@ function viewExpedition() {
     ${stepper("rations", "🍞", plan.rations)}${cook ? stepper("meals", "🥪", plan.meals) : ""}
     <div class="row between"><span>Start at floor</span><select data-act="floor">${floors.map((f) =>
       `<option ${f === plan.floor ? "selected" : ""}>${f}</option>`).join("")}</select></div>
-    <button class="primary wide" data-act="depart" ${plan.party.length ? "" : "disabled"}>Set out</button>`;
+    <button class="primary wide" data-act="depart" ${plan.party.length ? "" : "disabled"}>Set out</button></div></div>`;
 }
 
 const ROOM_ICON = { entrance: "🚪", fight: "⚔️", boss: "☠️", treasure: "💰", empty: "·", shrine: "⛲", event: "❔", stairs: "🪜" };
@@ -555,34 +558,31 @@ function viewDungeon() {
     if (!r || !r.seen) { cells += `<div class="room none"></div>`; continue; }
     const show = r.done || r.type === "entrance" || (near.includes(k) && (has("lanterns") || partyReads(r.type))) || r.type === "stairs" && r.done;
     const here = m.at === k, can = !here && canMove(k);
-    // A room that's been dealt with fades its mark; a beaten keeper leaves the way down.
-    // The dead show from a room away, so they can be carried home.
     const spent = r.done && !r.body && !["entrance", "stairs", "boss"].includes(r.type);
     const mark = r.done && r.type === "boss" ? ROOM_ICON.stairs : ROOM_ICON[r.type];
     cells += `<button class="room ${here ? "here" : ""} ${m.from === k && !here ? "from" : ""} ${r.done ? "done" : ""} ${spent ? "spent" : ""}" data-k="${k}" ${can ? `data-act="move" data-v="${k}"` : "disabled"}>
       ${here ? "🔦" : r.body ? `<span class="mark">🦴</span>` : show ? `<span class="mark">${mark}</span>` : "?"}</button>`;
   }
   const r = m.rooms[m.at];
-  const loot = Object.entries(e.loot).filter(([, n]) => n).map(([k, n]) => `${n}${RESOURCES[k].icon}`).concat(e.gear.map((g) => esc(g.name)), e.crown ? ["👑".repeat(e.crowns || 1)] : []).join(" ") || "nothing yet";
+  const loot = Object.entries(e.loot).filter(([, n]) => n).map(([k, n]) => tip(RESOURCES[k].name, `${n}${RESOURCES[k].icon}`)).concat(e.gear.map((g) => esc(g.name)), e.crown ? ["👑".repeat(e.crowns || 1)] : []).join(" ") || "nothing yet";
   let panel = "";
   if (e.event) {
     const ev = EVENTS.find((x) => x.id === e.event);
-    panel = `<div class="row wrap"><button class="primary" data-act="asked">${ROOM_ICON.event} ${ev.text}</button></div>`;
+    panel = `<div class="row wrap center acts"><button class="primary" data-act="asked">${ROOM_ICON.event} ${ev.text}</button></div>`;
   } else {
     const down = ["stairs", "boss"].includes(r.type) && r.done;
-    panel = `<div class="row wrap">${down ? `<button class="primary" data-act="descend">Down to floor ${m.floor + 1}${grim(m.floor + 1) > 1 ? " " + "💀".repeat(1 + Math.floor(Math.log2(grim(m.floor + 1)))) : ""}</button>` : ""}
+    panel = `<div class="row wrap center acts">${down ? `<button class="primary" data-act="descend">Down to floor ${m.floor + 1}${grim(m.floor + 1) > 1 ? " " + "💀".repeat(1 + Math.floor(Math.log2(grim(m.floor + 1)))) : ""}</button>` : ""}
       <button data-hold="push" ${nextStep() ? "" : "disabled"}>👣 Push on</button>
       ${has("camping") ? `<button data-act="camp" ${canCamp() ? "" : "disabled"}>🏕️ Camp (${partyAlive().length}🍞)</button>` : ""}
       <button data-act="home">Head home (${homeDays()}d, ${homeFood()}🍞)</button></div>`;
   }
-  return `<div class="row between"><b>${SITES[siteOf().kind].icon} ${esc(siteOf().name)} · ${m.floor}</b><small class="${foodLeft() <= homeFood() ? "short" : ""}">🍞 ${e.rations}${e.meals ? ` 🥪 ${e.meals}` : ""} · 🧪 ${S.res.potions}</small></div>
+  return `<div class="row between"><b>${SITES[siteOf().kind].icon} ${esc(siteOf().name)} · ${m.floor}</b><small class="${foodLeft() <= homeFood() ? "short" : ""}">${tip("Rations", `🍞 ${e.rations}`)}${e.meals ? ` ${tip("Meals", `🥪 ${e.meals}`)}` : ""} · ${tip("Potions", `🧪 ${S.res.potions}`)}</small></div>
     <div class="bags"><details class="lineup" data-keep="lineup" ${kept.lineup ? "open" : ""}><summary>Lineup</summary>${formation(e.party.map(byId), true)}</details>
     <details class="lineup pack" data-keep="carry" ${kept.carry ? "open" : ""}><summary>Pack</summary><p class="dim small">${loot}</p></details></div>
     <div class="map move-${dir}" style="--w:${MAP}">${cells}</div>
     ${panel}${alarmButton()}`;
 }
 
-// ---------- fight ----------
 // A <details> marked data-keep stays as it was left across re-renders.
 const kept = {};
 document.addEventListener("toggle", (e) => { if (e.target.dataset?.keep) kept[e.target.dataset.keep] = e.target.open; }, true);
@@ -632,14 +632,13 @@ function tickFight() {
     el.classList.toggle("flash", h.flash > 0);
     el.classList.toggle("healed", h.healed > 0);
     el.classList.toggle("back", h.row === "back");
-    // One tap drinks a potion: shows how many are left, gone when there are none.
     const pot = el.querySelector(".potion");
     pot.hidden = S.res.potions <= 0;
     pot.disabled = h.hp <= 0 || h.hp >= h.hpMax || f.over;
     const n = `×${S.res.potions}`;
     if (pot.dataset.n !== n) { pot.innerHTML = iconize(`🧪${n}`); pot.dataset.n = n; }
   });
-  $("#flines").innerHTML = iconize(f.lines.map((l) => `<p>${esc(l)}</p>`).join(""));
+  morph($("#flines"), iconize(f.lines.map((l) => `<p>${esc(l)}</p>`).join("")));
   const ctl = f.over === "won" ? ""
     : f.over
     ? `<button class="primary wide" data-act="fightdone">${f.over === "fled" ? "Fall back" : "It's over"}</button>`
@@ -659,9 +658,7 @@ setInterval(() => {
   playFx(f);
 }, 100);
 
-// a finished piece lands in the stores on its own
 
-// Push on walks only while held: a step a beat, and it stops for anything that needs a say.
 let pushing = null;
 const stopPush = () => { clearInterval(pushing); pushing = null; };
 document.addEventListener("pointerdown", (ev) => {
@@ -677,13 +674,12 @@ document.addEventListener("pointerdown", (ev) => {
 });
 for (const t of ["pointerup", "pointercancel", "blur"]) window.addEventListener(t, stopPush);
 
-// ---------- fight juice ----------
 const EGG_FLOOR = 6;
 const elFor = (u) => document.querySelectorAll(u.side === "h" ? ".hero" : ".foe")[u.idx];
 
 function playFx(f) {
   const box = $(".fightbox");
-  let lag = 0; // a volley's arrows leave one after another, not as one blob
+  let lag = 0;
   for (const e of f.fx.splice(0)) {
     if (e.t === "hit") {
       const a = elFor(e.from), b = elFor(e.to);
@@ -747,11 +743,9 @@ function playFx(f) {
     } else if (e.t === "won") {
       if (!box) continue;
       box.classList.add("victory");
-      // Bigger the upset, bigger the party: odds from the start, and more again for a keeper or a deep floor.
       const heat = Math.min(4, Math.max(0.15, f.odds) * (f.enemies.some((x) => x.boss) ? 1.6 : 1) * (1 + 0.04 * (S.expedition.map.floor - 1)));
       const r = box.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
       const ms = 1200 + 900 * heat, deep = f.enemies.some((x) => x.boss) && S.expedition.map.floor >= EGG_FLOOR;
-      // Easter egg: now and then a deep keeper's fall gets the old solitaire send-off.
       if (!(deep && chance(0.02) && Juice.solitaire("Victory", cx, cy))) {
         const big = Juice.float(cx, cy, "Victory", "banner", ms);
         if (big) big.style.fontSize = `${1.4 + 0.6 * heat}rem`;
@@ -759,8 +753,7 @@ function playFx(f) {
       const n = Math.max(1, Math.round(1 + 2 * heat)), waves = heat > 1.5 ? 3 : heat > 0.7 ? 2 : 1;
       for (let w = 0; w < waves; w++) for (let i = 0; i < n; i++) setTimeout(() => Juice.burst(r.left + r.width * ((i + 1) / (n + 1)), r.top + 30,
         { n: Math.round(8 + 10 * heat), colors: [...PAL.gold, "#9fe07a", "#b9a4d6"], speed: 160 + 60 * heat, up: 160 + 80 * heat, gravity: 520, life: 1 + 0.3 * heat, size: 3 + heat / 2, drag: 0.95 }), w * 500 + i * 90);
-      // No button: the fight closes itself once the last blow lands, and the party goes on under the confetti.
-      setTimeout(() => { if (S.expedition?.fight === f) run("fightdone"); }, 600);
+      setTimeout(() => { if (S.expedition?.fight === f) run("fightdone"); }, 1800);
     } else if (e.t === "lost") {
       if (!box) continue;
       box.classList.add("defeat");
@@ -775,22 +768,17 @@ function playFx(f) {
   }
 }
 
-// ---------- sheet ----------
-// Slides up when it opens and down when it closes, however it closes (tap outside,
-// picking something, or dragging it down like an iOS sheet).
 const calmMotion = !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
 let sheetShut = 0;
 
 // GitHub's mark (Octicons, MIT); brand marks aren't in the icon sets.
 const GITHUB_MARK = `<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>`;
 
-// The browser's install offer, held until someone taps Install in the gear menu.
 let installer = null;
 window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installer = e; });
 window.addEventListener("appinstalled", () => { installer = null; });
 document.addEventListener("fullscreenchange", () => { if (sheet?.menu) renderSheet(); });
 
-// Settings live behind the gear; wiping the save takes a second, deliberate tap.
 function sheetMenu() {
   const swatch = (t) => `<button class="${t.id === theme.id ? "on" : ""}" data-act="theme" data-v="${t.id}" style="background:${t.bg};color:${t.ink}">
     <span class="sw"><i style="background:${t.accent}"></i>${["red", "yellow", "green", "blue", "purple"].map((h) => `<i style="background:${t[h]}"></i>`).join("")}</span>
@@ -828,9 +816,8 @@ function renderSheet() {
     box.hidden = false;
     box.classList.add("open");
   }
-  // A built plot's sheet is one tap (pick a worker) or a tap outside; only the long build list keeps Close.
-  inner.innerHTML = iconize(sheet.menu ? sheetMenu() : sheet.event ? sheetEvent() : sheet.visitor ? sheetVisitor() : sheet.trouble ? sheetTrouble() : sheet.person ? sheetPerson()
-    : sheetPlot(sheet.i) + (S.grid[sheet.i] || wild(sheet.i) ? "" : `<button class="wide" data-act="close">Close</button>`));
+  morph(inner, iconize(sheet.menu ? sheetMenu() : sheet.event ? sheetEvent() : sheet.visitor ? sheetVisitor() : sheet.trouble ? sheetTrouble() : sheet.person ? sheetPerson()
+    : sheetPlot(sheet.i)));
 }
 
 (() => {
@@ -863,7 +850,6 @@ function renderSheet() {
   inner.addEventListener("click", (e) => { if (dragged) { e.stopPropagation(); dragged = false; } }, true);
 })();
 
-// ---------- land ----------
 // The land keeps its place between renders as the map spot at the middle of the window, so
 // newly revealed rows don't shift it. The first look is at the town hall. It's counted from the
 // middle of the land, which stays put when the land grows.
@@ -910,7 +896,6 @@ document.addEventListener("scroll", (e) => {
   document.addEventListener("click", (e) => { if (moved) { moved = false; e.stopPropagation(); e.preventDefault(); } }, true);
 })();
 
-// Party lanes: drag someone onto the other lane, or tap them, then the lane. Tapping the picked one again opens them.
 // A touch drag scrolls the page instead (pan-y), so on a phone it's the taps.
 (() => {
   let pc = null, from = null, moved = false;
@@ -951,7 +936,6 @@ document.addEventListener("scroll", (e) => {
   }, true);
 })();
 
-// ---------- input ----------
 // Buttons marked data-hold repeat while held, faster the longer the hold. The page re-renders
 // under the finger, so the repeat runs off the action name, not the element.
 (() => {
@@ -981,8 +965,17 @@ document.addEventListener("scroll", (e) => {
   }, true);
 })();
 const ACTS = {
-  tab: (v) => { tab = v; sheet = null; },
-  asides: () => (asides = !asides),
+  tab: (v) => {
+    if (v === "log" && wide.matches) {
+      const was = tab === "log", off = !was && root.classList.toggle("nolog");
+      if (was) root.classList.remove("nolog");
+      try { localStorage.setItem("mh-sidelog", off ? "0" : "1"); } catch {}
+      if (was) { tab = S.expedition ? "dungeon" : "village"; return; }
+      return "keep";
+    }
+    tab = v; sheet = null;
+  },
+  asides: () => (root.classList.toggle("asides"), "keep"),
   older: () => (older = true),
   menu: () => (sheet = { menu: true }),
   theme: (v) => { applyTheme(v); },
@@ -1022,9 +1015,8 @@ const ACTS = {
   alarm: () => (sheet = { trouble: true }),
   settle: (v) => { settle(v); save(); sheet = null; },
   person: (v) => { sheet = { person: +v }; gearPick = null; },
-  why: () => { sheet.why = !sheet.why; },
+  lifetab: (v) => { sheet.ties = v === "ties"; },
   guard: () => setGuard(sheet.person),
-  // one picker per watch: whoever held it stands down, the new pick takes it
   watch: (v, el) => { const on = guards()[+el.dataset.i]; if (on) setGuard(on.id); if (v) setGuard(+v); },
   gearpick: (v) => (gearPick = gearPick && gearPick.id === sheet.person && gearPick.slot === v ? null : { id: sheet.person, slot: v }),
   equip: (v, el) => { equip(+v, +el.dataset.uid); gearPick = null; },
@@ -1060,7 +1052,6 @@ const ACTS = {
   home: () => returnHome(),
   focus: (v) => { const f = S.expedition.fight; f.focus = f.enemies[+v].hp > 0 ? +v : null; tickFight(); return "keep"; },
   potion: (v) => { usePotion(+v); tickFight(); renderTop(); playFx(S.expedition.fight); return "keep"; },
-  // Tapping a face mid-fight swaps their lane, and it sticks for the next fight too.
   lane: (v) => { const f = S.expedition.fight, h = f.heroes[+v]; if (h.hp > 0 && !f.over) { byId(h.id).row = h.row = h.row === "back" ? "front" : "back"; f.front = null; } tickFight(); return "keep"; },
   pause: () => { const f = S.expedition.fight; f.paused = !f.paused; tickFight(); return "keep"; },
   speed: () => { const f = S.expedition.fight, speeds = [0.5, 1, 2, 3]; f.speed = speeds[(speeds.indexOf(f.speed) + 1) % speeds.length]; tickFight(); return "keep"; },
@@ -1110,15 +1101,6 @@ function loadCode(text) {
   });
 }
 
-// On the arrival cards the face turns a little toward the pointer.
-const still = matchMedia("(prefers-reduced-motion: reduce)");
-document.addEventListener("pointermove", (e) => {
-  const card = e.target.closest?.(".founding .who button"), img = card?.querySelector(".me");
-  document.querySelectorAll(".founding .who .me[style]").forEach((o) => { if (o !== img) o.removeAttribute("style"); });
-  if (!img || still.matches) return;
-  const r = card.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
-  img.style.transform = `perspective(300px) rotateY(${x * 24}deg) rotateX(${-y * 24}deg)`;
-});
 document.addEventListener("click", (e) => {
   const el = e.target.closest("[data-act]");
   if (!el || el.tagName === "SELECT" || el.disabled) return;
@@ -1127,13 +1109,15 @@ document.addEventListener("click", (e) => {
   run(act, el.dataset.v, el);
 });
 
-// Every action is bracketed by a snapshot, so the juice comes from what actually
-// changed rather than from hooks scattered through game.js.
 function run(act, v, el) {
-  const before = snap();
+  const before = snap(), was = tab, life = act === "lifetab" && !!sheet.ties !== (v === "ties");
   if (ACTS[act](v, el) === "keep") return;
-  render();
-  celebrate(before);
+  const draw = () => { render(); celebrate(before); };
+  if ((tab === was && !life) || !document.startViewTransition || matchMedia("(prefers-reduced-motion: reduce)").matches) return draw();
+  const order = [...document.querySelectorAll("#tabs button")].map((b) => b.dataset.v);
+  root.dataset.vt = life ? "life" : "tab";
+  root.dataset.slide = life ? (v === "ties" ? "on" : "back") : order.indexOf(tab) < order.indexOf(was) ? "back" : "on";
+  document.startViewTransition(draw);
 }
 
 function snap() {
@@ -1159,8 +1143,6 @@ function celebrate(b) {
 
   if (S.day > b.day) {
     Juice.pop(document.querySelector("#res .day"), 1.4);
-    const v = $("#view");
-    v.classList.remove("dawn"); void v.offsetWidth; v.classList.add("dawn");
     lastYields.forEach(({ i, got }, n) => Object.entries(got).forEach(([k, amt], j) => setTimeout(() => {
       const tile = document.querySelector(`.tile[data-i="${i}"]`);
       if (!tile) return;
@@ -1183,7 +1165,6 @@ function celebrate(b) {
   else if (b.exp && !e) Juice.veil("Millhollow", `Day ${S.day}`);
   else if (b.exp && e && e.map.floor !== b.exp.floor) Juice.veil(`Floor ${e.map.floor}`, keeper(siteOf(), e.map.floor) ? "Boss floor" : "");
   else if (b.exp && e && e.map.at !== b.exp.at) {
-    // Walking is quiet. Only a room that pays out on this step gets a flourish.
     const here = $(".room.here"), r = e.map.rooms[e.map.at], fresh = r.done && !b.exp.done.includes(e.map.at);
     if (here && fresh && (r.type === "treasure" || r.type === "shrine")) {
       const p = Juice.center(here);
@@ -1208,7 +1189,6 @@ document.addEventListener("change", (e) => {
   if (el.id === "savepick") { const f = el.files[0]; el.value = ""; if (f) f.text().then(loadCode); return; }
   if (!el.dataset.act) return;
   if (el.dataset.act === "floor") plan.floor = +el.value;
-  // nobody picked stands the current guard down
   if (el.dataset.act === "watch") return run("watch", el.value, el);
   render();
 });
@@ -1219,7 +1199,6 @@ document.addEventListener("keydown", (e) => {
   if (e.code === "Space") { e.preventDefault(); document.activeElement.blur(); run(f.over ? "fightdone" : "pause"); }
 });
 
-// ---------- updates ----------
 // Every 10 minutes and whenever the page comes back into view, ask the server for the page's
 // and scripts' ETags. If any changed since this page loaded, save and reload: at once when coming
 // back into view, otherwise after 30s without a tap. Never mid-fight.
@@ -1252,3 +1231,4 @@ if (location.protocol.startsWith("http") && !window.Android) {
 
 if (!load()) newGame();
 render();
+requestAnimationFrame(() => requestAnimationFrame(() => document.documentElement.classList.remove("boot")));

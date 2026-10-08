@@ -1,5 +1,4 @@
-// Millhollow — offline play. Code and page come from the network when it's there, so an
-// update shows up on the next open; faces never change, so they're served from the cache.
+// Faces never change, so they're served from the cache; code and page come from the network first.
 const CACHE = "millhollow-v2";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icons/icon-192.png",
   ...["themes", "data", "names", "game", "combat", "sprite", "icons", "juice", "ui"].map((f) => `js/ds/${f}.js`)];

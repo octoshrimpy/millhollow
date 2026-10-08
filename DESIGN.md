@@ -29,8 +29,8 @@
 - Untouched land is flat ground. Buildings and sites are raised cards. Open meadow is a dashed
   slot, the only place to build. Woods, hills and ruins clear to meadow for their yield; water and
   mountains stay.
-- Farms, lumber camps and quarries get +25% beside water, woods and hills or mountains.
-- Quarries turn up 0.15⛏️ a day, 0.5⛏️ beside mountains. Fishing docks only go beside water.
+- Farms, fishing docks, lumber camps and quarries get +10% for each water, woods, hills or mountain tile touching a side (not corners). A dock's first water tile is its footing, not a bonus.
+- Quarries turn up 0.15⛏️ a day, 0.5⛏️ beside mountains. Fishing docks only go on a side of water.
 - Workplaces improve in place (+25%, +50%, +80%) instead of taking tools. An improved forge cuts
   crafting and brewing costs instead (−20%, −33%, −44%).
   A staffed improved workplace eats upkeep each day: 1 wood, 1 stone or 1 silver by level. Unpaid
@@ -82,8 +82,8 @@
   - Ties: how two people stand with each other, −100 to 100. Evenings and talks together, lessons,
     mending, forgiving, a long table, fights won side by side raise it; brawls and jiltings sink it.
     Strong ties wear slowly unless kept up. Crossing 40 makes friends, −40 enemies. Small stuff (talks, walks, evenings out,
-    retold tales, easy fights) is an aside: folded into a ··· in the log, tap to show them all in
-    place, and kept out of people's own stories. The log is never cut short unless storage fills; then the oldest
+    retold tales, easy fights) is an aside: hidden from the log until a floating expand button shows them all in
+    place, and still kept in people's own stories. The log is never cut short unless storage fills; then the oldest
     asides go first. The newest 2000 lines show, the rest behind a ▾. People spend evenings and talk mostly with whoever they're closest to. A death grieves the
     close, the spouse and the party; anyone else only sometimes.
     - pride 20+: means to outdo themselves; works half again as hard the next day.

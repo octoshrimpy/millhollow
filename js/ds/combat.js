@@ -1,11 +1,8 @@
-// Millhollow — real-time-with-pause fights. step() is driven by ui.js on a timer;
-// everything here is plain data so a fight can be stepped headless too.
 
-const GAUGE_RATE = 8; // gauge per second per point of speed; 100 gauge = one attack
+const GAUGE_RATE = 8;
 
 const defaultRow = (cls) => (CLASSES[cls].range === "ranged" ? "back" : "front");
 
-// Rough fighting weight of a side: what it can deal times what it can take.
 const might = (us) => us.reduce((a, u) => a + u.atk * u.hp, 0);
 
 function newFight(settlers, enemies) {
@@ -20,9 +17,8 @@ function newFight(settlers, enemies) {
     }),
     enemies: enemies.map((e, i) => ({ ...e, side: "e", idx: i, gauge: rand(40), swings: 0 })),
     focus: null, taunt: 0, paused: true, speed: 1, lines: [], over: false,
-    fx: [], // what just happened, for ui.js to animate; drained every frame
+    fx: [],
   };
-  // How lopsided it started, foes over party: a stomp is ~0.2, an even fight 1, an upset more.
   f.odds = might(f.enemies) / Math.max(1, might(f.heroes));
   return f;
 }
@@ -34,10 +30,8 @@ function fightLog(f, text) {
 
 const alive = (xs) => xs.filter((u) => u.hp > 0);
 
-// A keeper's hit-everyone swing, 0..100: fills over the swings before it lands, so there's time to answer it.
 const windup = (en) => en.aoeEvery ? ((en.swings % en.aoeEvery) * 100 + Math.min(100, en.gauge)) / en.aoeEvery : 0;
 
-// How a plain attack looks: who lunges and who throws something.
 const attackKind = (u) => u.side === "h"
   ? { ranger: "arrow", mystic: "orb" }[u.cls] || "melee"
   : u.ranged ? "orb" : "melee";
@@ -99,7 +93,6 @@ function useSkill(f, i) {
   check(f);
 }
 
-// Heroes fire their own skills. Mend waits until someone actually needs it.
 function wantsSkill(f, h) {
   if (CLASSES[h.cls].skill.id !== "mend") return true;
   return alive(f.heroes).some((u) => u.hp < u.hpMax * 0.6);
@@ -117,12 +110,9 @@ function step(f, dt) {
   f.heroes.forEach((h, i) => {
     if (h.hp <= 0 || f.over) return;
     h.cd = Math.max(0, h.cd - dt);
-    // Below a quarter, anyone with a potion to hand drinks it.
     if (h.hp < h.hpMax * 0.25 && S.res.potions > 0) usePotion(i);
-    // A sword waiting in the back can't reach to cleave either; a heal reaches from anywhere.
     if (h.cd === 0 && wantsSkill(f, h) && !(waits(h) && CLASSES[h.cls].skill.id !== "mend")) useSkill(f, i);
     h.gauge += h.spd * GAUGE_RATE * dt;
-    // A sword can't reach from the back lane: it waits, ready, to step into the first gap.
     if (waits(h)) h.gauge = Math.min(h.gauge, 100);
     if (h.gauge < 100 || f.over || waits(h)) return;
     h.gauge -= 100;
@@ -140,7 +130,6 @@ function step(f, dt) {
     en.swings++;
     if (en.aoeEvery && en.swings % en.aoeEvery === 0) {
       f.fx.push({ t: "aoe", u: en });
-      // The back lane catches the edge of it.
       alive(f.heroes).forEach((h) => hit(f, en, h, h.row === "back" ? 0.3 : 0.6, false, "aoe"));
       fightLog(f, `${en.name} hits everyone.`);
     } else {
@@ -149,12 +138,10 @@ function step(f, dt) {
     }
     check(f);
   }
-  // Each fall in the front lane, or an empty one, brings a waiting sword up.
   const front = alive(f.heroes).filter((h) => h.row === "front").length;
   const up = (front < (f.front ?? front) || !front) && alive(f.heroes).find(waits);
   if (up) { up.row = "front"; byId(up.id).row = "front"; fightLog(f, `${up.name} steps up.`); }
   f.front = front + (up ? 1 : 0);
-  // Someone dropping under half is when choices matter: stop once for each of them.
   for (const h of f.heroes) if (h.hp > 0 && h.hp < h.hpMax / 2 && !h.hurt && !f.over) { h.hurt = true; f.paused = true; }
 }
 
@@ -168,7 +155,6 @@ function check(f) {
 
 function flee(f) {
   if (f.over) return;
-  // Everyone takes one parting blow on the way out.
   for (const h of alive(f.heroes)) { const en = pick(alive(f.enemies)); if (en) hit(f, en, h, 0.8); }
   f.over = "fled";
   f.fx.push({ t: "fled" });

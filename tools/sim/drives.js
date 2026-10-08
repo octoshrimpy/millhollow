@@ -79,7 +79,7 @@ S.settlers.filter((x) => x !== a && x !== b).forEach((x) => (x.vow = true));
 URGES.court.does(a, S.settlers);
 if (S.trouble || !/stay friends/.test(S.log.at(-1).text) || sweetheart(a, S.settlers)) throw "friendzone";
 const n = (a.story || []).length; gameLog("x", "", [a], true);
-if (!S.log.at(-1).aside || a.story.length !== n) throw "aside";
+if (!S.log.at(-1).aside || a.story.length !== n + 1) throw "aside";
 console.log("friendzone ok:", S.log.at(-2).text);
 }`, ctx);
 vm.runInContext(`{
@@ -88,3 +88,26 @@ let calls = 0; localStorage.setItem = (k, v) => { if (v.length > 25000 && ++call
 save(); if (S.log.length >= 400 || !S.log.some((l) => !l.aside && l.text === "x0")) throw "shed";
 console.log("shed ok:", S.log.length, "left, asides first");
 }`, ctx);
+vm.runInContext(`(() => {
+  newGame(); settleIn(S.recruits.slice(0, 4).map((s) => s.id));
+  const [a, b] = living(); a.pastime = "maps"; living().forEach((x) => { x.morale = 80; if (x !== a) x.pastime = null; });
+  const lines = (n) => { const out = []; for (let k = 0; k < n; k++) { const m = S.log.length; leisure([a, b]); out.push(...S.log.slice(m).map((l) => l.text)); } return out; };
+  const before = lines(400);
+  if (before.some((t) => t.includes("dungeon"))) throw new Error("drew the dungeon unseen");
+  b.delved = true;
+  const told = lines(400);
+  if (!told.some((t) => t.includes(b.name + "'s telling")) || told.some((t) => t.includes("from memory"))) throw new Error("telling wrong");
+  console.log("delved ok:", told.find((t) => t.includes("telling")));
+})()`, ctx);
+vm.runInContext(`(() => {
+  newGame(); settleIn(S.recruits.slice(0, 4).map((s) => s.id));
+  S.land = S.land.map((k) => (k === "water" ? "meadow" : k));
+  const out = [];
+  for (const p of ["fishing", "swimming", "riding", "smithing", "birds", "painting"]) {
+    living().forEach((x) => { x.pastime = p; x.morale = 80; });
+    for (let k = 0; k < 300; k++) { const m = S.log.length; leisure(living()); out.push(...S.log.slice(m).map((l) => l.text)); }
+  }
+  const bad = out.filter((t) => /fish|swam|across the pond|floated|rode|horse|hammered|ring from a nail|'s pot|river|heron/.test(t));
+  if (bad.length) throw new Error("impossible: " + bad[0]);
+  console.log("doable ok:", out.length, "lines");
+})()`, ctx);

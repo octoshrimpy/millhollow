@@ -1,6 +1,3 @@
-// Millhollow — juice. Particles on one full-screen canvas, floating text as DOM,
-// shakes and lunges through the Web Animations API. Everything here is
-// decoration: if any of it is missing (no canvas, no animate), the game plays the same.
 
 const Juice = (() => {
   const cv = document.getElementById("fx");
@@ -26,7 +23,6 @@ const Juice = (() => {
     };
   }
 
-  // ---------- particles ----------
   function burst(x, y, o = {}) {
     if (!ctx) return;
     const { n = 12, colors = ["#fff"], speed = 180, life = 0.6, size = 3, gravity = 300,
@@ -42,7 +38,6 @@ const Juice = (() => {
     loop();
   }
 
-  // Something thrown from a to b: an arrow, an orb, a fireball. onHit fires on arrival.
   function shot(from, to, o = {}) {
     if (!ctx) { if (o.onHit) o.onHit(); return; }
     shots.push({ from, to, t: 0, dur: 0.2, color: "#ffe9a8", size: 3, trail: 0, arc: 0, ...o });
@@ -100,10 +95,7 @@ const Juice = (() => {
     else { raf = 0; ctx.clearRect(0, 0, innerWidth, innerHeight); }
   }
 
-  // ---------- DOM effects ----------
-  // Plain text in, with its emoji drawn from the icon sprite when that's loaded.
   function setText(d, text) {
-    if (typeof iconize !== "function") { d.textContent = text; return; }
     d.textContent = text;
     d.innerHTML = iconize(d.innerHTML);
   }
@@ -150,18 +142,14 @@ const Juice = (() => {
     setTimeout(() => d.remove(), 2600);
   }
 
-  // A full-screen curtain that starts opaque and lifts, hiding an instant scene change.
   function veil(title, sub = "") {
     const v = document.createElement("div");
     v.className = "veil";
-    v.innerHTML = `<b>${title}</b>${sub ? `<small>${sub}</small>` : ""}`;
-    if (typeof iconize === "function") v.innerHTML = iconize(v.innerHTML);
+    v.innerHTML = iconize(`<b>${title}</b>${sub ? `<small>${sub}</small>` : ""}`);
     document.body.append(v);
     setTimeout(() => v.remove(), calm ? 400 : 1300);
   }
 
-  // The old solitaire win: copies of the word thrown off one after another, bouncing along the
-  // floor and never wiped, so each leaves a smear of itself behind. On its own canvas, untouchable.
   function solitaire(text, x, y) {
     if (calm || !ctx) return false;
     const c = document.createElement("canvas"), g = c.getContext("2d");

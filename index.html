@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html class="boot" lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -51,7 +51,6 @@
   #res .day { color: var(--accent); font-weight: bold; }
   .housing { display: inline-flex; align-items: center; gap: .35em; }
   #menu, #savebtn { background: none; border: 0; padding: .4em; color: var(--dim); font-size: 1.15rem; line-height: 1; }
-  /* The newest log lines and the tabs ride together at the bottom; main pads by the measured height. */
   .founding #dock { display: none; }
   .reroll, .timed { position: relative; overflow: hidden; }
   .cooling::before { content: ""; position: absolute; inset: 0; background: color-mix(in srgb, var(--accent) 30%, transparent); transform-origin: left; animation: cool var(--dur, 3s) linear forwards; animation-delay: calc(var(--left) - var(--dur, 3s)); }
@@ -85,7 +84,6 @@
   .tile { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 2px; overflow: hidden; }
   .tile small { font-size: .62rem; line-height: 1.1; text-align: center; }
   .tile { position: relative; }
-  /* The land pans under a fixed window; tiles keep their size however much is known. */
   .land { position: relative; overflow: auto; max-height: 62vh; margin: .6em 0; overscroll-behavior: contain; scrollbar-width: none; touch-action: pan-x pan-y; }
   .land::-webkit-scrollbar { display: none; }
   .land .grid { --t: min(76px, calc((100vw - 60px) / 5.5)); grid-template-columns: repeat(var(--w), var(--t)); width: max-content; margin: 0 auto; }
@@ -105,7 +103,6 @@
     box-shadow: 0 0 0 1.5px var(--card); }
   .tile.empty { color: var(--dim); background: transparent; border-style: dashed; }
   .tile.wild, .tile.still { --tint: var(--c-green); background: color-mix(in srgb, var(--tint) 7%, var(--bg)); border-color: color-mix(in srgb, var(--tint) 16%, var(--bg)); }
-  /* Ground runs into the gap, so neighbouring land joins up and only built things stand apart. */
   .tile.wild, .tile.still { border-color: transparent !important; border-radius: 0; margin: -3px; }
   .scatter { position: absolute; inset: 0; opacity: .5; }
   .scatter i { position: absolute; font-style: normal; font-size: calc(var(--t) * var(--s)); line-height: 1; }
@@ -141,7 +138,6 @@
   .knock .mini { width: 36px; height: 36px; }
   .arrival { display: flex; flex-direction: column; align-items: center; gap: .35em; text-align: center; }
   .arrival .face { width: 110px; height: 110px; border-radius: 12px; }
-  .arrival .ask { padding: 0; border: 0; background: none; border-radius: 12px; cursor: help; }
   .arrival .said { margin: .3em 0 0; max-width: 32ch; font-style: italic; }
   .arrival h3 { margin: .2em 0 0; }
   .arrival .omen { font-size: 3rem; line-height: 1; color: var(--story); }
@@ -153,8 +149,11 @@
   .optrow { display: flex; gap: .5em; align-items: center; margin: .35em 0; }
   .optrow .opt { margin: 0; }
   .mug { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; flex: none; max-width: 5.5em; cursor: pointer; font-size: .78rem; line-height: 1.2; }
-  .mug > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mug > span:not(.pic) { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .mug u { text-underline-offset: 2px; }
+  .mug .pic { position: relative; display: flex; }
+  .mug .wants { position: absolute; top: -6px; right: -8px; font-style: normal; font-size: .9rem; line-height: 1; padding: 3px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
   .optrow .mug { width: 4.5em; }
   .opt { display: flex; gap: .7em; align-items: center; width: 100%; text-align: left; margin: .35em 0; }
   .sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 1em; }
@@ -190,7 +189,33 @@
   .who .tags u { text-decoration: none; color: var(--accent); font-weight: bold; }
   .who .past { min-width: 0; display: flex; flex-direction: column; gap: .3em; font-size: .8rem; line-height: 1.35; color: var(--dim); }
   .who button.on { background: color-mix(in srgb, var(--accent) 14%, var(--card)); box-shadow: 0 0 0 2px var(--accent) inset; }
-  .opt:disabled { opacity: .6; } .opt:disabled .bad { font-weight: bold; }
+  @media (min-width: 52em) {
+    #sheet .inner:has(.picks) { max-width: 56em; }
+    .picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(16em, 1fr)); gap: .5em; }
+    .picks .opt { margin: 0; height: 100%; }
+    main.wrap:has(.crew), main.wrap:has(.picks) { max-width: 72em; }
+    .crew { display: grid; grid-template-columns: repeat(auto-fill, minmax(20em, 1fr)); gap: .6em; margin: .6em 0; }
+    .crew .card { margin: 0; }
+    #sheet .inner:has(.personsheet) { max-width: 56em; }
+    #sheet .personsheet { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: minmax(0, 1fr); gap: 1.5em; align-items: start; }
+    #sheet .personsheet > .arrival { max-height: 100%; overflow-y: auto; }
+    #sheet .personsheet > :last-child { height: 100%; min-height: 0; }
+    .personsheet .lifelog { margin-top: 0; border-top: 0; border-left: 1px solid var(--line); padding: 0 0 0 1.5em; }
+    /* the log keeps its width while its column closes, so its lines never reflow; .duo clips it */
+    .duo { display: grid; grid-template-columns: minmax(0, 1fr) 24em; gap: 1.5em; align-items: start; overflow-x: clip; transition: grid-template-columns .3s ease-in-out, gap .3s ease-in-out; }
+    .nolog .duo { grid-template-columns: minmax(0, 1fr) 0em; gap: 0; }
+    .duo { height: calc(100dvh - var(--head-h, 50px) - var(--dock-h, 80px) - 1.7em); }
+    .duo > * { height: 100%; overflow: hidden auto; overscroll-behavior: contain; }
+    .duo > * { scrollbar-gutter: stable; padding-right: .6em; } /* cards stop short of the scrollbar */
+    .sidelog { width: 24em; transition: opacity .3s ease-in-out, visibility .3s ease-in-out; }
+    .nolog .sidelog { opacity: 0; visibility: hidden; }
+    main.wrap:has(.exped) { max-width: 56em; }
+    .exped { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5em; align-items: start; }
+    .exped .plan { position: sticky; top: .6em; }
+    html:not(.nolog) main.wrap:has(.duo) { max-width: 88em; }
+    main.wrap { transition: max-width .3s ease-in-out; }
+  }
+  .opt:disabled { opacity: 1; color: var(--dim); } .opt:disabled svg.i { opacity: .6; } .opt:disabled .bad { font-weight: bold; }
   .slots { display: grid; grid-template-columns: 1fr 1fr; width: 100%; align-self: stretch; gap: 6px; margin: .5em 0 .3em; text-align: left; }
   .slot { display: flex; align-items: center; gap: .55em; padding: .5em .65em; border: 1px solid var(--line); border-radius: 10px; background: var(--card); min-width: 0; }
   .slot i { font-style: normal; font-size: 1.25rem; }
@@ -232,7 +257,6 @@
   .room.here:disabled { opacity: 1; }
   .lineup summary { display: inline-block; list-style: none; color: var(--accent); cursor: pointer; }
   .lineup summary::-webkit-details-marker { display: none; }
-  /* Lineup left, Pack right on one line; whichever is open takes the full width below */
   .bags { display: grid; grid-template-columns: 1fr auto; }
   .bags details { display: contents; }
   .bags summary { grid-row: 1; }
@@ -264,6 +288,10 @@
   #sheet .inner { background: var(--bg); border: 1px solid var(--line); border-radius: 14px 14px 0 0; width: 100%; max-width: 30em; max-height: 85vh; overflow-y: auto; overscroll-behavior: contain; padding: 1.4em 16px 1em; position: relative; transition: transform .22s ease-in; }
   #sheet .inner::before { content: ""; position: absolute; top: 7px; left: 50%; width: 38px; height: 5px; margin-left: -19px; border-radius: 3px; background: var(--line); }
   #sheet { transition: background .22s; }
+  #sheet .inner:has(.personsheet) { height: 85vh; display: flex; flex-direction: column; }
+  .personsheet { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .personsheet > :last-child { flex: 1; min-height: 12em; display: flex; flex-direction: column; }
+  .personsheet .lifelog { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
   #sheet.open .inner { animation: sheet-up .28s cubic-bezier(.2, .8, .2, 1); }
   #sheet.closing { background: #0000 !important; pointer-events: none; }
   #sheet.closing .inner { transform: translateY(100%) !important; }
@@ -286,7 +314,6 @@
   .lines { height: 5.5em; overflow: hidden; font-size: .82rem; color: var(--dim); margin: .6em 0; }
   .lines p { margin: .1em 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .controls { justify-content: center; }
-  /* the keeper's hit-everyone swing: fills toward the blow, throbs on the last swing before it */
   .bar.wind { height: 4px; } .bar.wind i { background: repeating-linear-gradient(-45deg, var(--bad) 0 4px, transparent 4px 7px); transition: none; }
   .foe.due .bar.wind { animation: due .5s ease-in-out infinite alternate; }
   @keyframes due { to { box-shadow: 0 0 8px var(--bad); } }
@@ -294,17 +321,14 @@
   .hero.back { border-style: dashed; background: var(--bg); }
   [data-hold] { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 
-  /* ---------- juice ---------- */
   button { transition: transform .08s, border-color .2s, background-color .2s, color .2s; }
   @media (hover: hover) {
-    /* icon-only buttons go from dim to full ink: lighter on dark themes, darker on light */
     #menu:hover, #savebtn:hover, button.ghost:not(:disabled):hover, #tabs button:not(.on):hover { color: var(--ink); }
     :where(button:not(:disabled)):hover { border-color: var(--dim); background-color: color-mix(in srgb, var(--ink) 6%, var(--card)); }
     :where(button.primary:not(:disabled)):hover { background-color: color-mix(in srgb, var(--ink) 15%, var(--accent)); }
   }
   button:active:not(:disabled) { transform: scale(.95); }
-  .founding .who .me { transition: transform .15s ease-out; position: relative; overflow: hidden; border-radius: 8px; }
-  /* a picked card: a glint runs round its border, bottom left over the top to bottom right, and a light band crosses the face */
+  .founding .who .me { position: relative; overflow: hidden; border-radius: 8px; }
   @property --a { syntax: "<angle>"; inherits: false; initial-value: 195deg; }
   @property --g { syntax: "<color>"; inherits: false; initial-value: transparent; }
   .founding .who button { position: relative; }
@@ -357,8 +381,6 @@
   #log p.new.good, #log p.new.bad, #log p.new.story { animation: logslide .5s ease-out, logglow 1.6s; }
   @keyframes logslide { from { opacity: 0; translate: -12px 0; } }
   @keyframes logglow { from { background: color-mix(in srgb, var(--accent) 20%, transparent); } }
-  #view.dawn { animation: dawn .9s ease-out; }
-  @keyframes dawn { 0% { filter: brightness(.4) sepia(.6); } 100% { filter: none; } }
 
   .room.reveal { animation: reveal .3s backwards ease-out; animation-delay: var(--d, 0ms); }
   @keyframes reveal { from { opacity: 0; scale: .85; } }
@@ -387,6 +409,26 @@
   @keyframes bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -4px; } }
   @keyframes aura { 0%, 100% { box-shadow: 0 0 6px #c9655a66; border-color: color-mix(in srgb, var(--bad) 50%, var(--card)); } 50% { box-shadow: 0 0 22px #ff5a3aaa; border-color: var(--bad); } }
 
+  #view { view-transition-name: page; }
+  .sidelog { view-transition-name: sidelog; }
+  html { --dx: 2.5em; } html[data-slide="back"] { --dx: -2.5em; }
+  ::view-transition-old(root), ::view-transition-new(root), ::view-transition-new(sidelog) { animation: none; }
+  /* pages differ in width with the log shut: the frame glides to the new width while both pages keep their own size */
+  ::view-transition-group(page) { animation-duration: .22s; animation-timing-function: ease-in-out; }
+  ::view-transition-old(page), ::view-transition-new(page) { inline-size: auto; }
+  :active-view-transition main.wrap { transition: none; }
+  ::view-transition-old(sidelog) { display: none; }
+  html[data-vt="life"] :is(#view, .sidelog) { view-transition-name: none; }
+  html[data-vt="life"] .personsheet .lifelog { view-transition-name: lifelog; }
+  ::view-transition-group(lifelog) { overflow: clip; animation-duration: .22s; }
+  ::view-transition-old(lifelog) { animation: page-out .22s ease-in-out both; }
+  ::view-transition-new(lifelog) { animation: page-in .22s ease-in-out both; }
+  ::view-transition-old(page) { animation: page-out .22s ease-in-out both; }
+  ::view-transition-new(page) { animation: page-in .22s ease-in-out both; }
+  @keyframes page-out { to { translate: calc(var(--dx) * -1) 0; opacity: 0; } }
+  @keyframes page-in { from { translate: var(--dx) 0; opacity: 0; } }
+  /* nothing slides into place on page load */
+  html.boot * { transition: none !important; }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition: none !important; }
     .veil { display: none; }
@@ -408,7 +450,13 @@
   .person .feel { display: inline-flex; align-items: center; gap: .45em; font-size: .85rem; }
   .person .feel span { display: inline-flex; align-items: center; gap: .25em; }
   .arrival .hpline { width: 60%; }
+  .arrival .idcard { display: flex; align-items: center; gap: 1em; width: 100%; text-align: left; }
+  .idcard > div { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: .35em; }
+  .idcard h3 { margin: 0; } .nameline { display: flex; align-items: center; justify-content: space-between; gap: .5em; width: 100%; }
+  .personsheet .drives { display: grid; grid-template-columns: repeat(3, auto); justify-content: center; }
+  .idcard .row.center, .idcard .stats { justify-content: flex-start; } .idcard .hpline { width: 100%; }
   .row.center { justify-content: center; }
+  .row.acts { margin-top: 1.2em; }
   .thoughts { display: flex; flex-wrap: wrap; gap: 4px; margin: .35em 0; }
   .thought { display: inline-flex; align-items: center; gap: .3em; font-size: .8rem; padding: .1em .5em;
     border: 1px solid var(--line); border-radius: 999px; }
@@ -420,8 +468,44 @@
   #log { cursor: pointer; }
   .fulllog { font-size: .85rem; } .fulllog p { margin: .3em 0; } .fulllog p.day, .fulllog small { color: var(--dim); }
   .fulllog small { margin-right: .3em; }
-  .fulllog p.more { color: var(--dim); cursor: pointer; text-align: center; margin: 0; letter-spacing: .2em; }
+  .fulllog .more { display: block; width: 100%; min-height: 44px; margin: .6em 0; }
+  .logfold { position: fixed; right: 16px; bottom: calc(var(--dock-h, 80px) + 12px); z-index: 7; width: 52px; height: 52px;
+    border-radius: 26px; padding: 0; border-color: var(--accent); }
   .fulllog p.aside { opacity: .6; font-size: .9em; padding-left: .8em; }
+  [data-tooltip] { position: relative; }
+  [data-tooltip]::before, [data-tooltip]::after { position: absolute; z-index: 99; bottom: 100%; left: 50%; translate: -50% -.25rem; display: none; opacity: 0; pointer-events: none; transition: opacity .15s, display .15s allow-discrete; }
+  [data-tooltip]::before { content: attr(data-tooltip); padding: .25em .5em; border-radius: 6px; background: var(--ink); color: var(--bg); font-style: normal; font-weight: 600; font-size: .8rem; line-height: 1.3; white-space: nowrap; text-transform: capitalize; }
+  [data-tooltip]::after { content: ""; translate: -50% 0; border: .3rem solid transparent; border-top-color: var(--ink); border-bottom: 0; }
+  [data-tooltip][data-placement="bottom"]::before { bottom: auto; top: 100%; translate: -50% .25rem; }
+  [data-tooltip][data-placement="bottom"]::after { bottom: auto; top: 100%; border: .3rem solid transparent; border-bottom-color: var(--ink); border-top: 0; }
+  [data-tooltip]:is(:hover, :focus)::before, [data-tooltip]:is(:hover, :focus)::after { display: block; opacity: 1;
+    @starting-style { opacity: 0; } }
+  /* fixed + anchored, so a tooltip never adds to a scroll container's overflow */
+  @supports (anchor-name: --a) {
+    [data-tooltip]:is(:hover, :focus) { anchor-name: --tip; }
+    [data-tooltip]::before, [data-tooltip]::after { position: fixed; position-anchor: --tip; inset: auto !important; translate: none !important; position-area: top; margin: 0 0 .25rem; }
+    [data-tooltip]::before { margin-bottom: .55rem; position-try-fallbacks: --tip-r, --tip-l; }
+    [data-tooltip][data-placement="bottom"]::after { position-area: bottom; margin: .25rem 0 0; }
+    [data-tooltip][data-placement="bottom"]::before { position-area: bottom; margin: .55rem 0 0; position-try-fallbacks: --tip-br, --tip-bl; }
+  }
+  @position-try --tip-r { position-area: top span-right; }
+  @position-try --tip-l { position-area: top span-left; }
+  @position-try --tip-br { position-area: bottom span-right; }
+  @position-try --tip-bl { position-area: bottom span-left; }
+  u.nm { cursor: pointer; text-underline-offset: 2px; text-decoration-color: color-mix(in srgb, currentColor 40%, transparent); }
+  /* showing: the gap opens, then the line fades in; hiding runs it backwards. Without interpolate-size the gap snaps. */
+  .fulllog { interpolate-size: allow-keywords; }
+  .fulllog p.aside { height: auto; overflow: hidden;
+    transition: height .3s ease-in-out, margin .3s ease-in-out, opacity .25s ease-in-out .12s, translate .25s ease-in-out .12s; }
+  html:not(.asides) .fulllog p.aside { height: 0; margin-block: 0; opacity: 0; translate: -.6em 0; visibility: hidden;
+    transition: opacity .15s ease-in-out, translate .15s ease-in-out, height .25s ease-in-out .1s, margin .25s ease-in-out .1s, visibility 0s ease-in-out .35s; }
+  html.asides .lg-more, html:not(.asides) .lg-less { display: none; }
+  #tabs .lg-hide, #tabs .lg-show { display: none; }
+  @media (min-width: 64em) {
+    html:not(.nolog) #log { display: none; }
+    html:not(.nolog) #tabs .lg-hide, html.nolog #tabs .lg-show { display: inline; }
+    html:not(.nolog) #tabs [data-v="log"] { color: var(--accent); background: color-mix(in srgb, var(--accent) 5%, var(--card)); }
+  }
   [data-hold] { touch-action: manipulation; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
   .card.person { cursor: pointer; }
   .remembered { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -430,6 +514,12 @@
   .lifelog { border-top: 1px solid var(--line); margin-top: .8em; padding-top: .4em; font-size: .85rem; }
   .lifelog p { margin: .3em 0; } .lifelog small { color: var(--dim); margin-right: .3em; }
   .lifelog p.felt { font-style: italic; }
+  .lifetabs { margin: .8em 0 0; } .personsheet .lifetabs { margin: 0; }
+  .lifelog p.tie { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: .3em .5em; margin: .8em 0; }
+  .lifelog .tie > span > i { color: var(--dim); font-size: .9em; }
+  .tiebar { grid-column: 1 / -1; position: relative; height: 6px; border-radius: 3px; background: linear-gradient(var(--dim), var(--dim)) 50% / 1px 100% no-repeat, var(--line); }
+  .tiebar i { position: absolute; inset-block: 0; left: 50%; width: calc(var(--v) * .5%); border-radius: 3px; background: color-mix(in srgb, var(--c-green) calc(var(--v) * 1%), var(--c-blue)); }
+  .tiebar.neg i { left: auto; right: 50%; background: color-mix(in srgb, var(--c-red) calc(var(--v) * 1%), var(--c-orange)); }
   .lifelog p.past { color: var(--dim); border-left: 2px solid var(--line); padding-left: .6em; }
   .person .cls { display: inline-flex; align-items: center; gap: .3em; color: var(--dim); white-space: nowrap; }
 </style>

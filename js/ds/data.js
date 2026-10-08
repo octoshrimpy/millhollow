@@ -1,7 +1,4 @@
-// Millhollow — static tables. Nothing in here changes during play.
 
-// Names and faces carried over from the log rebuild (js/sim.js), so a face never
-// wears a name that fights it.
 const NAMES = {
   f: ["Agatha", "Bridie", "Calla", "Dagny", "Freya", "Gerta", "Ilse", "Jorunn",
     "Linnet", "Lisbet", "Mira", "Orla", "Ottoline", "Quenna", "Rhoswen", "Sela",
@@ -35,7 +32,6 @@ const RESOURCES = {
   starmetal: { icon: "💎", name: "Starmetal" },
 };
 
-// Combat classes. `skill` is the one ability each hero fires on its own.
 const CLASSES = {
   warrior: {
     name: "Warrior", icon: "🪖", hp: 32, atk: 6, def: 3, spd: 8, range: "melee",
@@ -55,27 +51,22 @@ const CLASSES = {
   },
 };
 
-// Work settlers do at home. Skill grows by doing it.
 const JOBS = {
   farming: "Farming", woodcutting: "Woodcutting", quarrying: "Quarrying",
   herbalism: "Herbalism", smithing: "Smithing", healing: "Healing", scholarship: "Scholarship",
   cooking: "Cooking", fishing: "Fishing",
 };
-// What someone who works at it is called.
 const TRADES = {
   farming: "Farmer", woodcutting: "Woodcutter", quarrying: "Quarrier", herbalism: "Herbalist", smithing: "Smith",
   healing: "Healer", scholarship: "Scholar", cooking: "Cook", fishing: "Fisher",
 };
 
-// What a trade taught someone to notice. Below, they read these rooms from next door.
 const LENS = {
   woodcutting: ["fight"], fishing: ["fight"], farming: ["event"], cooking: ["treasure"],
   quarrying: ["stairs", "boss"], smithing: ["treasure"], healing: ["shrine"], herbalism: ["shrine"],
   scholarship: ["event"],
 };
 
-// Where someone came from before Millhollow: a birthplace, a trade, what their class made of
-// them, and why they took the road. One of each, oldest first.
 // Any line can hold {a|b|c}: each new person gets one of them, and braces can nest. A line is
 // picked before its braces, so a line with many options is no likelier than one with none.
 // Lines that game.js checks with pastHas, and the trade lines PAST_WAS renames old saves to, stay
@@ -274,7 +265,6 @@ const PAST = {
     ],
   },
 
-  // What comes back badly. Only skill brings these: see makeSettler.
   bad: [
     "Burned down {a library|a forge|a smokehouse|an infirmary|a farm|a church|the stables} on purpose.",
     "Burned down {a library|a forge|a smokehouse|an infirmary|a farm|a church|the stables} by accident.",
@@ -314,16 +304,11 @@ const PAST = {
     "Stopped for one night and stayed.",
   ],
 };
-// Green: a trade line, which gave the skill (some also come back later). Red: pasts that come back badly.
 const PAST_GOOD = new Set(Object.values(PAST.trade).flat());
-// An accidental fire comes back only where they work in what they burned, so the church and stables
-// never do; one set on purpose comes back as anger (see URGES).
-// Pasts with blood in them: anger runs hotter (see stir), and comes to blows sooner.
 const PAST_VIOLENT = ["Pit fighter.", "Mercenary.", "Fought {bandits on the king's road|in someone else's feud}.",
   "Hunted highwaymen for bounty.", "Raided across the border.", "Carried a mace for a bishop.", "Cursed a man who wronged them.",
   "Looking for revenge.", PAST.bad[0]];
 const PAST_BAD = new Set([...PAST.bad, "Burned down a library by accident."]);
-// Trade lines that pay off, now and then, while their owner works this building: [building, resource, amount, what they did].
 const PAST_PAYS = {
   "Worked harvests.": ["farm", "food", 10, "brought in a bumper harvest"],
   "Plowed behind an ox.": ["farm", "food", 8, "plowed the back field"],
@@ -357,10 +342,6 @@ const PAST_WAS = {
   "Raised the town hall. Millhollow is founded.": "Built the town hall.",
 };
 
-// `yields` is per worker per day at skill 0; each skill point adds 10%. `up` is what it can be
-// rebuilt into where it stands, and what that costs on top.
-// What the land is. Land with `clear` can be cleared to meadow for what it gives; water and
-// mountains stay as they are.
 const TERRAIN = {
   meadow: { name: "Meadow", icon: "" },
   forest: { name: "Woods", icon: "🌲", clear: { wood: 5 } },
@@ -369,10 +350,8 @@ const TERRAIN = {
   water: { name: "Water", icon: "🌊" },
   mountain: { name: "Mountains", icon: "🏔️" },
 };
-// Workplaces that do better beside certain land.
-const BESIDE = { farm: ["water"], lumber: ["forest"], quarry: ["hills", "mountain"] };
-const BESIDE_BOOST = 0.25;
-// What a workplace turns out on top of its yields beside certain land, per worker per day at skill 0.
+const BESIDE = { farm: ["water"], dock: ["water"], lumber: ["forest"], quarry: ["hills", "mountain"] };
+const BESIDE_BOOST = 0.1;
 const BESIDE_YIELDS = { quarry: { mountain: { ore: 0.35 } } };
 
 const BUILDINGS = {
@@ -402,7 +381,6 @@ const BUILDINGS = {
   alehouse: { name: "Alehouse", icon: "🍺", cost: { wood: 8, stone: 4 }, needs: "games", desc: "Evenings out." },
   smokehouse: { name: "Smokehouse", icon: "🍖", cost: { wood: 8, stone: 2 }, job: "cooking", needs: "smoking", desc: "3🍞 → 1🥪 trail meal per day." },
 };
-// Workplaces improve in place; each level raises what the worker turns out (boost is the total).
 const IMPROVABLE = (type) => !!(BUILDINGS[type].yields || ["library", "smokehouse", "forge"].includes(type));
 const IMPROVE = [
   { boost: 0.25, cost: { ore: 3, wood: 4 }, upkeep: { wood: 1 }, needs: "smelting" },
@@ -410,7 +388,6 @@ const IMPROVE = [
   { boost: 0.8, cost: { starmetal: 2, silver: 2 }, upkeep: { silver: 1 }, needs: "starforging" },
 ];
 
-// `after` is the research that has to come first.
 const RESEARCH = {
   scouting: { name: "Scouting", cost: 5, desc: "See 1 further from the town hall." },
   herbalism: { name: "Herbalism", cost: 4, desc: "Brew potions at the forge. 3🌿 each, heals 20." },
@@ -422,7 +399,7 @@ const RESEARCH = {
   altar_lore: { name: "Altar lore", cost: 8, desc: "Altars always pay, but take 10 HP each." },
   rope: { name: "Climbing rope", cost: 10, desc: "Half the ambushes on the way home." },
   nightwatch: { name: "Night watch", cost: 8, desc: "Two can keep watch." },
-  masonry: { name: "Masonry", cost: 8, desc: "Stone houses (4 beds). Huts can be rebuilt." },
+  masonry: { name: "Masonry", cost: 8, desc: "Stone houses (4 beds)." },
   surveying: { name: "Surveying", cost: 10, after: "scouting", desc: "See 1 further again." },
   tactics: { name: "Tactics", cost: 10, desc: "Party size 4." },
   silverwork: { name: "Silverwork", cost: 12, after: "smelting", desc: "Silver gear. Workplaces to +50%. Silver lies below floor 3." },
@@ -435,11 +412,8 @@ const RESEARCH = {
   games: { name: "Games", cost: 14, after: "square", desc: "Axe yards, alehouses." },
   starforging: { name: "Starforging", cost: 18, after: "silverwork", desc: "Starmetal gear. Workplaces to +80%. Starmetal lies below floor 6." },
 };
-// Where each ore first turns up in the dungeon.
 const ORE_FLOOR = { silver: 3, starmetal: 6 };
 
-// Gear is plain stat bonuses; any class can wear any of it. A weapon made for your class (`cls`)
-// hits a quarter harder, and a cleric's mace adds its attack to Mend.
 const RECIPES = [
   { id: "club", name: "Oak club", slot: "weapon", cls: "warrior", atk: 2, cost: { wood: 4 } },
   { id: "staff", name: "Yew staff", slot: "weapon", cls: "mystic", atk: 3, cost: { wood: 5, herbs: 1 } },
@@ -462,7 +436,6 @@ const RECIPES = [
   { id: "starplate", name: "Star plate", slot: "armor", def: 7, hp: 20, cost: { starmetal: 6, silver: 2 }, needs: "starforging" },
 ];
 
-// Drops found in the dungeon, scaled by floor when rolled.
 const LOOT_GEAR = [
   { name: "Rusted blade", slot: "weapon", cls: "warrior", atk: 3 },
   { name: "Bone charm", slot: "armor", hp: 8 },
@@ -473,7 +446,6 @@ const LOOT_GEAR = [
   { name: "Root-woven cloak", slot: "armor", def: 2, spd: 1 },
 ];
 
-// Enemies at floor 1 strength. `from` is the first floor they turn up on.
 const ENEMIES = {
   rat: { name: "Cellar rat", icon: "🐀", hp: 10, atk: 3, def: 0, spd: 11, from: 1 },
   slime: { name: "Mire slime", icon: "🟢", hp: 18, atk: 4, def: 1, spd: 6, from: 1 },
@@ -486,14 +458,11 @@ const ENEMIES = {
   spider: { name: "Cave spider", icon: "🕷️", hp: 11, atk: 5, def: 1, spd: 10, from: 1 },
   wisp: { name: "Marsh wisp", icon: "👻", hp: 9, atk: 4, def: 0, spd: 12, flying: true, ranged: true, from: 1 },
 };
-// `flying` enemies ignore the front row and can hit anyone.
 
 const BOSSES = {
   3: { name: "The Bone Warden", icon: "☠️", hp: 130, atk: 12, def: 4, spd: 7, aoeEvery: 4 },
   6: { name: "Mother of Roots", icon: "🌳", hp: 230, atk: 15, def: 5, spd: 6, aoeEvery: 3 },
 };
-// Places with a way down. None of them end: each goes as deep as anyone dares, and its keeper
-// is waiting again every third floor. `on` is the land a site sits on, `by` land it must touch.
 const SITES = {
   mill: { name: "The old mill", icon: "🌬", foes: ["rat", "slime", "skeleton", "bat", "cultist", "ghoul", "root"], loot: [] },
   barrow: { icon: "🪦", on: ["hills"], foes: ["skeleton", "ghoul", "bat", "cultist"], loot: ["relics", "relics", "stone"],
@@ -510,7 +479,6 @@ const bossFor = (floor) => BOSSES[floor] || (floor % 3 === 0 && floor > 6
   ? { name: "Hollow Tyrant", icon: "👁️", hp: 120 + floor * 12, atk: 8 + floor, def: 5, spd: 7, aoeEvery: 3 }
   : null);
 
-// Room events: `choices` each have a label and a resolver name handled in game.js.
 const EVENTS = [
   {
     id: "prisoner", text: "A chained prisoner begs for water.",
@@ -534,21 +502,22 @@ const EVENTS = [
   },
 ];
 
-// What people do with an evening. `from` matches pasts that lean someone toward it; `after`, the
-// thoughts that can turn someone to it later. In lines, {o} is someone else at home.
+const FIRESIDE = ["told the old days by the fire", "talked about home by the fire", "told about before Millhollow",
+  "told a story by the fire", "told how it was back then"];
+const FIRESIDE_AGAIN = ["told it again", "told that story again", "told it again, longer"];
 const PASTIMES = {
   carving:    { icon: "🪵", name: "wood carving", from: /timber|shingle|carpent|forest|lumber/i, after: ["made", "victory"], does: ["carved a little {fox|owl|bear|horse}", "carved a spoon for {o}", "whittled a whistle"] },
   baskets:    { icon: "🧺", name: "basket weaving", from: /willow|marsh|harvest|market/i, after: ["wed"], does: ["wove a basket", "wove a fish trap", "wove {o} a sewing basket"] },
-  smithing:   { icon: "🔨", name: "tinkering at the forge", from: /smith|forge|foundry|armorer|nails|hinge|horses/i, after: ["made", "armed"], does: ["hammered out a {hook|buckle|bell}", "mended {o}'s pot", "made a ring from a nail"] },
-  riding:     { icon: "🐎", name: "riding", from: /horse|cattle|caravan|messages|frontier/i, after: ["victory", "levelup"], does: ["rode out to the ridge", "rode the long way round", "taught {o} to sit a horse"] },
+  smithing:   { icon: "🔨", name: "tinkering at the forge", needs: "forge", from: /smith|forge|foundry|armorer|nails|hinge|horses/i, after: ["made", "armed"], does: ["hammered out a {hook|buckle|bell}", "mended {o}'s pot", "made a ring from a nail"] },
+  riding:     { icon: "🐎", name: "riding", needs: "stables", from: /horse|cattle|caravan|messages|frontier/i, after: ["victory", "levelup"], does: ["rode out to the ridge", "rode the long way round", "taught {o} to sit a horse"] },
   reading:    { icon: "📖", name: "reading", from: /book|librar|letters|scribe|manuscript|records|sermon/i, after: ["grief", "neardeath"], does: ["read by the fire", "read to {o}", "read the same page twice"] },
   teaching:   { icon: "🧑‍🏫", name: "teaching", from: /taught|drilled|trained|teacher/i, after: ["levelup", "victory"], does: ["practiced a lesson aloud", "taught {o} their letters", "taught {o} a knot", "taught {o} a song"] },
   learning:   { icon: "✏️", name: "learning", from: /academy|studied|failed|language/i, after: ["neardeath", "blamed"], does: ["asked {o} a hundred questions", "practiced letters in the dirt", "learned a {knot|song|word of old tongue} from {o}"] },
   pottery:    { icon: "🏺", name: "pottery", from: /potter|kiln|clay/i, after: ["wed", "made"], does: ["threw a pot", "shaped a clay {cat|bird|face}", "made {o} a cup"] },
   statues:    { icon: "🗿", name: "clay figures", from: /gravestone|stone|granite|cathedral/i, after: ["grief"], does: ["shaped a clay {soldier|saint|dog}", "made a little figure of {o}", "set a clay bird on the sill"] },
-  fishing:    { icon: "🎣", name: "fishing", from: /net|eel|fish|river|coast|bait|ferry|canal/i, after: ["grief", "jilted"], does: ["fished till dark", "caught nothing and didn't mind", "fished with {o}"] },
+  fishing:    { icon: "🎣", name: "fishing", needs: "water", from: /net|eel|fish|river|coast|bait|ferry|canal/i, after: ["grief", "jilted"], does: ["fished till dark", "caught nothing and didn't mind", "fished with {o}"] },
   embroidery: { icon: "🪡", name: "embroidery", from: /manor|noble|merchant house|guild/i, after: ["wed"], does: ["stitched a {flower|bird|star} on a sleeve", "embroidered {o}'s collar", "stitched names on a cloth"] },
-  singing:    { icon: "🎶", name: "singing", from: /players|tavern|inn|pilgrim|chapel/i, after: ["wed", "feast"], does: ["sang by the well", "sang with {o}", "sang an old ballad wrong"] },
+  singing:    { icon: "🎶", name: "singing", from: /players|tavern|inn|pilgrim|chapel/i, after: ["wed", "feast"], does: ["sang at the gate", "sang with {o}", "sang an old ballad wrong"] },
   lute:       { icon: "🪕", name: "the lute", from: /players|tavern|inn|noble/i, after: ["jilted", "wed"], does: ["played the lute", "wrote a tune for {o}", "broke a lute string"] },
   dice:       { icon: "🎲", name: "dice", from: /dice|gambl|bet|tavern|debt/i, after: ["victory"], does: ["won a button off {o} at dice", "lost at dice", "taught {o} a dice game"] },
   chess:      { icon: "♟️", name: "chess", from: /siege|fort|tactic|lord|accounts/i, after: ["blamed", "levelup"], does: ["beat {o} at chess", "lost to {o} at chess", "carved a missing chess piece"] },
@@ -564,16 +533,16 @@ const PASTIMES = {
   archery:    { icon: "🎯", name: "archery", from: /hunt|scout|patrol|levy/i, after: ["victory", "neardeath"], does: ["shot at a straw target", "outshot {o}", "lost an arrow in the reeds"] },
   tanning:    { icon: "👜", name: "leatherwork", from: /butcher|cattle|trap|hunter/i, after: ["made"], does: ["stitched a belt", "mended {o}'s boots", "tooled a pouch"] },
   candles:    { icon: "🕯️", name: "candle-making", from: /chapel|shrine|temple|monaster|church/i, after: ["grief", "haunted"], does: ["dipped candles", "lit a candle for the dead", "made {o} a candle"] },
-  maps:       { icon: "🗺️", name: "map-drawing", from: /map|surveyor|trail|road|ford/i, after: ["levelup", "victory"], does: ["drew a map of the valley", "drew the dungeon from memory", "argued a map with {o}"] },
+  maps:       { icon: "🗺️", name: "map-drawing", from: /map|surveyor|trail|road|ford/i, after: ["levelup", "victory"], does: ["drew a map of the valley", "drew the dungeon from memory", "drew the dungeon from {o}'s telling", "argued about a map with {o}"] },
   pressing:   { icon: "🌼", name: "pressing flowers", from: /herb|flower|root|moss|healer/i, after: ["wed", "grief"], does: ["pressed flowers", "pressed a flower for {o}", "dried lavender"] },
   prayer:     { icon: "🙏", name: "prayer", from: /temple|shrine|bishop|chapel|holy|preach|orders/i, after: ["grief", "neardeath", "haunted"], does: ["prayed at dusk", "prayed for {o}", "prayed for the dead"] },
   tales:      { icon: "🔥", name: "telling tales", from: /soldier|caravan|players|sailor|ship|road/i, after: ["victory", "neardeath"], does: ["told a tale by the fire", "told {o} about the old days", "told a ghost story"] },
   wrestling:  { icon: "🤼", name: "wrestling", from: /pit|guard|fort|watchman|mercenar/i, after: ["blamed", "jilted"], does: ["wrestled {o} in the mud", "threw {o} twice", "lost a match to {o}"] },
   dancing:    { icon: "💃", name: "dancing", from: /players|festival|market|tavern/i, after: ["wed", "feast"], does: ["danced by the fire", "danced with {o}", "taught {o} a reel"] },
-  kites:      { icon: "🪁", name: "kite-making", from: /island|coast|hill|frontier/i, after: ["levelup"], does: ["flew a kite on the ridge", "made {o} a kite", "lost a kite in a tree"] },
-  bees:       { icon: "🐝", name: "beekeeping", from: /orchard|honey|monaster|garden/i, after: ["wed"], does: ["checked the hives", "got stung", "brought {o} a comb of honey"] },
+  kites:      { icon: "🪁", name: "kite-making", from: /island|coast|hill|frontier/i, after: ["levelup"], does: ["flew a kite over the fields", "made {o} a kite", "lost a kite in a tree"] },
+  bees:       { icon: "🐝", name: "beekeeping", from: /orchard|honey|monaster|garden/i, after: ["wed"], does: ["followed bees to a wild hive", "got stung", "brought {o} a comb of wild honey"] },
   puzzles:    { icon: "🧩", name: "puzzle boxes", from: /lock|hinge|seal|secret|circle/i, after: ["made"], does: ["built a puzzle box", "stumped {o} with a puzzle box", "opened an old box"] },
-  swimming:   { icon: "🏊", name: "swimming", from: /river|dock|canal|island|shipwreck|coast/i, after: ["victory", "jilted"], does: ["swam the river", "raced {o} across the pond", "floated on their back a while"] },
+  swimming:   { icon: "🏊", name: "swimming", needs: "water", from: /river|dock|canal|island|shipwreck|coast/i, after: ["victory", "jilted"], does: ["swam the river", "raced {o} across the pond", "floated on their back a while"] },
   walking:    { icon: "🥾", name: "long walks", from: /road|pilgrim|wander|guide|travel/i, after: ["grief", "jilted", "blamed"], does: ["walked to the old oak", "walked the fields at dusk", "walked with {o}"] },
   herbs:      { icon: "🍵", name: "brewing teas", from: /herb|bark|apothecar|poultice|midwife/i, after: ["neardeath", "mended"], does: ["brewed a mint tea", "brewed {o} a tea for sleep", "dried nettles"] },
   sewing:     { icon: "🧵", name: "mending clothes", from: /bandage|stitch|wound|hospice/i, after: ["mended"], does: ["patched a cloak", "mended {o}'s shirt", "darned socks"] },
@@ -584,8 +553,6 @@ const PASTIMES = {
   sparring:   { icon: "⚔️", name: "sparring", from: /sword|levy|militia|fought|army/i, after: ["neardeath", "raided"], does: ["sparred with {o}", "practiced cuts at dawn", "oiled a blade"] },
   music:      { icon: "🥁", name: "drumming", from: /soldier|levy|players|camp/i, after: ["victory", "feast"], does: ["drummed on a barrel", "kept time for {o}", "made a drum"] },
 };
-// Where an evening can be spent, once built. For: the pastimes it is built for; those who have one ask for it.
-// Steam: somewhere the angry go before it comes to blows.
 const VENUES = {
   park: { for: ["walking", "birds", "gardening", "herbs", "bees", "kites", "stars", "painting"], does: ["walked the park with {o}", "napped under a tree in the park", "fed the ducks"] },
   playground: { for: ["toys"], does: ["played tag with {o}", "fixed the swing", "went down the slide, twice"] },

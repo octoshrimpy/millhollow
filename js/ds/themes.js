@@ -1,10 +1,6 @@
-// Millhollow — colour themes. Each one is a surface set (bg, card, line, ink, dim, accent) and an
-// eight-hue palette. The palette tints the icons (icons.js names a hue, never a hex), and the
-// portraits get a two-tone wash from the theme's own darkest and lightest ink. Loaded in <head>
-// so the first paint is already in the chosen colours; the choice lives outside the save.
+// Loaded in <head> so the first paint is already in the chosen colours.
 
 const THEMES = [
-  // dark
   { id: "millhollow", name: "Millhollow", dark: true, bg: "#14110e", card: "#1d1814", line: "#2e2721", ink: "#d9cbb4", dim: "#8a7c68", accent: "#c08a4e",
     red: "#e05a5a", orange: "#e0a458", yellow: "#e8c04e", green: "#7cc46a", teal: "#8fc0c9", blue: "#9fb4d8", purple: "#b9a4d6", pink: "#ef5f7c", gray: "#a39d93", brown: "#b07a48",
     good: "#8fb573", bad: "#c9655a", faces: false },
@@ -22,7 +18,6 @@ const THEMES = [
     red: "#fb4934", orange: "#fe8019", yellow: "#fabd2f", green: "#b8bb26", teal: "#8ec07c", blue: "#83a598", purple: "#d3869b", pink: "#f28b9b", gray: "#a89984" },
   { id: "solarized-dark", name: "Solarized Dark", dark: true, bg: "#002b36", card: "#073642", line: "#124654", ink: "#93a1a1", dim: "#657b83", accent: "#b58900",
     red: "#dc322f", orange: "#cb4b16", yellow: "#b58900", green: "#859900", teal: "#2aa198", blue: "#268bd2", purple: "#6c71c4", pink: "#d33682", gray: "#839496" },
-  // light
   { id: "parchment", name: "Parchment", dark: false, bg: "#f3ead8", card: "#fbf5e8", line: "#d8cbb0", ink: "#3a2e22", dim: "#8a7a62", accent: "#9a5f24",
     red: "#c0392b", orange: "#c46a1a", yellow: "#a87f00", green: "#4f8a3a", teal: "#2f8a88", blue: "#3d6aa8", purple: "#7a52b0", pink: "#c0406a", gray: "#7a7266", brown: "#8a5a2e" },
   { id: "tomorrow", name: "Tomorrow", dark: false, bg: "#ffffff", card: "#f5f5f5", line: "#d6d6d6", ink: "#4d4d4c", dim: "#8e908c", accent: "#4271ae",
@@ -67,7 +62,6 @@ function applyTheme(id) {
   tintFaces();
 }
 
-// Portraits are sepia engravings; map their light and shade onto this theme's two inks.
 function tintFaces() {
   const root = document.documentElement;
   if (theme.faces === false) { root.style.setProperty("--face-filter", "saturate(1)"); return; }
@@ -81,8 +75,6 @@ function tintFaces() {
       </filter></svg>`);
     svg = document.getElementById("face-tint");
   }
-  // Dark themes: shadow sinks into the background, highlights take the ink warmed by the accent.
-  // Light themes: printed in ink on the page.
   const t = theme;
   const lo = t.dark ? mixHex(t.bg, "#000000", 0.35) : mixHex(t.ink, "#000000", 0.2);
   const hi = t.dark ? mixHex(t.ink, t.accent, 0.3) : mixHex(t.bg, t.accent, 0.12);
