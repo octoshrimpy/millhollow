@@ -1364,7 +1364,6 @@ function endDay(hold) {
   lastYields = [];
   const eaters = living().filter((s) => !away(s)).length;
   S.grid.forEach((b, i) => {
-    if (b && b.lvl) b.unpaid = true;
     if (!b || !b.worker) return;
     const s = byId(b.worker), def = BUILDINGS[b.type];
     if (!available(s) || s.hp <= 0) return;
