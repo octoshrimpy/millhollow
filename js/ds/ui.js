@@ -50,7 +50,7 @@ function render() {
     $("#fight").hidden = true;
     return;
   }
-  if (S.visitor && S.visitor.id !== knocked && tab === "village" && !sheet && !S.expedition) {
+  if (S.visitor && S.visitor.id !== knocked && tab === "village" && !sheet && !S.expedition && !botTimer) {
     knocked = S.visitor.id;
     sheet = { visitor: true };
   }
@@ -58,7 +58,7 @@ function render() {
   const ev = S.expedition?.event, here = ev && `${S.expedition.map.floor}:${S.expedition.map.at}`;
   if (ev && here !== pleaded && tab === "dungeon" && !sheet && !S.expedition.fight) { pleaded = here; sheet = { event: true }; }
   if (sheet && sheet.event && !ev) sheet = null;
-  if (S.trouble && S.trouble !== alarmed && ["village", "dungeon"].includes(tab) && !sheet && !S.expedition?.fight) {
+  if (S.trouble && S.trouble !== alarmed && ["village", "dungeon"].includes(tab) && !sheet && !S.expedition?.fight && !botTimer) {
     alarmed = S.trouble;
     sheet = { trouble: true };
   }
@@ -97,7 +97,8 @@ function renderTop() {
     .filter(([k]) => S.res[k] > 0 || k === "food" || k === "wood")
     .map(([k, r]) => `<span data-tooltip="${r.name}" data-placement="bottom" data-k="${k}" class="${packing[k] ? "packed" : ""}">${r.icon}${S.res[k] - (packing[k] || 0)}</span>`).join("")));
   morph($("#menu"), iconize("⚙"));
-  morph($("#savebtn"), iconize("💾"));
+  morph($("#savebtn"), iconize(botTimer ? "⏹" : "💾"));
+  $("#savebtn").dataset.act = botTimer ? "botstop" : "savefile";
   const log = ["log", "Log", "📖"];
   const tabs = S.expedition ? [["dungeon", "Dungeon", "🪜"], ["people", "People", "👥"], log]
     : [["village", "Village", "🏘"], ["people", "People", "👥"], ["forge", "Forge", "⚒"], ["research", "Research", "📜"], log, ["expedition", "Expedition", "🧭"]];
@@ -809,7 +810,9 @@ function sheetMenu() {
   }).join("")}</div>` + (sheet.sure
     ? `<div class="row pair"><button data-act="slots">Keep playing</button><button class="danger" data-act="wipe">Delete ${esc(S.town)}</button></div>`
     : `<button class="danger wide" data-act="newgame" ${S.recruits ? "disabled" : ""}>New game</button>`) + `</div>`;
-  return `<div class="menu"><h3>Settings</h3><div class="themes">${THEMES.map(swatch).join("")}</div>${saves}<button class="wide" data-act="slots">🗂 Save slots</button>`
+  const secret = sheet.secret ? `<div class="row pair bot"><span>🤖</span><input id="botdays" type="number" min="1" value="${botDays}" inputmode="numeric">
+    <button data-act="bot">▶</button><button data-act="bot" data-v="all">∞</button><button data-act="botstop" ${botTimer ? "" : "disabled"}>⏹</button></div>` : "";
+  return `<div class="menu"><h3>Settings</h3>${secret}<div class="themes">${THEMES.map(swatch).join("")}</div>${saves}<button class="wide" data-act="slots">🗂 Save slots</button>`
     + `<div class="row pair acts">${installer ? `<button class="install" data-act="install">📲 Install</button>` : ""}`
     + `${document.fullscreenEnabled ? `<button class="${document.fullscreenElement ? "on" : ""}" data-act="fullscreen">⛶ Fullscreen</button>` : ""}</div>` + `<a class="src" href="https://github.com/octoshrimpy/millhollow" target="_blank" rel="noopener">${GITHUB_MARK}<small>Source</small></a></div>`;
 }
@@ -1001,7 +1004,7 @@ const ACTS = {
   },
   asides: () => (root.classList.toggle("asides"), "keep"),
   older: () => (older = true),
-  menu: () => (sheet = { menu: true }),
+  menu: () => { if (secretOpened) { secretOpened = false; return "keep"; } sheet = { menu: true }; },
   theme: (v) => { applyTheme(v); },
   newgame: () => (sheet = { menu: true, slots: true, sure: true }),
   slots: () => (sheet = { menu: true, slots: true }),
@@ -1047,6 +1050,8 @@ const ACTS = {
   improve: () => improve(sheet.i),
   assign: (v) => { assign(sheet.i, +v); sheet = null; },
   endday: () => passDays(1),
+  bot: (v) => { botDays = Math.max(1, +$("#botdays").value || 1); botLeft = v === "all" ? Infinity : botDays; sheet = null; clearTimeout(botTimer); botTimer = setTimeout(botStep, 0); },
+  botstop: () => { clearTimeout(botTimer); botTimer = null; save(); },
   visitor: (v) => { welcomeVisitor(v === "1"); sheet = null; },
   knock: () => (sheet = { visitor: true }),
   alarm: () => (sheet = { trouble: true }),
@@ -1160,6 +1165,19 @@ function goBack() {
   else return false;
   return true;
 }
+
+// Secret settings: hold the gear 5s. The bot plays a day at a time until botLeft runs out or Stop.
+let botTimer = null, botLeft = 0, botDays = 30, held = null, secretOpened = false;
+function botStep() {
+  if (botLeft-- <= 0 || S.expedition || S.recruits || !living().length) { botTimer = null; save(); return render(); }
+  const before = snap();
+  Bot.day(); save();
+  botTimer = setTimeout(botStep, 400);
+  render(); celebrate(before);
+}
+$("#menu").addEventListener("pointerdown", () => { clearTimeout(held); held = setTimeout(() => { secretOpened = true; sheet = { menu: true, secret: true }; render(); }, 5000); });
+["pointerup", "pointerleave", "pointercancel"].forEach((k) => $("#menu").addEventListener(k, () => clearTimeout(held)));
+$("#menu").addEventListener("contextmenu", (e) => e.preventDefault());
 
 function run(act, v, el) {
   const before = snap(), was = tab, life = act === "lifetab" && !!sheet.ties !== (v === "ties");

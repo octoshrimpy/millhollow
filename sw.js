@@ -1,7 +1,7 @@
 // Faces never change, so they're served from the cache; code and page come from the network first.
-const CACHE = "millhollow-v2";
+const CACHE = "millhollow-v3";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icons/icon-192.png",
-  ...["themes", "data", "names", "game", "combat", "sprite", "icons", "juice", "ui"].map((f) => `js/ds/${f}.js`)];
+  ...["themes", "data", "names", "game", "combat", "bot", "sprite", "icons", "juice", "ui"].map((f) => `js/ds/${f}.js`)];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
