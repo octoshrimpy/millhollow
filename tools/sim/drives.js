@@ -139,3 +139,13 @@ useSlot(0);
 if (S.town !== "Ashford" || S.day !== 9 || slotInfo(0).town !== "Ashford" || slotInfo(1)) throw new Error("slot 0 not restored");
 console.log("slots ok");
 `, ctx);
+vm.runInContext(`{
+const f = { heroes: [{ cls: "mystic", hp: 5, cd: 0 }, { cls: "cleric", hp: 9, cd: 1 }], enemies: [{ hp: 9, gauge: 0, spd: 1 }] };
+S.res.potions = 0;
+if (!covered(f)) throw new Error("mend in time should cover");
+f.heroes[1].cd = 99;
+if (covered(f)) throw new Error("late mend shouldn't cover");
+S.res.potions = 1;
+if (!covered(f)) throw new Error("potion should cover");
+console.log("cover ok");
+}`, ctx);

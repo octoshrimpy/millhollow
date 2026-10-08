@@ -142,7 +142,13 @@ function step(f, dt) {
   const up = (front < (f.front ?? front) || !front) && alive(f.heroes).find(waits);
   if (up) { up.row = "front"; byId(up.id).row = "front"; fightLog(f, `${up.name} steps up.`); }
   f.front = front + (up ? 1 : 0);
-  for (const h of f.heroes) if (h.hp > 0 && h.hp < h.hpMax / 2 && !h.hurt && !f.over) { h.hurt = true; f.paused = true; }
+  for (const h of f.heroes) if (h.hp > 0 && h.hp < h.hpMax / 2 && !h.hurt && !f.over) { h.hurt = true; f.paused ||= !covered(f); }
+}
+
+// A potion on hand, or a mend ready before the next enemy swing, means no need to stop the fight.
+function covered(f) {
+  const next = Math.min(...alive(f.enemies).map((en) => (100 - en.gauge) / (en.spd * GAUGE_RATE)));
+  return S.res.potions > 0 || alive(f.heroes).some((c) => CLASSES[c.cls].skill.id === "mend" && c.cd < next);
 }
 
 function check(f) {
