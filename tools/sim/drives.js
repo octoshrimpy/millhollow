@@ -77,6 +77,8 @@ const [a, b] = S.settlers.filter((x, _, xs) => xs.some((y) => y !== x && !spark(
 tie(a, b, 45); a.drive = { warmth: 90 }; b.drive = { warmth: 90 };
 S.settlers.filter((x) => x !== a && x !== b).forEach((x) => (x.vow = true));
 URGES.court.does(a, S.settlers);
+if (a.sweet?.o !== b.id || !/sweet on/.test(S.log.at(-1).text)) throw "sweet";
+if (S.day - a.sweet.day >= 14) throw "court too fast"; a.sweet.day -= 21; a.drive.warmth = 90; URGES.court.does(a, S.settlers);
 if (S.trouble || !/stay friends/.test(S.log.at(-1).text) || sweetheart(a, S.settlers)) throw "friendzone";
 const n = (a.story || []).length; gameLog("x", "", [a], true);
 if (!S.log.at(-1).aside || a.story.length !== n + 1) throw "aside";
@@ -90,13 +92,13 @@ console.log("shed ok:", S.log.length, "left, asides first");
 }`, ctx);
 vm.runInContext(`(() => {
   newGame(); settleIn(S.recruits.slice(0, 4).map((s) => s.id));
-  const [a, b] = living(); a.pastime = "maps"; living().forEach((x) => { x.morale = 80; if (x !== a) x.pastime = null; });
-  const lines = (n) => { const out = []; for (let k = 0; k < n; k++) { const m = S.log.length; leisure([a, b]); out.push(...S.log.slice(m).map((l) => l.text)); } return out; };
+  const [a, b] = living(); a.pastime = "maps"; a.traits = b.traits = ["calm", "kind"]; living().forEach((x) => { x.morale = 80; if (x !== a) x.pastime = null; });
+  const lines = (n) => { const out = []; for (let k = 0; k < n; k++) { const m = S.log.length; a.quit = null; leisure([a, b]); out.push(...S.log.slice(m).map((l) => l.text)); } return out; };
   const before = lines(400);
   if (before.some((t) => t.includes("dungeon"))) throw new Error("drew the dungeon unseen");
   b.delved = true;
   const told = lines(400);
-  if (!told.some((t) => t.includes(b.name + "'s telling")) || told.some((t) => t.includes("from memory"))) throw new Error("telling wrong");
+  if (!told.some((t) => t.includes(b.name + "'s telling")) || told.some((t) => t.startsWith(a.name) && t.includes("from memory"))) throw new Error("telling wrong");
   console.log("delved ok:", told.find((t) => t.includes("telling")));
 })()`, ctx);
 vm.runInContext(`(() => {
@@ -137,6 +139,8 @@ useSlot(1);
 if (!S.recruits || S.town === "Ashford" || S.towns.length !== 3) throw new Error("slot 1 not fresh");
 useSlot(0);
 if (S.town !== "Ashford" || S.day !== 9 || slotInfo(0).town !== "Ashford" || slotInfo(1)) throw new Error("slot 0 not restored");
+S.settlers.forEach((x) => { delete x.traits; delete x.pastime; }); S.settlers[0].spouse = S.settlers[1].id; save(); load();
+if (!S.settlers.every((x) => x.traits?.length === 2 && x.pastime) || S.settlers[0].wedDay !== S.day) throw new Error("old save not converted");
 console.log("slots ok");
 `, ctx);
 vm.runInContext(`{

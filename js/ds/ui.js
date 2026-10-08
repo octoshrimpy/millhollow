@@ -469,7 +469,7 @@ function sheetPerson() {
       .map(([t]) => tip("Asked for", `🙋 ${BUILDINGS[t].icon} ${BUILDINGS[t].name}`, "chip")).join("")}</div>` : ""}
     ${s.dead ? "" : `<div class="thoughts">${fresh(s).sort((x, y) => y.n - x.n).map(thoughtChip).join("")}</div>
     ${drivePips(s)}
-    <div class="row wrap center">${skills}${s.pastime ? tip("Pastime", `${PASTIMES[s.pastime].icon} ${PASTIMES[s.pastime].name}`, "chip") : ""}</div>
+    <div class="row wrap center">${skills}${traitsOf(s).map((k) => tip("Nature", `${TRAITS[k].icon} ${TRAITS[k].name}`, "chip")).join("")}${s.pastime ? tip("Pastime", `${PASTIMES[s.pastime].icon} ${PASTIMES[s.pastime].name}`, "chip") : ""}</div>
     ${blames(s)}
     ${gearRow(s)}`}
   </div>
@@ -484,7 +484,7 @@ function tiesOf(s) {
   const os = [...S.settlers, ...(S.gone || [])].filter((o) => o.id !== s.id && (tieOf(s, o) || s.spouse === o.id || grudge(s, o)));
   return os.sort((a, b) => tieOf(s, b) - tieOf(s, a)).map((o) => {
     const v = tieOf(s, o);
-    const marks = (s.spouse === o.id ? "💍" : "") + (s.fz?.includes(o.id) ? "💔" : "") + (grudge(s, o) ? "😠" : "") + (o.dead ? "🪦" : "");
+    const marks = (s.spouse === o.id ? "💍" : "") + (s.sweet?.o === o.id ? "❤" : "") + (s.rival?.o === o.id ? "🤺" : "") + (s.owes?.some((x) => x.o === o.id) ? "🎁" : "") + (s.fz?.includes(o.id) ? "💔" : "") + (grudge(s, o) ? "😠" : "") + (o.dead ? "🪦" : "");
     return `<p class="tie"><span><u class="nm" data-act="person" data-v="${o.id}">${esc(o.name)}</u> <i>${feels(v, o.dead)}</i></span><span>${marks} <small>${v > 0 ? "+" : ""}${Math.round(v)}</small></span><span class="tiebar ${v < 0 ? "neg" : ""}" style="--v:${Math.abs(v)}"><i></i></span></p>`;
   }).join("");
 }

@@ -83,6 +83,7 @@ function useSkill(f, i) {
   } else if (skill.id === "mend") {
     const t = alive(f.heroes).sort((a, b) => a.hp / a.hpMax - b.hp / b.hpMax)[0];
     const s = byId(h.id), n = 12 + 2 * h.level + (fitBonus(s.gear.weapon, s) ? s.gear.weapon.atk : 0);
+    if (t !== h && t.hp < t.hpMax * 0.3) (f.saved ||= []).push([t.id, h.id]);
     t.hp = Math.min(t.hpMax, t.hp + n);
     t.healed = 0.4;
     f.fx.push({ t: "heal", to: t, n });
