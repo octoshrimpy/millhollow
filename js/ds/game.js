@@ -57,6 +57,7 @@ function makeSettler(cls) {
   let lvl = 1;
   while (lvl < 5 && chance(0.25)) lvl++;
   s.skills[trade] = lvl;
+  s.trade = trade;
   // Nobody tells a line someone here already told. ponytail: 50 tries, then a repeat beats a hang once a trade runs dry.
   const told = new Set(S ? [...S.settlers, S.visitor].filter(Boolean).flatMap((o) => o.story || []).map((e) => e.text) : []);
   for (let i = 0; i < 50 && (i === 0 || s.story.some((e) => told.has(e.text))); i++) s.story = pastOf(s, trade, lvl > 3 ? 2 : +chance((lvl - 1) / 3));
@@ -285,6 +286,7 @@ const THOUGHTS = {
   wish:      { name: "Got their wish", icon: "🙋", mood: "happy", morale: 10, days: 4, stir: { restless: -20, warmth: 15, pride: 5 } },
   liked:     { name: "Liked a poem", icon: "📜", mood: "happy", morale: 4, days: 2, stir: { grief: -10, restless: -10, warmth: 10 } },
   groaned:   { name: "Sat through a poem", icon: "📜", mood: "angry", morale: -4, days: 2, stir: { anger: 10, restless: 10 } },
+  dayoff:    { name: "Day off", icon: "🏖", mood: "happy", morale: 4, days: 1, stir: { restless: -15, anger: -5 } },
   tale:      { name: "A good story", icon: "🔥", mood: "happy", morale: 2, days: 1, stir: { restless: -5, grief: -5, warmth: 10 } },
 };
 const clampMorale = (n) => Math.max(0, Math.min(100, n));
@@ -829,7 +831,7 @@ function trouble(home, hold) {
   }
   const plate = 3 * home.length;
   const mourning = !S.expedition && home.some((s) => fresh(s).some((x) => x.k === "grief"));
-  if (!S.expedition && home.length > 2 && S.res.food > plate * 4 && chance(mourning ? 0.2 : 0.04)) {
+  if (!S.expedition && !feastWait() && home.length > 2 && S.res.food > plate * 4 && chance(mourning ? 0.2 : 0.04)) {
     S.trouble = { kind: "feast", take: { food: plate } };
     return gameLog(mourning ? `Talk of a wake.` : `Talk of a feast.`, "story");
   }
@@ -1093,6 +1095,25 @@ function brawl(a, b, lead = "") {
   sip.forEach((o) => (o.hp = Math.min(stats(o).hpMax, o.hp + 20)));
   gameLog(`${lead}${a.name} went for ${b.name}.${sip.length ? ` ${sip.map((o) => o.name).join(" and ")} drank a potion 🧪.` : ""}`, "bad", [a, b]);
 }
+const atHome = () => living().filter((o) => !away(o));
+const feastCost = () => ({ food: 3 * atHome().length });
+const feastWait = () => Math.max(0, (S.feastDay ?? -99) + 10 - S.day);
+function feast(take = feastCost()) {
+  if (!afford(take) || feastWait()) return;
+  pay(take);
+  S.feastDay = S.day;
+  const home = atHome();
+  home.forEach((o) => { o.thoughts = (o.thoughts || []).filter((x) => x.k !== "grief"); delete o.balk; think(o, "feast"); });
+  gameLog(`Feast. −${take.food}${RESOURCES.food.icon}`, "good", home);
+  seat(home);
+  revel(home);
+}
+function dayOff() {
+  S.off = S.day;
+  const home = atHome();
+  home.forEach((o) => think(o, "dayoff"));
+  gameLog("Day off. Nobody worked.", "good", home);
+}
 function seat(home) {
   const row = [...home].sort(() => Math.random() - 0.5);
   row.forEach((o, i) => [row[i - 1], row[i + 1]].filter(Boolean).forEach((n) => {
@@ -1165,12 +1186,7 @@ function settle(how) {
   }
   if (t.kind === "feast") {
     if (how !== "yes" || !afford(t.take)) return;
-    pay(t.take);
-    const home = living().filter((o) => !away(o));
-    home.forEach((o) => { o.thoughts = (o.thoughts || []).filter((x) => x.k !== "grief"); delete o.balk; think(o, "feast"); });
-    gameLog(`Feast. −${what}`, "good", home);
-    seat(home);
-    return revel(home);
+    return feast(t.take);
   }
   if (t.kind === "fey") {
     if (how === "yes" && afford(t.take) && !s.dead) {
@@ -1366,7 +1382,7 @@ function endDay(hold) {
   S.grid.forEach((b, i) => {
     if (!b || !b.worker) return;
     const s = byId(b.worker), def = BUILDINGS[b.type];
-    if (!available(s) || s.hp <= 0) return;
+    if (!available(s) || s.hp <= 0 || S.off === S.day) return;
     const here = {};
     const take = (r, n) => { const w = add(r, n); got[r] = (got[r] || 0) + w; if (w) here[r] = w; };
     const skill = s.skills[def.job] || 0;
@@ -1403,9 +1419,12 @@ function endDay(hold) {
     }
     s.skills[def.job] = +(skill + 0.1).toFixed(1);
     s.patience ??= 8 + rand(23);
+    s.trade ??= best(s);
+    const fav = def.job === s.trade, lasts = s.patience * (fav ? 2 : 1);
+    if (fav) stir(s, "pride", 2);
     s.same = s.same?.type === b.type && s.same.day === S.day - 1 ? { type: b.type, n: s.same.n + 1, day: S.day } : { type: b.type, n: 1, day: S.day };
-    if (s.same.n > s.patience) {
-      if (s.same.n === s.patience + 1) gameLog(`${s.name} is sick of ${JOBS[def.job].toLowerCase()}.`, "bad", [s]);
+    if (s.same.n > lasts) {
+      if (s.same.n === lasts + 1) gameLog(`${s.name} is sick of ${JOBS[def.job].toLowerCase()}.`, "bad", [s]);
       think(s, "bored");
     }
     if (Object.keys(here).length) lastYields.push({ i, got: here });

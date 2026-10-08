@@ -73,6 +73,8 @@ const ICONS = {
   "❗": ["lu-triangle-alert", "red"],
   "∞": ["lu-infinity", "currentColor"],
   "🤖": ["lu-bot", "blue"],
+  "🏖": ["lu-tree-palm", "yellow"],
+  "🎉": ["lu-party-popper", "pink"],
   "🏘": ["lu-tent-tree", "brown"],
   "👥": ["lu-users", "ink"],
   "🧭": ["lu-compass", "teal"],
