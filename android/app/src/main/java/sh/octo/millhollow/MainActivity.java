@@ -6,6 +6,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.WindowInsets;
+import android.window.OnBackInvokedDispatcher;
 import android.widget.FrameLayout;
 import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
@@ -77,15 +78,23 @@ public class MainActivity extends Activity {
       if (Build.VERSION.SDK_INT >= 30) {
         android.graphics.Insets i = in.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.ime());
         v.setPadding(i.left, i.top, i.right, i.bottom);
-      } else {
-        v.setPadding(in.getSystemWindowInsetLeft(), in.getSystemWindowInsetTop(), in.getSystemWindowInsetRight(), in.getSystemWindowInsetBottom());
+        return WindowInsets.CONSUMED;
       }
-      return in;
+      v.setPadding(in.getSystemWindowInsetLeft(), in.getSystemWindowInsetTop(), in.getSystemWindowInsetRight(), in.getSystemWindowInsetBottom());
+      return in.consumeSystemWindowInsets();
     });
+    // The page handles back first (closing a sheet, leaving a new village); otherwise the app goes to the background.
+    if (Build.VERSION.SDK_INT >= 33) getOnBackInvokedDispatcher().registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::back);
     setContentView(frame);
     if (state != null) web.restoreState(state);
     else web.loadUrl("https://" + HOST + "/index.html");
   }
+
+  private void back() {
+    web.evaluateJavascript("typeof goBack == 'function' && goBack()", (r) -> { if (!"true".equals(r)) moveTaskToBack(true); });
+  }
+
+  @SuppressWarnings("deprecation") @Override public void onBackPressed() { back(); }
 
   @Override protected void onSaveInstanceState(Bundle out) { super.onSaveInstanceState(out); web.saveState(out); }
 

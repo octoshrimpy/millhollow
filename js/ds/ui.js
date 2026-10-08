@@ -92,6 +92,7 @@ function viewRecruits() {
 
 function renderTop() {
   const packing = !S.expedition && tab === "expedition" ? { food: plan.rations, meals: plan.meals || 0 } : {};
+  if (S.recruits) return morph($("#res"), iconize(backTo == null ? "" : `<button class="ghost back" data-act="back" aria-label="Back">⬅</button>`));
   morph($("#res"), iconize(`<span class="day">Day ${S.day}</span>` + Object.entries(RESOURCES)
     .filter(([k]) => S.res[k] > 0 || k === "food" || k === "wood")
     .map(([k, r]) => `<span data-tooltip="${r.name}" data-placement="bottom" data-k="${k}" class="${packing[k] ? "packed" : ""}">${r.icon}${S.res[k] - (packing[k] || 0)}</span>`).join("")));
@@ -997,7 +998,7 @@ const ACTS = {
   theme: (v) => { applyTheme(v); },
   newgame: () => (sheet = { menu: true, slots: true, sure: true }),
   slots: () => (sheet = { menu: true, slots: true }),
-  slot: (v) => { if (+v === slot) return "keep"; useSlot(+v); landPos = null; plan = { party: [], rations: 6, meals: 0, floor: 1 }; tab = "village"; sheet = null; knocked = null; chosen = []; },
+  slot: (v) => { if (+v === slot) return "keep"; backTo = slotInfo(+v) || S.recruits ? null : slot; useSlot(+v); landPos = null; plan = { party: [], rations: 6, meals: 0, floor: 1 }; tab = "village"; sheet = null; knocked = null; chosen = []; },
   towns: () => { S.towns = places(); S.town = S.towns[0]; save(); const el = document.getElementById("town"); if (el) el.value = S.town; },
   town: (v) => { S.town = v; save(); const el = document.getElementById("town"); if (el) el.value = v; },
   recruit: (v) => {
@@ -1015,6 +1016,11 @@ const ACTS = {
   wipe: () => { newGame(); landPos = null; plan = { party: [], rations: 6, meals: 0, floor: 1 }; tab = "village"; sheet = null; knocked = null; },
   plot: (v) => (sheet = { i: +v }),
   close: () => (sheet = null),
+  // An unfounded slot is dropped, not saved, so it reads empty again.
+  back: () => {
+    try { localStorage.removeItem(slotKey()); localStorage.removeItem(slotKey() + "-meta"); } catch (e) {}
+    useSlot(backTo, false); backTo = null; landPos = null; tab = "village"; sheet = { menu: true, slots: true };
+  },
   imported: (v) => importCode(v),
   clear: () => { clearLand(sheet.i); sheet = null; },
   build: (v) => {
@@ -1135,6 +1141,15 @@ document.addEventListener("click", (e) => {
   const act = el.id === "sheet" ? "close" : el.dataset.act;
   run(act, el.dataset.v, el);
 });
+
+// Android's back key lands here: close the open sheet, or leave an unfounded village.
+let backTo = null;
+function goBack() {
+  if (sheet) run("close");
+  else if (S.recruits && backTo != null) run("back");
+  else return false;
+  return true;
+}
 
 function run(act, v, el) {
   const before = snap(), was = tab, life = act === "lifetab" && !!sheet.ties !== (v === "ties");

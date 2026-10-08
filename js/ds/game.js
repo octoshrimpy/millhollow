@@ -10,8 +10,8 @@ function slotInfo(n) {
     return meta ? JSON.parse(meta) : localStorage.getItem(slotKey(n)) ? { town: "Millhollow" } : null;
   } catch (e) { return null; }
 }
-function useSlot(n) {
-  save();
+function useSlot(n, keep = true) {
+  if (keep) save();
   slot = n;
   try { localStorage.setItem("mh-slot", n); } catch (e) {}
   if (!load()) newGame();

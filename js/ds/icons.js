@@ -79,6 +79,7 @@ const ICONS = {
   "💾": ["lu-download", "currentColor"],
   "📂": ["lu-folder-open", "currentColor"],
   "🗂": ["lu-folders", "currentColor"],
+  "⬅": ["lu-arrow-left", "currentColor"],
   "📥": ["lu-log-in", "currentColor"],
   "📲": ["lu-smartphone", "currentColor"],
   "⛶": ["lu-maximize", "currentColor"],
