@@ -97,6 +97,7 @@ function renderTop() {
     .filter(([k]) => S.res[k] > 0 || k === "food" || k === "wood")
     .map(([k, r]) => `<span data-tooltip="${r.name}" data-placement="bottom" data-k="${k}" class="${packing[k] ? "packed" : ""}">${r.icon}${S.res[k] - (packing[k] || 0)}</span>`).join("")));
   morph($("#goals"), iconize("🔔"));
+  $("#goals").classList.toggle("new", !!S.goalNew);
   morph($("#menu"), iconize("⚙"));
   morph($("#savebtn"), iconize(botTimer ? "⏹" : "💾"));
   $("#savebtn").dataset.act = botTimer ? "botstop" : "savefile";
@@ -529,6 +530,20 @@ function viewResearch() {
     }).join("") + `</div>`;
 }
 
+// One villager in the picker: face + name, then class, level, HP and what blocks or flags them.
+function pickRow(s) {
+  const on = plan.party.includes(s.id), no = refuses(s), due = avenges(s);
+  const mates = plan.party.map(byId).filter((m) => m.id !== s.id);
+  const mad = mates.some((m) => grudge(s, m) || grudge(m, s)) ? "😠" : "";
+  const lens = [...new Set(lensOf(s).map((t) => ROOM_ICON[t === "boss" ? "stairs" : t]))].join("");
+  const job = s.job != null && S.grid[s.job] ? ` · ${BUILDINGS[S.grid[s.job].type].icon}` : "";
+  const flags = [no ? "😔" : due ? "🔒" : "", mad].filter(Boolean).join(" ");
+  return `<div class="optrow">${mug(s)}
+    <button class="opt ${on ? "on" : ""}" data-act="pick" data-v="${s.id}" ${no || due ? "disabled" : ""}>
+      <span>${flags ? `${flags} ` : ""}${CLASSES[s.cls].icon} lv ${s.level}${lens ? ` <span class="chip">${lens}</span>` : ""}
+      <br><small>HP ${s.hp}/${stats(s).hpMax}${job}</small></span></button></div>`;
+}
+
 function viewExpedition() {
   const ready = living().filter((s) => s.hp > 0);
   const sworn = ready.filter(avenges).map((s) => s.id);
@@ -549,12 +564,7 @@ function viewExpedition() {
       <button data-act="${act}" data-v="-1" data-hold>−</button><b>${n}</b><button data-act="${act}" data-v="1" data-hold>＋</button></span></div>`;
   return `${where}<div class="row between"><h3>${SITES[site.kind].icon} ${esc(site.name)}</h3>${days ? tip("Travel", `👣 ${days}d`, "chip") : ""}</div>
     <p class="dim">Party of up to ${partyMax()}. 🍞 ${per("food")}${cook ? ` · 🥪 ${per("meals")}, +${MEAL_HEAL}❤️` : ""}. No food: starving. Death is permanent.</p>
-    <div class="exped"><div class="roster">${ready.map((s) => {
-      const on = plan.party.includes(s.id), st = stats(s), no = refuses(s), due = avenges(s);
-      return `<div class="optrow">${mug(s)}
-        <button class="opt ${on ? "on" : ""}" data-act="pick" data-v="${s.id}" ${no || due ? "disabled" : ""}><span>${no ? "😔 " : due ? "🔒 " : ""}${plan.party.some((id) => grudge(s, byId(id)) || grudge(byId(id), s)) ? " 😠" : ""} ${CLASSES[s.cls].icon} lv ${s.level}${lensOf(s).length ? ` <span class="chip">${[...new Set(lensOf(s).map((t) => ROOM_ICON[t === "boss" ? "stairs" : t]))].join("")}</span>` : ""}
-        <br><small>HP ${s.hp}/${st.hpMax}${s.job != null && S.grid[s.job] ? ` · working: ${BUILDINGS[S.grid[s.job].type].icon}` : ""}</small></span></button></div>`;
-    }).join("")}</div><div class="plan">
+    <div class="exped"><div class="roster">${ready.map(pickRow).join("")}</div><div class="plan">
     ${plan.party.length ? formation(plan.party.map(byId), false) : ""}
     ${home.length ? `<div class="row between"><span>👀 Gate watch</span><span class="keepers">${Array.from({ length: watchMax() }, (_, i) => {
       const on = guards()[i];
@@ -800,20 +810,20 @@ window.addEventListener("appinstalled", () => { installer = null; });
 document.addEventListener("fullscreenchange", () => { if (sheet?.menu) renderSheet(); });
 
 const GOALS = [
-  ["Build a hut", () => built("hut")],
-  ["Put someone to work", () => S.grid.some((b) => b && b.worker)],
-  ["Reach floor 1", () => S.deepest >= 1],
-  ["Research something", () => S.research.length > 0],
-  ["Claim land", () => S.cleared > 0],
-  ["Reach floor 5", () => S.deepest >= 5],
-  ["Reach floor 10", () => S.deepest >= 10],
-  ["Reach floor 20", () => S.deepest >= 20],
-  ["Have 10 villagers", () => living().length >= 10],
-  ["Level 10 villager", () => S.settlers.some((s) => s.level >= 10)],
-  ["Build a chapel", () => built("chapel")],
+  ["Build a hut", () => built("hut"), { wood: 5 }],
+  ["Put someone to work", () => S.grid.some((b) => b && b.worker), { food: 5 }],
+  ["Reach floor 1", () => S.deepest >= 1, { food: 5 }],
+  ["Research something", () => S.research.length > 0, { research: 2 }],
+  ["Claim land", () => S.cleared > 0, { stone: 5 }],
+  ["Reach floor 5", () => S.deepest >= 5, { silver: 2 }],
+  ["Reach floor 10", () => S.deepest >= 10, { silver: 4 }],
+  ["Reach floor 20", () => S.deepest >= 20, { starmetal: 1 }],
+  ["Have 10 villagers", () => living().length >= 10, { food: 15 }],
+  ["Level 10 villager", () => S.settlers.some((s) => s.level >= 10), { potions: 2 }],
+  ["Build a chapel", () => built("chapel"), { herbs: 5 }],
 ];
 function sheetGoals() {
-  return `<div class="menu"><h3>🔔 Goals</h3><div class="goals">${GOALS.map(([t, ok]) => `<p class="${ok() ? "good" : "dim"}">${ok() ? "✓" : "○"} ${t}</p>`).join("")}</div></div>`;
+  return `<div class="menu"><h3>🔔 Goals</h3><div class="goals">${GOALS.map(([t, ok, win]) => `<p class="${ok() ? "good" : "dim"}">${ok() ? "✓" : "○"} ${t} <span class="dim">${goods(win)}</span></p>`).join("")}</div></div>`;
 }
 
 function sheetMenu() {
@@ -950,6 +960,40 @@ document.addEventListener("scroll", (e) => {
   document.addEventListener("click", (e) => { if (moved) { moved = false; e.stopPropagation(); e.preventDefault(); } }, true);
 })();
 
+// Map zoom: --zoom scales the tile size. Pinch on touch, ctrl+wheel or +/- on desktop.
+(() => {
+  const root = document.documentElement, pts = new Map();
+  let z = 1, d0 = 0, z0 = 1;
+  try { z = +localStorage.getItem("mh-zoom") || 1; } catch (e) {}
+  const clamp = (v) => Math.max(0.6, Math.min(2, v));
+  const set = (v) => {
+    z = clamp(v); root.style.setProperty("--zoom", z);
+    try { localStorage.setItem("mh-zoom", z); } catch (e) {}
+  };
+  set(z);
+  const dist2 = () => { const [a, b] = [...pts.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+  document.addEventListener("pointerdown", (e) => {
+    if (e.pointerType !== "touch" || !e.target.closest("#land")) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size === 2) { d0 = dist2(); z0 = z; }
+  });
+  document.addEventListener("pointermove", (e) => {
+    if (!pts.has(e.pointerId)) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size === 2 && d0) set(z0 * dist2() / d0);
+  });
+  const up = (e) => { pts.delete(e.pointerId); d0 = 0; };
+  window.addEventListener("pointerup", up); window.addEventListener("pointercancel", up);
+  document.addEventListener("wheel", (e) => {
+    if (!e.ctrlKey || !e.target.closest("#land")) return;
+    e.preventDefault(); set(z * (e.deltaY < 0 ? 1.1 : 1 / 1.1));
+  }, { passive: false });
+  document.addEventListener("keydown", (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey || !$("#land") || /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
+    if (e.key === "+" || e.key === "=") set(z * 1.15); else if (e.key === "-") set(z / 1.15);
+  });
+})();
+
 // A touch drag scrolls the page instead (pan-y), so on a phone it's the taps.
 (() => {
   let pc = null, from = null, moved = false;
@@ -1031,7 +1075,7 @@ const ACTS = {
   },
   asides: () => (root.classList.toggle("asides"), "keep"),
   older: () => (older = true),
-  goals: () => (sheet = { goals: true }),
+  goals: () => { S.goalNew = false; save(); sheet = { goals: true }; },
   menu: () => { if (secretOpened) { secretOpened = false; return "keep"; } sheet = { menu: true }; },
   theme: (v) => { applyTheme(v); },
   newgame: () => (sheet = { menu: true, slots: true, sure: true }),
@@ -1239,7 +1283,11 @@ function celebrate(b) {
   // ponytail: old saves start with whatever's already done, so nothing fires retroactively
   if (!S.goals) S.goals = GOALS.filter(([, ok]) => ok()).map(([t]) => t);
   const fresh = GOALS.filter(([t, ok]) => !S.goals.includes(t) && ok()).map(([t]) => t);
-  if (fresh.length) { S.goals.push(...fresh); save(); }
+  if (fresh.length) {
+    S.goals.push(...fresh); S.goalNew = true;
+    GOALS.filter(([t]) => fresh.includes(t)).forEach(([, , win]) => { for (const k in win) S.res[k] += win[k]; });
+    renderTop(); save();
+  }
   fresh.forEach((t, n) => setTimeout(() => {
     const v = Juice.center($("#view")), bell = $("#goals");
     Juice.float(v.x, v.y, `✓ ${t}`, "banner goal", 1600);
