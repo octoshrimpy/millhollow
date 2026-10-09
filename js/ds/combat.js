@@ -197,7 +197,7 @@ function covered(f) {
 
 function check(f) {
   if (f.over) return;
-  f.enemies.forEach((en) => { if (en.hp <= 0 && !en.logged) { en.logged = true; fightLog(f, `${en.name} killed.`); } });
+  f.enemies.forEach((en) => { if (en.hp <= 0 && !en.logged) { en.logged = true; S.beasts[en.name] = (S.beasts[en.name] || 0) + 1; fightLog(f, `${en.name} killed.`); } });
   if (!alive(f.enemies).length) f.over = "won";
   else if (!alive(f.heroes).length) f.over = "lost";
   if (f.over) f.fx.push({ t: f.over });
