@@ -851,11 +851,12 @@ const sheetBeasts = () => `<div class="menu"><h3>📖 Beastiary</h3><div class="
   const n = S.beasts[e.name] || 0;
   return `<p class="${n ? "" : "dim"}"><span>${n ? e.icon : "❔"}</span>${n ? ` <b>${e.name}</b> ${n}` : ""}</p>`; }).join("")}</div></div>`;
 function sheetGoals() {
-  return `<div class="menu"><h3>🔔 Goals</h3><div class="goals">${GOALS.map(([t, , win], i) => S.claimed.includes(t) ? `<p class="good">✓ ${t} <span class="dim">${goods(win)}</span></p>`
-    : !goalOpen(GOALS[i]) ? `<p class="dim locked" aria-hidden="true">○ ${t} <span>${goods(win)}</span></p>`
-    : !goalDone(GOALS[i]) && GOALS[i][4] ? `<p class="dim">○ ???</p>`
+  const row = ([t, , win, , secret], i) => S.claimed.includes(t) ? `<p class="good">✓ ${t} <span class="dim">${goods(win)}</span></p>`
     : goalDone(GOALS[i]) ? `<button data-act="claimgoal" data-v="${i}">${t} <span>${goods(win)}</span></button>`
-    : `<p class="dim">○ ${t} <span>${goods(win)}</span></p>`).join("")}</div></div>`;
+    : secret || !goalOpen(GOALS[i]) ? `<p class="dim locked" aria-hidden="true">○ ${t} <span>${goods(win)}</span></p>`
+    : `<p class="dim">○ ${t} <span>${goods(win)}</span></p>`;
+  const tabs = `<div class="sites lifetabs"><button class="${sheet.secret ? "" : "on"}" data-act="goaltab" aria-label="Goals">🔔</button><button class="${sheet.secret ? "on" : ""}" data-act="goaltab" data-v="secret" aria-label="Hidden">❔</button></div>`;
+  return `<div class="menu"><h3>🔔 Goals</h3>${tabs}<div class="goals">${GOALS.map((g, i) => !g[4] === !sheet.secret ? row(g, i) : "").join("")}</div></div>`;
 }
 
 function sheetMenu() {
@@ -1115,6 +1116,7 @@ const ACTS = {
   asides: () => (root.classList.toggle("asides"), "keep"),
   older: () => (older = true),
   goals: () => { sheet = { goals: true }; },
+  goaltab: (v) => { sheet.secret = v === "secret"; },
   claimgoal: (v, el) => {
     const [t, , win] = GOALS[v];
     if (S.claimed.includes(t) || !goalDone(GOALS[v])) return "keep";
