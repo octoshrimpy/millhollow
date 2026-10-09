@@ -98,7 +98,7 @@ function renderTop() {
     .filter(([k]) => S.res[k] > 0 || k === "food" || k === "wood")
     .map(([k, r]) => `<span data-tooltip="${r.name}${capOf(k) < Infinity ? ` ${S.res[k]}/${capOf(k)}` : ""}" data-placement="bottom" data-k="${k}" class="${packing[k] ? "packed" : S.res[k] >= capOf(k) ? "full" : ""}">${r.icon}${S.res[k] - (packing[k] || 0) - (owed[k] || 0)}</span>`).join("")));
   morph($("#goals"), iconize("🔔"));
-  $("#goals").classList.toggle("new", GOALS.some((g) => goalDone(g) && !S.claimed.includes(g[0])));
+  $("#goals").classList.toggle("new", (S.goals || []).some((g) => !(S.claimed ||= []).includes(g)));
   morph($("#menu"), iconize("⚙"));
   morph($("#savebtn"), iconize(botTimer ? "⏹" : "💾"));
   $("#savebtn").dataset.act = botTimer ? "botstop" : "savefile";
@@ -842,8 +842,58 @@ const GOALS = [
   ["A poem lands", () => felt("liked"), { research: 2 }, null, true],
   ["Seen a ghost", () => felt("snapped"), { potions: 1 }, null, true],
   ["Crown the hall", () => S.claim > 0, { relics: 2 }, null, true],
+  // Hearts
+  ["Fast friends", () => logged(/ are friends now\./), { food: 3 }, null, true],
+  ["Bad blood", () => logged(/ can't stand each other\./), { herbs: 2 }, null, true],
+  ["Sweet on someone", () => logged(/ is sweet on /), { herbs: 3 }, null, true],
+  ["Love triangle", () => logged(/ both have eyes for /), { potions: 1 }, null, true],
+  ["Just friends", () => logged(/ would rather stay friends\./), { food: 5 }, null, true],
+  ["The whole village came", () => logged(/ married\. The whole village came/), { relics: 1 }, null, true],
+  ["Still married", () => S.settlers.some((s) => s.spouse && !s.dead && S.day - s.wedDay >= 100), { herbs: 5 }, null, true],
+  ["Followed their heart", () => logged(/ came looking for .+ Wants to join\./), { food: 5 }, null, true],
+  ["Wish granted", () => felt("wish"), { research: 2 }, null, true],
+  ["A gift", () => logged(/ gave .+\. Thanks for /), { herbs: 2 }, null, true],
+  ["Mentor", () => logged(/ showed .+ some /), { research: 1 }, null, true],
+  ["Catching on", () => logged(/ took up .+, thanks to /), { herbs: 2 }, null, true],
+  ["Let it go", () => logged(/ and let it go\./), { food: 5 }, null, true],
+  // Mishaps
+  ["Fisticuffs", () => felt("brawl"), { potions: 1 }, null, true],
+  ["Tantrum", () => logged(/ smashed the /), { wood: 5 }, null, true],
+  ["Oops", () => logged(/ knocked over a lamp\./), { wood: 10 }, null, true],
+  ["Drank the stores", () => logged(/ drank the stores\./), { food: 5 }, null, true],
+  ["Morning after", () => logged(/ woke up sore-headed\./), { food: 5 }, null, true],
+  ["Two left feet", () => logged(/ turned an ankle dancing\./), { herbs: 2 }, null, true],
+  ["Fever", () => logged(/ old fever came back\./), { herbs: 5 }, null, true],
+  ["Bad mushrooms", () => logged(/^Mushrooms: /), { potions: 1 }, null, true],
+  ["Lost after the party", () => logged(/^Nobody has seen .+ since the party\./), { food: 5 }, null, true],
+  ["Nothing to show", () => logged(/ out of the forge with nothing\./), { stone: 5 }, null, true],
+  ["Loose lips", () => logged(/^Word got round that /), { silver: 1 }, null, true],
+  ["Debts come due", () => logged(/^Collectors at the gate /), { silver: 1 }, null, true],
+  // Gate and walls
+  ["Struck a deal", () => logged(/^Traded /), { silver: 1 }, null, true],
+  ["Drove them off", () => logged(/^Drove off /), { silver: 1 }, null, true],
+  ["Ladders on the walls", () => logged(/^Ladders on the walls\./), { stone: 5 }, null, true],
+  ["Music draws a crowd", () => logged(/ heard the music and wants to join\./), { herbs: 3 }, null, true],
+  // Below
+  ["Slay a boss", () => felt("victory"), { relics: 1 }, null, true],
+  ["Close call", () => felt("neardeath"), { potions: 1 }, null, true],
+  ["Live to fight again", () => felt("fled"), { food: 3 }, null, true],
+  ["Ambushed", () => logged(/ ambushed on the way up\./), { potions: 1 }, null, true],
+  ["Hidden stash", () => logged(/: stash\. /), { silver: 1 }, null, true],
+  ["Butterfingers", () => logged(/ dropped the keeper's crown /), { silver: 1 }, null, true],
+  ["Lost below", () => logged(/ died on floor \d+\./), { relics: 1 }, null, true],
+  ["Bring them home", () => logged(/: found .+'s remains\./), { herbs: 3 }, null, true],
+  ["A haunting", () => logged(/ haunts /), { potions: 1 }, null, true],
+  ["Rat catcher", () => (S.beasts?.["Cellar rat"] || 0) >= 50, { food: 10 }, null, true],
+  ["Know your foes", () => Object.values(ENEMIES).every((e) => S.beasts?.[e.name]), { relics: 3 }, null, true],
+  // Time
+  ["A year gone", () => logged(/A year gone/), { relics: 2 }, null, true],
+  ["One year on", () => S.day >= 365, { relics: 2 }, null, true],
 ];
-function felt(k) { return S.settlers.some((s) => s.story?.some((e) => e.k === k)); }
+const everyone = () => [...S.settlers, ...(S.gone || [])];
+function felt(k) { return everyone().some((s) => s.story?.some((e) => e.k === k)); }
+// ponytail: scans the whole log per unfinished goal; reached goals short-circuit, so it only shrinks
+function logged(re) { return S.log.some((l) => re.test(l.text)); }
 // A goal opens once the one it follows is claimed; only open goals can finish.
 const goalOpen = ([t, , , after]) => !after || (S.claimed ||= []).includes(after) || S.claimed.includes(t);
 const goalDone = (g) => goalOpen(g) && (!!S.goals?.includes(g[0]) || !!g[1]()); // once reached, it stays reached
@@ -1354,7 +1404,7 @@ function celebrate(b) {
     S.goals.push(...fresh);
     renderTop(); save();
   }
-  fresh.forEach((t) => setTimeout(() => {
+  (fresh.length > 3 ? [`${fresh.length} goals`] : fresh).forEach((t) => setTimeout(() => {
     const v = Juice.center($("#view")), bell = $("#goals");
     Juice.float(v.x, v.y, `✓ ${t}`, "banner goal", 1600);
     Juice.burst(v.x, v.y, { n: 30, colors: PAL.gold, speed: 220, up: 160, gravity: 520, life: 1.1, size: 3, drag: 0.95 });
