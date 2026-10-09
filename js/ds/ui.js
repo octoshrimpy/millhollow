@@ -541,13 +541,13 @@ function viewExpedition() {
   plan.floor = Math.min(plan.floor, site.deepest + 1);
   const floors = Array.from({ length: site.deepest + 1 }, (_, k) => k + 1);
   const where = known.length > 1 ? `<div class="sites">${known.map((x) => `<button class="${x === site ? "on" : ""}" data-act="site" data-v="${S.sites.indexOf(x)}"
-    aria-label="${esc(x.name)}">${SITES[x.kind].icon}</button>`).join("")}</div>` : "";
+    aria-label="${esc(x.name)}">${SITES[x.kind].icon}${tierOf(x) ? `<small class="pips">${"▪".repeat(tierOf(x))}</small>` : ""}</button>`).join("")}</div>` : "";
   const home = living().filter((s) => !away(s) && !plan.party.includes(s.id));
   const per = (k) => `${roomsPer(k)} ${roomsPer(k) > 1 ? "rooms" : "room"}`;
   const cook = has("smoking") || S.res.meals > 0;
   const stepper = (act, icon, n) => `<div class="row between"><span>${icon}</span><span class="row">
       <button data-act="${act}" data-v="-1" data-hold>−</button><b>${n}</b><button data-act="${act}" data-v="1" data-hold>＋</button></span></div>`;
-  return `${where}<div class="row between"><h3>${SITES[site.kind].icon} ${esc(site.name)}</h3>${days ? tip("Travel", `👣 ${days}d`, "chip") : ""}</div>
+  return `${where}<div class="row between"><h3>${SITES[site.kind].icon} ${esc(site.name)}</h3><span class="row"><button class="ghost" data-act="beasts" aria-label="Beastiary">📖</button>${days ? tip("Travel", `👣 ${days}d`, "chip") : ""}</span></div>
     <p class="dim">Party of up to ${partyMax()}. 🍞 ${per("food")}${cook ? ` · 🥪 ${per("meals")}, +${MEAL_HEAL}❤️` : ""}. No food: starving. Death is permanent.</p>
     <div class="exped"><div class="roster">${ready.map((s) => {
       const on = plan.party.includes(s.id), st = stats(s), no = refuses(s), due = avenges(s);
@@ -812,6 +812,9 @@ const GOALS = [
   ["Level 10 villager", () => S.settlers.some((s) => s.level >= 10)],
   ["Build a chapel", () => built("chapel")],
 ];
+const sheetBeasts = () => `<div class="menu"><h3>📖 Beastiary</h3><div class="beasts">${Object.values(ENEMIES).map((e) => {
+  const n = S.beasts[e.name] || 0;
+  return `<p class="${n ? "" : "dim"}"><span>${n ? e.icon : "❔"}</span>${n ? ` <b>${e.name}</b> ${n}` : ""}</p>`; }).join("")}</div></div>`;
 function sheetGoals() {
   return `<div class="menu"><h3>🔔 Goals</h3><div class="goals">${GOALS.map(([t, ok]) => `<p class="${ok() ? "good" : "dim"}">${ok() ? "✓" : "○"} ${t}</p>`).join("")}</div></div>`;
 }
@@ -870,7 +873,7 @@ function renderSheet() {
     box.hidden = false;
     box.classList.add("open");
   }
-  morph(inner, iconize(sheet.ask ? sheetAsk() : sheet.goals ? sheetGoals() : sheet.menu ? sheetMenu() : sheet.event ? sheetEvent() : sheet.visitor ? sheetVisitor() : sheet.trouble ? sheetTrouble() : sheet.person ? sheetPerson()
+  morph(inner, iconize(sheet.ask ? sheetAsk() : sheet.goals ? sheetGoals() : sheet.beasts ? sheetBeasts() : sheet.menu ? sheetMenu() : sheet.event ? sheetEvent() : sheet.visitor ? sheetVisitor() : sheet.trouble ? sheetTrouble() : sheet.person ? sheetPerson()
     : sheet.keep != null ? sheetKeep() : sheet.events ? sheetEvents() : sheetPlot(sheet.i)));
 }
 
@@ -1032,6 +1035,7 @@ const ACTS = {
   asides: () => (root.classList.toggle("asides"), "keep"),
   older: () => (older = true),
   goals: () => (sheet = { goals: true }),
+  beasts: () => (sheet = { beasts: true }),
   menu: () => { if (secretOpened) { secretOpened = false; return "keep"; } sheet = { menu: true }; },
   theme: (v) => { applyTheme(v); },
   newgame: () => (sheet = { menu: true, slots: true, sure: true }),

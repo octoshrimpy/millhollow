@@ -139,6 +139,9 @@
 - Sites on the overworld: the old mill, a barrow, a mine, a thornwood and a shrine. Each has its
   own foes, loot and a named keeper. As the land grows, new sites turn up in it, about one per 200
   new tiles; the further out, the longer the walk.
+- Each site has a tier (0-4) by the order it was made: the mill is 0. Foes scale as if 2 floors
+  deeper per tier, loot 1 floor per tier. The site picker shows the tier as ▪ pips.
+- The 📖 beastiary (button by the site name) counts kills per foe, ❔ until first seen.
 - No site is ever cleared. The keeper returns every third floor, stronger each time.
 - Every loot roll brings at least 2. Most gear found suits a class in the party.
 - The first clear of a floor at a site pays 1 + ⌈floor/2⌉🏺.

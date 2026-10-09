@@ -483,7 +483,7 @@ function grow(pad = 8) {
   for (let k = Math.round(fresh.length / 200); k > 0; k--) {
     const kind = ["barrow", "mine", "thornwood", "shrine"][Math.floor(rng() * 4)];
     const i = siteSpot(kind, fresh, S.land, S.grid, S.sites, 4, rng);
-    if (i != null) S.sites.push(makeSite(kind, i, rng));
+    if (i != null) S.sites.push(makeSite(kind, i, rng, Math.min(4, S.sites.length)));
   }
 }
 const siteSpot = (kind, from, land, grid, sites, gap, rng) => {
@@ -492,19 +492,19 @@ const siteSpot = (kind, from, land, grid, sites, gap, rng) => {
   const xs = fits.length ? fits : free;
   return xs.length ? xs[Math.floor(rng() * xs.length)] : null;
 };
-function makeSite(kind, i, rng) {
+function makeSite(kind, i, rng, tier) {
   const d = SITES[kind], pickR = (xs) => xs[Math.floor(rng() * xs.length)];
   const who = () => makeName(rng() < 0.5 ? "f" : "m", new Set(), rng);
   const name = rng() < 0.5 ? `${who()}'s ${pickR(d.nouns)}` : `The ${pickR(d.adj)} ${pickR(d.nouns)}`;
-  return { kind, i, name, boss: `${who()} the ${pickR(d.epithet)}`, deepest: 0 };
+  return { kind, i, name, boss: `${who()} the ${pickR(d.epithet)}`, deepest: 0, tier };
 }
 function genSites(seed, land, grid = []) {
   const rng = seeded(seed ^ 0x5173), pickR = (xs) => xs[Math.floor(rng() * xs.length)];
   const all = land.map((_, j) => j), sites = [];
   const millAt = all.filter((j) => !grid[j] && land[j] === "meadow" && dist(j, MID) >= 1 && dist(j, MID) <= 2).sort((a, b) => dist(a, MID) - dist(b, MID));
-  sites.push({ kind: "mill", i: millAt.length ? pickR(millAt.filter((j) => dist(j, MID) === dist(millAt[0], MID))) : MID + 1, name: SITES.mill.name, deepest: 0 });
+  sites.push({ kind: "mill", i: millAt.length ? pickR(millAt.filter((j) => dist(j, MID) === dist(millAt[0], MID))) : MID + 1, name: SITES.mill.name, deepest: 0, tier: 0 });
   const ring = all.filter((j) => dist(j, MID) >= 3 && dist(j, MID) <= 6);
-  for (const kind of ["barrow", "mine", "thornwood", "shrine"]) sites.push(makeSite(kind, siteSpot(kind, ring, land, grid, sites, 3, rng), rng));
+  for (const kind of ["barrow", "mine", "thornwood", "shrine"]) sites.push(makeSite(kind, siteSpot(kind, ring, land, grid, sites, 3, rng), rng, sites.length));
   return sites;
 }
 const siteAt = (i) => S.sites.find((s) => s.i === i);
@@ -524,7 +524,7 @@ function newGame() {
   S = {
     day: 1, res: { food: 20, wood: 12, stone: 4, ore: 0, herbs: 0, relics: 0, research: 0, potions: 0, meals: 0, silver: 0, starmetal: 0 },
     seed: rand(2 ** 31), carry: {}, grid: Array(LAND * LAND).fill(null), seen: Array(LAND * LAND).fill(false), hall: null, cleared: 0, settlers: [], research: [],
-    deepest: 0, visitor: null, expedition: null, log: [], remains: [], size: LAND, claim: 0, guards: [], goals: [],
+    deepest: 0, beasts: {}, visitor: null, expedition: null, log: [], remains: [], size: LAND, claim: 0, guards: [], goals: [],
   };
   S.land = genLand(S.seed);
   S.towns = places();
@@ -620,6 +620,7 @@ function load() {
     ({ S, nextId } = JSON.parse(raw));
     setLand(S.size ||= 17);
     S.claim ??= 0;
+    S.beasts ??= {};
     S.towns ??= places();
     S.town ??= S.recruits ? S.towns[0] : "Millhollow";
     if (S.expedition && S.expedition.fight) S.expedition.fight = null; // a fight restarts on reload
@@ -1729,6 +1730,7 @@ const partyMax = () => (has("tactics") ? 4 : 3);
 const roomsPer = (kind) => (kind === "meals" ? 3 : 1);
 const MEAL_HEAL = 4;
 
+const tierOf = (x) => x.tier ?? Math.min(4, S.sites.indexOf(x)); // discovery order; the mill is 0
 const siteOf = () => S.sites[S.expedition.site || 0];
 function keeper(site, floor) {
   if (site.kind === "mill") return bossFor(floor);
@@ -1929,6 +1931,7 @@ function enterRoom() {
 
 const grim = (floor) => Math.max(1, 1.15 ** (floor - 1) / (1 + 0.3 * (floor - 1)));
 function scaleEnemy(base, floor, boss = false) {
+  floor += 2 * tierOf(siteOf());
   const k = (boss ? 1 : 1 + 0.3 * (floor - 1)) * grim(floor);
   const hp = Math.round(base.hp * k);
   return {
@@ -1947,6 +1950,7 @@ function rollEnemies(floor) {
 
 function lootRoll(floor, rolls) {
   const e = S.expedition, found = [];
+  floor += tierOf(siteOf());
   for (let i = 0; i < rolls * (e.scav ? 2 : 1); i++) {
     const deep = Object.keys(ORE_FLOOR).filter((k) => floor >= ORE_FLOOR[k]);
     const r = pick(["ore", "ore", "herbs", "relics", "stone", "wood", ...deep, ...deep, ...SITES[siteOf().kind].loot]);
