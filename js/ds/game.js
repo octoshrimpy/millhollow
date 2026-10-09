@@ -763,7 +763,7 @@ const claimR = () => 3 + S.claim;
 const contested = (i) => dist(i, S.hall ?? MID) > claimR();
 function raid() {
   S.grid.forEach((b, i) => {
-    if (!b || !contested(i) || !chance(Math.min(0.5, 0.03 * (dist(i, S.hall ?? MID) - claimR())))) return;
+    if (!b || b.type === "wonder" || !contested(i) || !chance(Math.min(0.5, 0.03 * (dist(i, S.hall ?? MID) - claimR())))) return;
     const w = b.worker && byId(b.worker), def = BUILDINGS[b.type];
     if (available(w)) {
       w.hp = Math.max(1, w.hp - Math.ceil(stats(w).hpMax * (0.3 + Math.random() * 0.3)));
@@ -777,6 +777,10 @@ function raid() {
   });
 }
 const pastHas = (s, text) => (s.story || []).some((e) => e.kind === "past" && (e.src === text || e.text === text));
+// Food, wood, stone, ore, herbs and meals stop at the cap; storehouses raise it. Gains stop at it, stock above it stays.
+const CAPPED = ["food", "wood", "stone", "ore", "herbs", "meals"], STORE = { storehouse: 200, vault: 400 };
+const capOf = (r) => CAPPED.includes(r) ? S.grid.reduce((a, b) => a + (b && STORE[b.type] || 0), 200) : Infinity;
+const shield = () => staffed("vault") ? 0.4 : built("storehouse") || built("vault") ? 0.7 : 1;
 const stock = () => ["food", "meals", "wood", "stone", "ore", "herbs"].reduce((a, r) => a + (S.res[r] || 0), 0);
 const hurt = (s, lo, hi) => (s.hp = Math.max(1, s.hp - Math.ceil(stats(s).hpMax * (lo + Math.random() * (hi - lo)))));
 const guards = () => S.guards.map(byId).filter((g) => g && !g.dead && !away(g) && g.job == null);
@@ -875,7 +879,7 @@ function trouble(home, hold) {
   if (S.ladders && S.day >= S.ladders && home.length) {
     S.ladders = S.day + 10 + rand(21);
     const r = ["food", "wood", "stone", "ore", "herbs"].sort((a, b) => S.res[b] - S.res[a])[0];
-    S.trouble = { kind: "bandits", n: 3 + Math.floor(stock() / 120), take: { [r]: Math.ceil(S.res[r] / 2) } };
+    S.trouble = { kind: "bandits", n: 3 + Math.floor(stock() / 120), take: { [r]: Math.ceil(S.res[r] / 2 * shield()) } };
     return gameLog(`Ladders on the walls.`, "bad", living());
   }
   const plate = 3 * home.length;
@@ -902,7 +906,7 @@ function trouble(home, hold) {
   const pirates = wet() && chance(0.25);
   if (S.day > 12 && chance(Math.min(0.06, (stock() - 120) / 2500) * 0.5 ** guards().length * (has("walls") && !pirates ? 0.5 : 1))) {
     const r = ["food", "wood", "stone", "ore", "herbs"].sort((a, b) => S.res[b] - S.res[a])[0];
-    S.trouble = { kind: pirates ? "pirates" : "bandits", n: 2 + Math.floor(stock() / 150), take: { [r]: Math.ceil(S.res[r] / 3) } };
+    S.trouble = { kind: pirates ? "pirates" : "bandits", n: 2 + Math.floor(stock() / 150), take: { [r]: Math.ceil(S.res[r] / 3 * shield()) } };
     gameLog(pirates ? `River pirates at the landing.` : `Bandits at the gate.`, "bad");
   }
 }
@@ -1376,17 +1380,24 @@ const besideBoost = (i, type) => (BESIDE[type] ? Math.max(0, sides(i).filter((j)
 
 const addCost = (into, cost) => { for (const [k, v] of Object.entries(cost)) into[k] = (into[k] || 0) + v; return into; };
 
+const cellsOf = (i, type) => BUILDINGS[type].big ? [i, i + 1, i + LAND, i + LAND + 1] : [i];
+const fits = (i, type) => (!BUILDINGS[type].big || xy(i)[0] < LAND - 1) && cellsOf(i, type).every((j) => !S.grid[j] && S.land[j] === "meadow" && !siteAt(j) && S.seen[j]);
 function build(i, type) {
   const b = BUILDINGS[type];
-  if (S.grid[i] || S.land[i] !== "meadow" || siteAt(i) || !S.seen[i] || !afford(b.cost) || (b.needs && !has(b.needs))) return;
+  if (!fits(i, type) || !afford(b.cost) || (b.needs && !has(b.needs))) return;
   if (b.near && !beside(i, b.near)) return;
   if ((S.hall == null) !== (type === "townhall")) return;
   pay(b.cost);
   S.grid[i] = { type, worker: null, spent: { ...b.cost } };
+  if (b.big) cellsOf(i, type).slice(1).forEach((j) => (S.grid[j] = { type, part: 1, worker: null, spent: {} }));
   if (type === "townhall") {
     S.hall = i;
     reveal(i, sight());
     gameLog("Built the town hall.", "story", living());
+  } else if (type === "wonder") {
+    reveal(i, 2);
+    S.won ??= S.day;
+    gameLog("The wonder stands.", "story", living());
   } else {
     reveal(i, 1);
     gameLog(`Built ${b.name.toLowerCase()}.`);
@@ -1422,7 +1433,7 @@ function refundOf(i) {
 
 function demolish(i) {
   const b = S.grid[i];
-  if (!b || b.type === "townhall") return;
+  if (!b || b.type === "townhall" || b.type === "wonder") return;
   if (b.worker) byId(b.worker).job = null;
   const back = refundOf(i);
   for (const [k, v] of Object.entries(back)) S.res[k] += v;
@@ -1469,8 +1480,8 @@ const fedRate = (s) => Math.max(0.1, 0.5 ** (s.unfed || 0));
 // Fractional yields bank in S.carry so 0.5 ore a day is really one every other day.
 function add(res, n) {
   const t = (S.carry[res] || 0) + n;
-  const whole = Math.floor(t);
-  S.carry[res] = t - whole;
+  const whole = Math.min(Math.floor(t), Math.max(0, capOf(res) - S.res[res]));
+  S.carry[res] = t - Math.floor(t);
   S.res[res] += whole;
   return whole;
 }

@@ -5,7 +5,7 @@ const Bot = (() => {
 let tick = () => {};
 const home = () => living().filter((s) => !away(s));
 const spot = (type) => S.grid.map((_, i) => i)
-  .filter((i) => !S.grid[i] && S.land[i] === "meadow" && S.seen[i] && !siteAt(i) && (!BUILDINGS[type].near || beside(i, BUILDINGS[type].near)) && (BUILDINGS[type].job || !contested(i)))
+  .filter((i) => !S.grid[i] && S.land[i] === "meadow" && S.seen[i] && !siteAt(i) && (!BUILDINGS[type].near || beside(i, BUILDINGS[type].near)) && (BUILDINGS[type].job || !contested(i)) && fits(i, type))
   .sort((a, b) => dist(a, S.hall) - dist(b, S.hall))[0];
 const count = (t) => S.grid.filter((b) => b && b.type === t).length;
 // Out of meadow: clear the nearest woods or hills inside the ward, if food allows.
@@ -37,6 +37,10 @@ function manage() {
   if (!next && grow < eat + 2) tryBuild("dock") || tryBuild("farm");
   if (!next) for (const t of S.bot.rest)
     if (count(t) < (t === "lumber" || t === "quarry" ? 1 + (S.day > 60) : 1) && (t !== "graveyard" || S.remains.length) && (!BUILDINGS[t].needs || has(BUILDINGS[t].needs)) && tryBuild(t)) break;
+  // stores: a storehouse when a pile nears the cap, the guard once walls are up, the wonder when it can be paid for
+  if (!next && ["wood", "stone"].some((r) => S.res[r] >= capOf(r) * 0.7) && count("storehouse") + count("vault") < 3) tryBuild("storehouse");
+  if (!next && has("walls")) { const i = S.grid.findIndex((b) => b?.type === "storehouse"); if (i >= 0 && canUpgrade(i)) upgrade(i); }
+  if (!next && !built("wonder") && afford(BUILDINGS.wonder.cost)) tryBuild("wonder");
   // idle hands to empty work, food first
   const empty = S.grid.map((b, i) => [b, i]).filter(([b]) => b && BUILDINGS[b.type].job && !b.worker)
     .sort(([a], [b]) => (["farm", "dock"].includes(b.type) - ["farm", "dock"].includes(a.type)));

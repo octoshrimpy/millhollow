@@ -54,17 +54,17 @@ const CLASSES = {
 const JOBS = {
   farming: "Farming", woodcutting: "Woodcutting", quarrying: "Quarrying",
   herbalism: "Herbalism", smithing: "Smithing", healing: "Healing", scholarship: "Scholarship",
-  cooking: "Cooking", fishing: "Fishing",
+  cooking: "Cooking", fishing: "Fishing", guarding: "Guarding",
 };
 const TRADES = {
   farming: "Farmer", woodcutting: "Woodcutter", quarrying: "Quarrier", herbalism: "Herbalist", smithing: "Smith",
-  healing: "Healer", scholarship: "Scholar", cooking: "Cook", fishing: "Fisher",
+  healing: "Healer", scholarship: "Scholar", cooking: "Cook", fishing: "Fisher", guarding: "Guard",
 };
 
 const LENS = {
   woodcutting: ["fight"], fishing: ["fight"], farming: ["event"], cooking: ["treasure"],
   quarrying: ["stairs", "boss"], smithing: ["treasure"], healing: ["shrine"], herbalism: ["shrine"],
-  scholarship: ["event"],
+  scholarship: ["event"], guarding: ["fight"],
 };
 
 // Any line can hold {a|b|c}: each new person gets one of them, and braces can nest. A line is
@@ -175,6 +175,14 @@ const PAST = {
       "Fed quarry crews.",
       "Sold pies at market.",
       "Ran a roadside stewpot.",
+    ],
+
+    guarding: [
+      "Watched {a warehouse|a granary|a toll gate} by night.",
+      "Guarded {a counting house|a merchant's cellar}.",
+      "Walked the walls of a border town.",
+      "Kept a lord's treasury.",
+      "Turned thieves from a grain barn.",
     ],
 
     fishing: [
@@ -379,6 +387,10 @@ const BUILDINGS = {
   workshop: { name: "Workshop", icon: "🪚", cost: { wood: 8, stone: 2 }, needs: "square", desc: "Evenings out." },
   stables: { name: "Stables", icon: "🐎", cost: { wood: 10 }, needs: "square", desc: "Evenings out." },
   alehouse: { name: "Alehouse", icon: "🍺", cost: { wood: 8, stone: 4 }, needs: "games", desc: "Evenings out." },
+  storehouse: { name: "Storehouse", icon: "📦", cost: { wood: 14, stone: 8 }, desc: "+200 storage. Raiders take 30% less.",
+    up: { to: "vault", cost: { stone: 16, ore: 3 } } },
+  vault: { name: "Guarded storehouse", icon: "🔐", cost: { wood: 14, stone: 24, ore: 3 }, job: "guarding", needs: "walls", desc: "+400 storage. Guarded: raiders take 60% less." },
+  wonder: { name: "Wonder", icon: "🗼", cost: { wood: 300, stone: 300, ore: 40 }, needs: "architecture", big: true, desc: "2×2. Raise it to win." },
   smokehouse: { name: "Smokehouse", icon: "🍖", cost: { wood: 8, stone: 2 }, job: "cooking", needs: "smoking", desc: "3🍞 → 1🥪 trail meal per day." },
 };
 const IMPROVABLE = (type) => !!(BUILDINGS[type].yields || ["library", "smokehouse", "forge"].includes(type));

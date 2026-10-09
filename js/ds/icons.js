@@ -100,6 +100,8 @@ const ICONS = {
   "⛶": ["lu-maximize", "currentColor"],
   "🦺": ["lu-shirt", "brown"],
   "📦": ["lu-package", "brown"],
+  "🔐": ["lu-vault", "gray"],
+  "🗼": ["lu-pyramid", "yellow"],
   "🍽": ["lu-utensils-crossed", "orange"],
   "🪦": ["ra-tombstone", "gray"],
   "💔": ["lu-heart-crack", "red"],

@@ -92,6 +92,13 @@
     Ignored, they take twice that. Losing a fight hurts everyone at home and costs the same twice
     over. With water within 3 of the hall, a quarter of the time it's river pirates (🌊🗡) instead, whom
     walls don't halve.
+  - Storage: food, wood, stone, ore, herbs and trail meals stop at 200 each (red in the bar); gains past it
+    are lost, stock above it stays. Storehouse (📦, wood 14, stone 8): +200 each and raiders take 30% less.
+    Rebuilt as a guarded storehouse (🔐, needs Fortified walls, stone 16, ore 3): +400 instead, and with
+    someone working it raiders take 60% less. Several stack; the best shield applies.
+  - Wonder (🗼, needs Architecture, wood 300, stone 300, ore 40): a 2×2 plot, no demolishing. The cost
+    is past the base cap, so a storehouse comes first. Building it is the win: a banner and fireworks,
+    then play goes on (S.won holds the day). Goals list storehouse and wonder.
   - The haunted, grieving at 30+, sometimes (no one twice in 20 days) shut the forge door and want relics and more. Given, they come out with
     gear named for their ghost (✨). Refused, they smash where they work.
   - Everyone has a pastime (whittling, baskets, the lute, dice, star-gazing, ~45 in all), mostly one

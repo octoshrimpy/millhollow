@@ -95,7 +95,7 @@ function renderTop() {
   if (S.recruits) return morph($("#res"), iconize(`<button class="ghost back" data-act="back" aria-label="Back">⬅</button>`));
   morph($("#res"), iconize(`<span class="day">Day ${S.day}</span>` + Object.entries(RESOURCES)
     .filter(([k]) => S.res[k] > 0 || k === "food" || k === "wood")
-    .map(([k, r]) => `<span data-tooltip="${r.name}" data-placement="bottom" data-k="${k}" class="${packing[k] ? "packed" : ""}">${r.icon}${S.res[k] - (packing[k] || 0)}</span>`).join("")));
+    .map(([k, r]) => `<span data-tooltip="${r.name}${capOf(k) < Infinity ? ` ${S.res[k]}/${capOf(k)}` : ""}" data-placement="bottom" data-k="${k}" class="${packing[k] ? "packed" : S.res[k] >= capOf(k) ? "full" : ""}">${r.icon}${S.res[k] - (packing[k] || 0)}</span>`).join("")));
   morph($("#goals"), iconize("🔔"));
   morph($("#menu"), iconize("⚙"));
   morph($("#savebtn"), iconize(botTimer ? "⏹" : "💾"));
@@ -193,13 +193,14 @@ function viewVillage() {
     if (site) return `<button class="tile site t-${t}${cls}" ${at}><span class="ico">${SITES[site.kind].icon}</span><small>${esc(site.name)}</small>${site.deepest ? `<span class="lvl">🪜${site.deepest}</span>` : ""}</button>`;
     if (wild(i)) return `<button class="tile wild t-${t}${cls}" ${at}>${ico}</button>`;
     if (t !== "meadow") return `<div class="tile still t-${t}${cls}" data-i="${i}"${newLand.includes(i) ? ` style="--d:${dist(i, origin)}"` : ""}>${ico}</div>`;
+    if (b?.part) return "";
     if (!b) return `<button class="tile empty${cls}${S.hall == null ? " found" : ""}" ${at}>${S.hall == null ? "🏛️" : "＋"}</button>`;
     const def = BUILDINGS[b.type], w = b.worker && byId(b.worker);
     const sick = living().find((s) => s.laid === i);
     const who = (w ? `<img class="mini" src="${faceSrc(w)}" alt="${esc(w.name)}">` : "") + (sick ? `<img class="mini laid" src="${faceSrc(sick)}" alt="${esc(sick.name)}">` : "");
     const lvl = b.lvl ? `<span class="lvl${b.unpaid ? " bad" : ""}">${"●".repeat(b.lvl)}</span>` : "";
     const warn = S.hall != null && contested(i) ? `<span class="warn">❗</span>` : "";
-    return `<button class="tile${cls}${b.type === "townhall" ? " hall" : ""}" ${at}><span class="ico">${def.icon}</span><small>${def.name}</small>${who}${warn}${lvl}</button>`;
+    return `<button class="tile${cls}${b.type === "townhall" ? " hall" : def.big ? " big" : ""}" ${at}><span class="ico">${def.icon}</span><small>${def.name}</small>${who}${warn}${lvl}</button>`;
   };
   let tiles = "";
   for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) tiles += tile(y * LAND + x);
@@ -266,13 +267,13 @@ function sheetPlot(i) {
   if (!b) {
     return `<h3>Build</h3><div class="picks">` + Object.entries(BUILDINGS).filter(([id]) => (S.hall == null) === (id === "townhall")).map(([id, d]) => {
       const locked = d.needs && !has(d.needs), far = d.near && !beside(i, d.near);
-      return `<button class="opt" data-act="build" data-v="${id}" ${locked || far || !afford(d.cost) ? "disabled" : ""}>
+      return `<button class="opt" data-act="build" data-v="${id}" ${locked || far || !fits(i, id) || !afford(d.cost) ? "disabled" : ""}>
         <span class="ico">${d.icon}</span><span><b>${d.name}</b>${S.asks?.[id]?.length ? ` ${tip("Asked for", `🙋${S.asks[id].length}`)}` : ""} ${costText(d.cost)}${besideTag(i, id)}<br><small>${locked ? `🔒 📜 ${RESEARCH[d.needs].name}` : far ? `🔒 ${TERRAIN[d.near].icon}` : d.desc}</small></span></button>`;
     }).join("") + `</div>`;
   }
   const d = BUILDINGS[b.type];
   const back = Object.entries(refundOf(i)).map(([k, v]) => tip(RESOURCES[k].name, `+${v}${RESOURCES[k].icon}`)).join(" ");
-  const knock = b.type === "townhall" ? "" : `<button class="danger small" data-act="demolish">Demolish${back ? ` <small>♻ ${back}</small>` : ""}</button>`;
+  const knock = ["townhall", "wonder"].includes(b.type) ? "" : `<button class="danger small" data-act="demolish">Demolish${back ? ` <small>♻ ${back}</small>` : ""}</button>`;
   const lv = b.lvl || 0, pips = IMPROVABLE(b.type) ? ` <span class="pips">${"●".repeat(lv)}${"○".repeat(IMPROVE.length - lv)}</span>` : "";
   let body = `<div class="sheet-head"><h3>${d.icon} ${d.name}${pips}${besideTag(i, b.type)}</h3>${knock}</div><p class="dim desc">${d.desc}</p>${contested(i) ? `<p class="bad">❗ Too far from town hall: unsafe location!</p>` : ""}${b.unpaid ? `<p class="bad">❗ Upkeep unpaid, upgrade idle: need ${goods(IMPROVE[b.lvl - 1].upkeep)}/d</p>` : ""}${b.maker && byId(b.maker) ? `<p class="dim">🔨 ${esc(byId(b.maker).name)}</p>` : ""}`;
   if (d.up) {
@@ -811,6 +812,8 @@ const GOALS = [
   ["Have 10 villagers", () => living().length >= 10],
   ["Level 10 villager", () => S.settlers.some((s) => s.level >= 10)],
   ["Build a chapel", () => built("chapel")],
+  ["Build a storehouse", () => built("storehouse") || built("vault")],
+  ["Build the wonder", () => built("wonder")],
 ];
 function sheetGoals() {
   return `<div class="menu"><h3>🔔 Goals</h3><div class="goals">${GOALS.map(([t, ok]) => `<p class="${ok() ? "good" : "dim"}">${ok() ? "✓" : "○"} ${t}</p>`).join("")}</div></div>`;
@@ -1226,7 +1229,7 @@ function run(act, v, el) {
 function snap() {
   const e = S.expedition;
   return {
-    res: { ...S.res }, day: S.day, logN: S.logN || 0, grid: S.grid.map((b) => b && b.type), claim: S.claim,
+    res: { ...S.res }, day: S.day, logN: S.logN || 0, grid: S.grid.map((b) => b && b.type), claim: S.claim, won: !!S.won,
     exp: e && { crowns: e.crowns || (e.crown ? 1 : 0), at: e.map.at, floor: e.map.floor, seen: Object.keys(e.map.rooms).filter((k) => e.map.rooms[k].seen),
       done: Object.keys(e.map.rooms).filter((k) => e.map.rooms[k].done) },
   };
@@ -1251,6 +1254,15 @@ function celebrate(b) {
     }), 900);
   }, 500 + n * 1800));
   if (e && b.exp && (e.crowns || (e.crown ? 1 : 0)) > b.exp.crowns) setTimeout(() => Juice.prize("👑", $("#res")), 400);
+  if (S.won && !b.won) setTimeout(() => {
+    const v = Juice.center($("#view"));
+    Juice.veil("The wonder stands", S.town);
+    Juice.float(v.x, v.y, "🗼 Wonder raised", "banner goal", 3200);
+    [0, 250, 500, 800].forEach((d, n) => setTimeout(() => {
+      Juice.burst(v.x, v.y, { n: 60, colors: PAL.gold, speed: 260 + n * 40, up: 200, gravity: 520, life: 1.4, size: 3, drag: 0.95 });
+      Juice.wave(v.x, v.y, 140 + n * 60, { colors: PAL.gold, size: 3 });
+    }, d));
+  }, 900);
   if (S.claim > b.claim) {
     placeLand(true);
     setTimeout(() => {
