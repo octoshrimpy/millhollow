@@ -31,6 +31,7 @@ let lastYields = [];
 function gameLog(text, kind = "", who = [], aside = false) {
   if (!aside && kind !== "day" && S.log.slice(-80).some((l) => l.text === text && S.day - l.day < 20)) aside = true;
   S.log.push({ day: S.day, text, kind, n: (S.logN = (S.logN || 0) + 1), ...(aside && { aside }) });
+  if (S.log.length > 1500) S.log.splice(0, 300);
   who.forEach((s) => note(s, { text, kind }));
 }
 function note(s, entry) {
@@ -99,13 +100,13 @@ function stats(s) {
   const c = CLASSES[s.cls];
   const g = [s.gear.weapon, s.gear.armor].filter(Boolean);
   const sum = (k) => g.reduce((a, it) => a + (it[k] || 0), 0), hpMax = s.hpMax + sum("hp");
-  const atk = Math.ceil((c.atk + Math.floor((s.level - 1) * 1.2) + sum("atk") + fitBonus(s.gear.weapon, s)) * (1 - arms(s, hpMax) * 0.1));
+  const atk = Math.ceil((c.atk + Math.floor(4.5 * Math.log(s.level)) + sum("atk") + fitBonus(s.gear.weapon, s)) * (1 - arms(s, hpMax) * 0.1));
   const spd = c.spd + sum("spd") - Math.floor((sore(s, "lleg", hpMax) + sore(s, "rleg", hpMax)) / 2);
   const h = haunted(s);
   return {
     hpMax,
     atk: h ? Math.ceil(atk * 0.75) : atk,
-    def: Math.max(0, c.def + Math.floor((s.level - 1) / 2) + sum("def") - sore(s, "torso", hpMax)),
+    def: Math.max(0, c.def + Math.floor(1.8 * Math.log(s.level)) + sum("def") - sore(s, "torso", hpMax)),
     spd: Math.max(1, h ? spd - 2 : spd),
   };
 }
@@ -378,16 +379,18 @@ function mood(s) {
   return s.morale >= 75 ? "happy" : "neutral";
 }
 const faceSrc = (s) => `assets/face-${s.face}-${s.age}-${mood(s)}.avif`;
-const living = () => S.settlers.filter((s) => !s.dead);
+const living = () => S.settlers.filter((s) => !s.dead).sort((a, b) => b.level - a.level || a.name.localeCompare(b.name));
 const byId = (id) => S.settlers.find((s) => s.id === id) || (S.gone || []).find((s) => s.id === id);
 
+const xpNeed = (l) => Math.round(15 * l * (1 + l / 8));
 function gainXp(s, n) {
   s.xp += n;
-  while (s.xp >= s.level * 15) {
-    s.xp -= s.level * 15;
+  while (s.xp >= xpNeed(s.level)) {
+    s.xp -= xpNeed(s.level);
     s.level++;
-    s.hpMax += 4;
-    s.hp += 4;
+    const hp = Math.max(1, Math.round(16 * Math.log(s.level / (s.level - 1))));
+    s.hpMax += hp;
+    s.hp += hp;
     gameLog(`${s.name} is now level ${s.level}.`, "good", [s]);
     think(s, "levelup");
   }
@@ -395,7 +398,12 @@ function gainXp(s, n) {
 
 const xy = (i) => [i % LAND, Math.floor(i / LAND)];
 const dist = (a, b) => { const [ax, ay] = xy(a), [bx, by] = xy(b); return Math.max(Math.abs(ax - bx), Math.abs(ay - by)); };
-const around = (i) => Array.from({ length: LAND * LAND }, (_, j) => j).filter((j) => j !== i && dist(i, j) === 1);
+const near = (i, r) => {
+  const [x, y] = xy(i), out = [];
+  for (let b = Math.max(0, y - r); b <= Math.min(LAND - 1, y + r); b++) for (let a = Math.max(0, x - r); a <= Math.min(LAND - 1, x + r); a++) out.push(b * LAND + a);
+  return out;
+};
+const around = (i) => near(i, 1).filter((j) => j !== i);
 const wild = (i) => !!TERRAIN[S.land[i]].clear;
 
 const seeded = (seed) => () => {
@@ -516,7 +524,7 @@ function newGame() {
   S = {
     day: 1, res: { food: 20, wood: 12, stone: 4, ore: 0, herbs: 0, relics: 0, research: 0, potions: 0, meals: 0, silver: 0, starmetal: 0 },
     seed: rand(2 ** 31), carry: {}, grid: Array(LAND * LAND).fill(null), seen: Array(LAND * LAND).fill(false), hall: null, cleared: 0, settlers: [], research: [],
-    deepest: 0, visitor: null, expedition: null, log: [], remains: [], size: LAND, claim: 0, guards: [],
+    deepest: 0, visitor: null, expedition: null, log: [], remains: [], size: LAND, claim: 0, guards: [], goals: [],
   };
   S.land = genLand(S.seed);
   S.towns = places();
@@ -1050,7 +1058,7 @@ const URGES = {
       gameLog(`${s.name} took the gate without being asked.`, "good", [s]);
     } },
 };
-const wet = () => S.land.some((k, i) => k === "water" && dist(i, S.hall ?? MID) <= 3);
+const wet = () => near(S.hall ?? MID, 3).some((i) => S.land[i] === "water");
 const doable = (x, s, o, at) => (o || !x.includes("{o}")) && (!x.includes("dungeon") || (x.includes("{o}") ? o : s).delved) && (at || !/river|pond|heron/.test(x) || wet());
 const can = (need) => !need || (need === "water" ? wet() : built(need));
 const venues = () => Object.keys(VENUES).filter(built);
@@ -1311,6 +1319,7 @@ function settle(how) {
     return feast(t.take);
   }
   if (t.kind === "fey") {
+    if (!s) return;
     if (how === "yes" && afford(t.take) && !s.dead) {
       pay(t.take);
       const ghost = byId(S.remains.find((x) => x.haunts === s.id)?.id ?? s.id), slot = pick(["weapon", "armor"]);

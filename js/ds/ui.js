@@ -96,6 +96,7 @@ function renderTop() {
   morph($("#res"), iconize(`<span class="day">Day ${S.day}</span>` + Object.entries(RESOURCES)
     .filter(([k]) => S.res[k] > 0 || k === "food" || k === "wood")
     .map(([k, r]) => `<span data-tooltip="${r.name}" data-placement="bottom" data-k="${k}" class="${packing[k] ? "packed" : ""}">${r.icon}${S.res[k] - (packing[k] || 0)}</span>`).join("")));
+  morph($("#goals"), iconize("🔔"));
   morph($("#menu"), iconize("⚙"));
   morph($("#savebtn"), iconize(botTimer ? "⏹" : "💾"));
   $("#savebtn").dataset.act = botTimer ? "botstop" : "savefile";
@@ -109,6 +110,9 @@ function renderTop() {
 const wide = matchMedia("(min-width: 64em)");
 wide.addEventListener("change", () => render());
 const root = document.documentElement;
+const SPEEDS = [0.5, 1, 2, 3];
+let fightSpeed = 1, speedOpen = false;
+try { fightSpeed = SPEEDS.includes(+localStorage.getItem("mh-speed")) ? +localStorage.getItem("mh-speed") : 1; } catch {}
 try { root.classList.toggle("nolog", localStorage.getItem("mh-sidelog") === "0"); } catch {}
 
 // Redraws patch the live DOM to match: untouched nodes keep their scroll, focus, loaded images and running animations.
@@ -270,7 +274,7 @@ function sheetPlot(i) {
   const back = Object.entries(refundOf(i)).map(([k, v]) => tip(RESOURCES[k].name, `+${v}${RESOURCES[k].icon}`)).join(" ");
   const knock = b.type === "townhall" ? "" : `<button class="danger small" data-act="demolish">Demolish${back ? ` <small>♻ ${back}</small>` : ""}</button>`;
   const lv = b.lvl || 0, pips = IMPROVABLE(b.type) ? ` <span class="pips">${"●".repeat(lv)}${"○".repeat(IMPROVE.length - lv)}</span>` : "";
-  let body = `<div class="sheet-head"><h3>${d.icon} ${d.name}${pips}${besideTag(i, b.type)}</h3>${knock}</div><p class="dim desc">${d.desc}</p>${contested(i) ? `<p class="bad">❗ Too far from town hall: unsafe location!</p>` : ""}${b.maker && byId(b.maker) ? `<p class="dim">🔨 ${esc(byId(b.maker).name)}</p>` : ""}`;
+  let body = `<div class="sheet-head"><h3>${d.icon} ${d.name}${pips}${besideTag(i, b.type)}</h3>${knock}</div><p class="dim desc">${d.desc}</p>${contested(i) ? `<p class="bad">❗ Too far from town hall: unsafe location!</p>` : ""}${b.unpaid ? `<p class="bad">❗ Upkeep unpaid, upgrade idle: need ${goods(IMPROVE[b.lvl - 1].upkeep)}/d</p>` : ""}${b.maker && byId(b.maker) ? `<p class="dim">🔨 ${esc(byId(b.maker).name)}</p>` : ""}`;
   if (d.up) {
     const to = BUILDINGS[d.up.to], locked = to.needs && !has(to.needs);
     body += `<button class="opt" data-act="upgrade" ${canUpgrade(i) ? "" : "disabled"}>
@@ -659,15 +663,15 @@ function tickFight() {
     : f.over
     ? `<button class="primary wide" data-act="fightdone">${f.over === "fled" ? "Fall back" : "It's over"}</button>`
     : `<button class="primary" data-act="pause">${f.paused ? "▶ Fight" : "⏸ Pause"}</button>
-       <button data-act="speed">${f.speed}×</button>
        <button class="danger" data-act="flee">Flee</button>`;
-  const key = `${f.over}|${f.paused}|${f.speed}`;
+  const key = `${f.over}|${f.paused}`;
   if ($("#fctl").dataset.k !== key) { $("#fctl").innerHTML = iconize(ctl); $("#fctl").dataset.k = key; }
 }
 
 setInterval(() => {
   const f = S && S.expedition && S.expedition.fight;
   if (!f || f.paused || f.over) return;
+  f.speed = fightSpeed;
   step(f, 0.1);
   if (f.over) f.paused = true;
   tickFight();
@@ -795,6 +799,23 @@ window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); inst
 window.addEventListener("appinstalled", () => { installer = null; });
 document.addEventListener("fullscreenchange", () => { if (sheet?.menu) renderSheet(); });
 
+const GOALS = [
+  ["Build a hut", () => built("hut")],
+  ["Put someone to work", () => S.grid.some((b) => b && b.worker)],
+  ["Reach floor 1", () => S.deepest >= 1],
+  ["Research something", () => S.research.length > 0],
+  ["Claim land", () => S.cleared > 0],
+  ["Reach floor 5", () => S.deepest >= 5],
+  ["Reach floor 10", () => S.deepest >= 10],
+  ["Reach floor 20", () => S.deepest >= 20],
+  ["Have 10 villagers", () => living().length >= 10],
+  ["Level 10 villager", () => S.settlers.some((s) => s.level >= 10)],
+  ["Build a chapel", () => built("chapel")],
+];
+function sheetGoals() {
+  return `<div class="menu"><h3>🔔 Goals</h3><div class="goals">${GOALS.map(([t, ok]) => `<p class="${ok() ? "good" : "dim"}">${ok() ? "✓" : "○"} ${t}</p>`).join("")}</div></div>`;
+}
+
 function sheetMenu() {
   const swatch = (t) => `<button class="${t.id === theme.id ? "on" : ""}" data-act="theme" data-v="${t.id}" style="background:${t.bg};color:${t.ink}">
     <span class="sw"><i style="background:${t.accent}"></i>${["red", "yellow", "green", "blue", "purple"].map((h) => `<i style="background:${t[h]}"></i>`).join("")}</span>
@@ -814,8 +835,9 @@ function sheetMenu() {
   const secret = sheet.secret ? `<div class="row pair bot"><span>🤖</span><input id="botdays" type="number" min="1" value="${botDays}" inputmode="numeric">
     <button data-act="bot">▶</button><button data-act="bot" data-v="all">∞</button><button data-act="botstop" ${botTimer ? "" : "disabled"}>⏹</button></div>` : "";
   return `<div class="menu"><h3>Settings</h3>${secret}<div class="themes">${THEMES.map(swatch).join("")}</div>${saves}<button class="wide" data-act="slots">🗂 Save slots</button>`
-    + `<div class="row pair acts">${installer ? `<button class="install" data-act="install">📲 Install</button>` : ""}`
-    + `${document.fullscreenEnabled ? `<button class="${document.fullscreenElement ? "on" : ""}" data-act="fullscreen">⛶ Fullscreen</button>` : ""}</div>` + `<a class="src" href="https://github.com/octoshrimpy/millhollow" target="_blank" rel="noopener">${GITHUB_MARK}<small>Source</small></a></div>`;
+    + `<div class="row pair acts">${installer ? `<button class="install stack" data-act="install">📲<small>Install</small></button>` : ""}`
+    + `<button class="stack ${speedOpen ? "on" : ""}" data-act="speed">🕐<small>Fight speed</small></button>${document.fullscreenEnabled ? `<button class="stack ${document.fullscreenElement ? "on" : ""}" data-act="fullscreen">⛶<small>Fullscreen</small></button>` : ""}</div>` + (speedOpen ? `<label class="speedrange"><span>Fight speed</span><input id="fightspeed" type="range" min="0" max="${SPEEDS.length - 1}" step="1" value="${SPEEDS.indexOf(fightSpeed)}"><b id="fsval">${fightSpeed}×</b></label>` : "")
+    + `<a class="src" href="https://github.com/octoshrimpy/millhollow" target="_blank" rel="noopener">${GITHUB_MARK}<small>Source</small></a></div>`;
 }
 
 const ask = (title, text, act, v, labels, nay) => (sheet = { ask: { title, text, act, v, labels, nay, back: sheet } });
@@ -848,7 +870,7 @@ function renderSheet() {
     box.hidden = false;
     box.classList.add("open");
   }
-  morph(inner, iconize(sheet.ask ? sheetAsk() : sheet.menu ? sheetMenu() : sheet.event ? sheetEvent() : sheet.visitor ? sheetVisitor() : sheet.trouble ? sheetTrouble() : sheet.person ? sheetPerson()
+  morph(inner, iconize(sheet.ask ? sheetAsk() : sheet.goals ? sheetGoals() : sheet.menu ? sheetMenu() : sheet.event ? sheetEvent() : sheet.visitor ? sheetVisitor() : sheet.trouble ? sheetTrouble() : sheet.person ? sheetPerson()
     : sheet.keep != null ? sheetKeep() : sheet.events ? sheetEvents() : sheetPlot(sheet.i)));
 }
 
@@ -1009,6 +1031,7 @@ const ACTS = {
   },
   asides: () => (root.classList.toggle("asides"), "keep"),
   older: () => (older = true),
+  goals: () => (sheet = { goals: true }),
   menu: () => { if (secretOpened) { secretOpened = false; return "keep"; } sheet = { menu: true }; },
   theme: (v) => { applyTheme(v); },
   newgame: () => (sheet = { menu: true, slots: true, sure: true }),
@@ -1106,7 +1129,7 @@ const ACTS = {
   potion: (v) => { usePotion(+v); tickFight(); renderTop(); playFx(S.expedition.fight); return "keep"; },
   lane: (v) => { const f = S.expedition.fight, h = f.heroes[+v]; if (h.hp > 0 && !f.over) { byId(h.id).row = h.row = h.row === "back" ? "front" : "back"; f.front = null; } tickFight(); return "keep"; },
   pause: () => { const f = S.expedition.fight; f.paused = !f.paused; tickFight(); return "keep"; },
-  speed: () => { const f = S.expedition.fight, speeds = [0.5, 1, 2, 3]; f.speed = speeds[(speeds.indexOf(f.speed) + 1) % speeds.length]; tickFight(); return "keep"; },
+  speed: () => { speedOpen = !speedOpen; },
   flee: () => { flee(S.expedition.fight); tickFight(); playFx(S.expedition.fight); return "keep"; },
   fightdone: () => { endFight(S.expedition.fight.over); fightBuilt = null; },
   // Save import/export works on the open sheet in place, so none of these re-render it.
@@ -1187,10 +1210,12 @@ $("#menu").addEventListener("pointerdown", () => { clearTimeout(held); held = se
 ["pointerup", "pointerleave", "pointercancel"].forEach((k) => $("#menu").addEventListener(k, () => clearTimeout(held)));
 $("#menu").addEventListener("contextmenu", (e) => e.preventDefault());
 
+// these swap in a different village, so a diff against the old one is not news
+const NEW_WORLD = ["slot", "back", "wipe"];
 function run(act, v, el) {
   const before = snap(), was = tab, life = act === "lifetab" && !!sheet.ties !== (v === "ties");
   if (ACTS[act](v, el) === "keep") return;
-  const draw = () => { render(); celebrate(before); };
+  const draw = () => { render(); if (!NEW_WORLD.includes(act)) celebrate(before); };
   if ((tab === was && !life) || !wide.matches || !document.startViewTransition || matchMedia("(prefers-reduced-motion: reduce)").matches) return draw();
   const order = [...document.querySelectorAll("#tabs button")].map((b) => b.dataset.v);
   root.dataset.vt = life ? "life" : "tab";
@@ -1211,6 +1236,20 @@ const LOUD = /now level|died|joined|Learned|wiped out/;
 
 function celebrate(b) {
   const e = S.expedition;
+  // ponytail: old saves start with whatever's already done, so nothing fires retroactively
+  if (!S.goals) S.goals = GOALS.filter(([, ok]) => ok()).map(([t]) => t);
+  const fresh = GOALS.filter(([t, ok]) => !S.goals.includes(t) && ok()).map(([t]) => t);
+  if (fresh.length) { S.goals.push(...fresh); save(); }
+  fresh.forEach((t, n) => setTimeout(() => {
+    const v = Juice.center($("#view")), bell = $("#goals");
+    Juice.float(v.x, v.y, `✓ ${t}`, "banner goal", 1600);
+    Juice.burst(v.x, v.y, { n: 30, colors: PAL.gold, speed: 220, up: 160, gravity: 520, life: 1.1, size: 3, drag: 0.95 });
+    setTimeout(() => Juice.carry("🔔", $("#view"), bell, () => {
+      const p = Juice.center(bell);
+      Juice.pop(bell, 1.5);
+      Juice.burst(p.x, p.y, { n: 20, colors: PAL.gold, speed: 160, up: 60, life: 0.7, size: 3, spark: true });
+    }), 900);
+  }, 500 + n * 1800));
   if (e && b.exp && (e.crowns || (e.crown ? 1 : 0)) > b.exp.crowns) setTimeout(() => Juice.prize("👑", $("#res")), 400);
   if (S.claim > b.claim) {
     placeLand(true);
@@ -1287,7 +1326,14 @@ function celebrate(b) {
     .forEach((l, i) => setTimeout(() => Juice.toast(l.text, l.kind), 300 + i * 350));
 }
 
-document.addEventListener("input", (e) => { if (e.target.id === "town") { S.town = e.target.value; save(); } });
+document.addEventListener("input", (e) => {
+  if (e.target.id === "town") { S.town = e.target.value; save(); }
+  if (e.target.id === "fightspeed") {
+    fightSpeed = SPEEDS[+e.target.value];
+    $("#fsval").textContent = `${fightSpeed}×`;
+    try { localStorage.setItem("mh-speed", fightSpeed); } catch {}
+  }
+});
 document.addEventListener("change", (e) => {
   const el = e.target;
   if (el.id === "savepick") { const f = el.files[0]; el.value = ""; if (f) f.text().then(loadCode); return; }
