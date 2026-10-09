@@ -889,7 +889,22 @@ const GOALS = [
   // Time
   ["A year gone", () => logged(/A year gone/), { relics: 2 }, null, true],
   ["One year on", () => S.day >= 365, { relics: 2 }, null, true],
+  // Windfalls
+  ["Bumper crop", () => logged(/^🌾 Bumper harvest/), { herbs: 3 }, null, true],
+  ["Fallen oaks", () => logged(/^🌲 A storm felled/), { stone: 5 }, null, true],
+  ["Buried urn", () => logged(/^🏺 A ploughshare/), { research: 3 }, null, true],
+  ["Make a wish", () => logged(/^☄️ A star fell/), { potions: 1 }, null, true],
+  ["Paid in silver", () => logged(/^🥈 A peddler/), { food: 5 }, null, true],
+  ["Wildflowers", () => logged(/^🌸 Wildflowers/), { food: 5 }, null, true],
+  ["Double rainbow", () => logged(/^🌈 A double rainbow/), { herbs: 3 }, null, true],
+  ["Sky lights", () => logged(/^🌌 Lights dance/), { relics: 1 }, null, true],
+  ["Night reading", () => logged(/found an old journal/), { research: 3 }, null, true],
+  ["Owl's notes", () => logged(/^🦉 A wandering scholar/), { herbs: 3 }, null, true],
+  ["Laying on of hands", () => logged(/^✨ A healer passed/), { food: 5 }, null, true],
+  ["Gift on the step", () => logged(/^🧪 A traveller left/), { herbs: 3 }, null, true],
+  ["Lucky village", () => GOALS.slice(BOON0, -1).every(goalDone), { starmetal: 2 }, null, true],
 ];
+const BOON0 = GOALS.findIndex(([t]) => t === "Bumper crop");
 const everyone = () => [...S.settlers, ...(S.gone || [])];
 function felt(k) { return everyone().some((s) => s.story?.some((e) => e.k === k)); }
 // ponytail: scans the whole log per unfinished goal; reached goals short-circuit, so it only shrinks

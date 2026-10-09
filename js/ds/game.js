@@ -1521,6 +1521,26 @@ function underway() {
   return [S.study && `⏳ ${RESEARCH[S.study.id].name} ${S.study.left}d`, ...(S.forging || []).map((j) => `⚒ ${name(j.id)} ${j.left}d`)].filter(Boolean).join(" ");
 }
 
+// Rare windfalls; likelier as the years pass, so late game keeps surprising.
+const BOONS = [
+  { can: () => true, does: (home) => { const n = add("food", 20 + home.length * 4); gameLog(`🌾 Bumper harvest. +${n} food.`, "good", home); } },
+  { can: () => true, does: (home) => { const n = add("wood", 25); gameLog(`🌲 A storm felled a stand of oaks. +${n} wood.`, "good"); } },
+  { can: () => true, does: () => { add("relics", 2); gameLog("🏺 A ploughshare turned up an old urn. +2 relics.", "good"); } },
+  { can: () => S.day > 60, does: () => { add("starmetal", 1); gameLog("☄️ A star fell by the river. +1 starmetal.", "good"); } },
+  { can: () => true, does: () => { add("silver", 3); gameLog("🥈 A peddler paid in silver for a night's bed. +3 silver.", "good"); } },
+  { can: () => true, does: () => { add("herbs", 12); gameLog("🌸 Wildflowers carpet the meadow. +12 herbs.", "good"); } },
+  { can: (home) => home.length > 2, does: (home) => { home.forEach((s) => think(s, "dayoff")); gameLog("🌈 A double rainbow. Nobody works for an hour.", "good", home); } },
+  { can: (home) => home.length > 2, does: (home) => { home.forEach((s) => think(s, "tale")); gameLog("🌌 Lights dance in the night sky. The whole village watches.", "good", home); } },
+  { can: (home) => home.length > 0, does: (home) => { const s = pick(home); gainXp(s, 20 + S.day / 5); gameLog(`📖 ${s.name} found an old journal and studied it all night.`, "good", [s]); } },
+  { can: () => true, does: () => { add("research", 8); gameLog("🦉 A wandering scholar shared their notes. +8 research.", "good"); } },
+  { can: (home) => home.some((s) => s.hp < stats(s).hpMax), does: (home) => { home.forEach((s) => { s.hp = stats(s).hpMax; s.wounds = {}; }); gameLog("✨ A healer passed through. Everyone mended.", "good", home); } },
+  { can: () => true, does: () => { add("potions", 2); gameLog("🧪 A traveller left two potions on the step.", "good"); } },
+];
+function boon(home) {
+  if (S.day - (S.boonDay ?? 0) < 12 || !chance(Math.min(0.08, S.day / 1500))) return;
+  const b = pick(BOONS.filter((b) => b.can(home)));
+  if (b) { S.boonDay = S.day; b.does(home); }
+}
 function endDay(hold) {
   const got = {}, spent = {}, logN = S.logN || 0;
   lastYields = [];
@@ -1607,6 +1627,7 @@ function endDay(hold) {
   home.forEach((s) => { if (s.job != null && commute(s) > 4) think(s, "farwalk"); });
   raid();
   trouble(home, hold);
+  boon(home);
   if (!S.log.some((e) => e.n > logN && ["story", "good", "bad"].includes(e.kind))) beat(home);
 
   gameLog(`${[tally(got, spent) || "No change.", underway()].filter(Boolean).join(" · ")}${hungry ? ` ${hungry} went hungry.` : ""}`, hungry ? "bad" : "day");
