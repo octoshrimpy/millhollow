@@ -47,7 +47,7 @@ const CLASSES = {
   },
   cleric: {
     name: "Cleric", icon: "✚", hp: 24, atk: 4, def: 2, spd: 8, range: "melee",
-    skill: { id: "mend", name: "Mend", cd: 8, desc: "Heals the most hurt ally 12 + 2/level." },
+    skill: { id: "mend", name: "Mend", cd: 8, desc: "Heals the most hurt ally 12 + 2/level.", heal: true },
   },
 };
 
@@ -376,6 +376,7 @@ const BUILDINGS = {
   forge: { name: "Forge", icon: "⚒️", cost: { wood: 8, stone: 6 }, job: "smithing", desc: "Crafts gear and brews potions." },
   infirmary: { name: "Infirmary", icon: "🩹", cost: { wood: 6, stone: 4 }, job: "healing", desc: "Wounded heal 3× faster." },
   library: { name: "Library", icon: "📚", cost: { wood: 8, stone: 8 }, job: "scholarship", desc: "1 relic → research each day." },
+  arcanum: { name: "Arcanum", icon: "🔮", cost: { wood: 10, stone: 10, relics: 3 }, arcane: true, desc: "Spell research." },
   graveyard: { name: "Graveyard", icon: "🪦", cost: { wood: 4, stone: 6 }, desc: "Lays the dead to rest." },
   park: { name: "Park", icon: "🏞", cost: { wood: 4, stone: 2 }, needs: "green", desc: "Evenings out." },
   playground: { name: "Playground", icon: "🛝", cost: { wood: 6 }, needs: "green", desc: "Evenings out." },
@@ -423,6 +424,15 @@ const RESEARCH = {
   square: { name: "Town square", cost: 10, after: "green", desc: "Fountains, archery ranges, workshops, stables." },
   games: { name: "Games", cost: 14, after: "square", desc: "Axe yards, alehouses." },
   starforging: { name: "Starforging", cost: 18, after: "silverwork", desc: "Starmetal gear. Workplaces to +80%. Starmetal lies below floor 6." },
+  // Spells: learned village-wide, cast by heroes of the class at or above the level.
+  bash: { name: "Bash", cost: 8, cls: "warrior", lvl: 3, spell: { id: "bash", name: "Bash", cd: 7 }, desc: "150% to one enemy. Stuns." },
+  bulwark: { name: "Bulwark", cost: 14, cls: "warrior", lvl: 6, after: "bash", spell: { id: "bulwark", name: "Bulwark", cd: 14 }, desc: "Draws attacks for 8s. Heals 25%." },
+  snare: { name: "Snare", cost: 8, cls: "ranger", lvl: 3, spell: { id: "snare", name: "Snare", cd: 12 }, desc: "Slows every enemy." },
+  barrage: { name: "Barrage", cost: 14, cls: "ranger", lvl: 6, after: "snare", spell: { id: "barrage", name: "Barrage", cd: 14 }, desc: "6 shots at random enemies, 50% each." },
+  embers: { name: "Ember storm", cost: 8, cls: "mystic", lvl: 3, spell: { id: "embers", name: "Ember storm", cd: 12 }, desc: "90% to all enemies. Ignores armour." },
+  meteor: { name: "Meteor", cost: 14, cls: "mystic", lvl: 6, after: "embers", spell: { id: "meteor", name: "Meteor", cd: 16 }, desc: "350% to one enemy. Ignores armour." },
+  smite: { name: "Smite", cost: 8, cls: "cleric", lvl: 3, spell: { id: "smite", name: "Smite", cd: 8 }, desc: "160% to one enemy. Heals the most hurt ally half of it." },
+  renew: { name: "Renew", cost: 14, cls: "cleric", lvl: 6, after: "smite", spell: { id: "renew", name: "Renew", cd: 14, heal: true }, desc: "Heals every ally 8 + level." },
 };
 const ORE_FLOOR = { silver: 3, starmetal: 6 };
 

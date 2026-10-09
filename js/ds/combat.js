@@ -12,7 +12,7 @@ function newFight(settlers, enemies) {
       return {
         side: "h", idx: i, id: s.id, name: s.name, cls: s.cls, level: s.level, row: s.row || defaultRow(s.cls),
         hp: s.hp, hpMax: st.hpMax, atk: starving() ? Math.ceil(st.atk / 2) : st.atk, def: st.def, spd: st.spd,
-        gauge: rand(40), cd: 2, hurt: s.hp < st.hpMax / 2,
+        gauge: rand(40), cd: 2, cds: {}, hurt: s.hp < st.hpMax / 2,
       };
     }),
     enemies: enemies.map((e, i) => ({ ...e, side: "e", idx: i, gauge: rand(40), swings: 0 })),
@@ -64,10 +64,12 @@ function enemyTarget(f, en) {
   return pick(front.length ? front : live);
 }
 
-function useSkill(f, i) {
+const spellsOf = (h) => Object.entries(RESEARCH).filter(([id, r]) => r.spell && r.cls === h.cls && h.level >= r.lvl && has(id)).map(([, r]) => r.spell);
+
+function useSkill(f, i, spell) {
   const h = f.heroes[i];
-  if (!h || h.hp <= 0 || h.cd > 0 || f.over) return;
-  const skill = CLASSES[h.cls].skill;
+  if (!h || h.hp <= 0 || (!spell && h.cd > 0) || f.over) return;
+  const skill = spell || CLASSES[h.cls].skill;
   const live = alive(f.enemies);
   if (!live.length) return;
   if (skill.id === "cleave") {
@@ -88,14 +90,50 @@ function useSkill(f, i) {
     t.healed = 0.4;
     f.fx.push({ t: "heal", to: t, n });
     fightLog(f, `${h.name}: Mend, +${n} to ${t === h ? "self" : t.name}.`);
+  } else if (skill.id === "bash") {
+    const t = heroTarget(f);
+    hit(f, h, t, 1.5);
+    t.gauge = 0;
+    fightLog(f, `${h.name}: Bash, ${t.name} stunned.`);
+  } else if (skill.id === "bulwark") {
+    f.taunt = 8;
+    const n = Math.ceil(h.hpMax * 0.25);
+    h.hp = Math.min(h.hpMax, h.hp + n);
+    h.healed = 0.4;
+    f.fx.push({ t: "heal", to: h, n });
+    fightLog(f, `${h.name}: Bulwark.`);
+  } else if (skill.id === "snare") {
+    live.forEach((en) => (en.gauge *= 0.3));
+    fightLog(f, `${h.name}: Snare.`);
+  } else if (skill.id === "barrage") {
+    for (let k = 0; k < 6; k++) { const t = alive(f.enemies); if (t.length) hit(f, h, pick(t), 0.5, false, "arrow"); }
+    fightLog(f, `${h.name}: Barrage.`);
+  } else if (skill.id === "embers") {
+    live.forEach((en) => hit(f, h, en, 0.9, true, "fire"));
+    fightLog(f, `${h.name}: Ember storm.`);
+  } else if (skill.id === "meteor") {
+    const t = heroTarget(f), d = hit(f, h, t, 3.5, true, "fire");
+    fightLog(f, `${h.name}: Meteor, ${d} to ${t.name}.`);
+  } else if (skill.id === "smite") {
+    const t = heroTarget(f), d = hit(f, h, t, 1.6);
+    const a = alive(f.heroes).sort((x, y) => x.hp / x.hpMax - y.hp / y.hpMax)[0], n = Math.ceil(d / 2);
+    a.hp = Math.min(a.hpMax, a.hp + n);
+    a.healed = 0.4;
+    f.fx.push({ t: "heal", to: a, n });
+    fightLog(f, `${h.name}: Smite, ${d} to ${t.name}.`);
+  } else if (skill.id === "renew") {
+    const n = 8 + h.level;
+    for (const a of alive(f.heroes)) { a.hp = Math.min(a.hpMax, a.hp + n); a.healed = 0.4; f.fx.push({ t: "heal", to: a, n }); }
+    fightLog(f, `${h.name}: Renew, +${n} to all.`);
   }
-  h.cd = skill.cd;
+  if (spell) (h.cds ||= {})[spell.id] = skill.cd;
+  else h.cd = skill.cd;
   f.fx.push({ t: "skill", u: h, id: skill.id, name: skill.name });
   check(f);
 }
 
-function wantsSkill(f, h) {
-  if (CLASSES[h.cls].skill.id !== "mend") return true;
+function wantsSkill(f, h, spell) {
+  if (!(spell || CLASSES[h.cls].skill).heal) return true;
   return alive(f.heroes).some((u) => u.hp < u.hpMax * 0.6);
 }
 
@@ -112,7 +150,12 @@ function step(f, dt) {
     if (h.hp <= 0 || f.over) return;
     h.cd = Math.max(0, h.cd - dt);
     if (h.hp < h.hpMax * 0.25 && S.res.potions > 0) usePotion(i);
-    if (h.cd === 0 && wantsSkill(f, h) && !(waits(h) && CLASSES[h.cls].skill.id !== "mend")) useSkill(f, i);
+    if (h.cd === 0 && wantsSkill(f, h) && !(waits(h) && !CLASSES[h.cls].skill.heal)) useSkill(f, i);
+    for (const sp of spellsOf(h)) {
+      h.cds ||= {};
+      const c = h.cds[sp.id] = Math.max(0, (h.cds[sp.id] ?? 2) - dt);
+      if (c === 0 && wantsSkill(f, h, sp) && (!waits(h) || sp.heal) && alive(f.enemies).length && !f.over) useSkill(f, i, sp);
+    }
     h.gauge += h.spd * GAUGE_RATE * dt;
     if (waits(h)) h.gauge = Math.min(h.gauge, 100);
     if (h.gauge < 100 || f.over || waits(h)) return;

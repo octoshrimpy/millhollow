@@ -620,6 +620,7 @@ function load() {
     ({ S, nextId } = JSON.parse(raw));
     setLand(S.size ||= 17);
     S.claim ??= 0;
+    S.arcane ??= false;
     S.towns ??= places();
     S.town ??= S.recruits ? S.towns[0] : "Millhollow";
     if (S.expedition && S.expedition.fight) S.expedition.fight = null; // a fight restarts on reload
@@ -1384,7 +1385,7 @@ const cellsOf = (i, type) => BUILDINGS[type].big ? [i, i + 1, i + LAND, i + LAND
 const fits = (i, type) => (!BUILDINGS[type].big || xy(i)[0] < LAND - 1) && cellsOf(i, type).every((j) => !S.grid[j] && S.land[j] === "meadow" && !siteAt(j) && S.seen[j]);
 function build(i, type) {
   const b = BUILDINGS[type];
-  if (!fits(i, type) || !afford(b.cost) || (b.needs && !has(b.needs))) return;
+  if (!fits(i, type) || !afford(b.cost) || (b.needs && !has(b.needs)) || (b.arcane && !S.arcane)) return;
   if (b.near && !beside(i, b.near)) return;
   if ((S.hall == null) !== (type === "townhall")) return;
   pay(b.cost);
@@ -1662,7 +1663,7 @@ const researchCost = (id) => Math.ceil(RESEARCH[id].cost * (1 + tech(id) * 0.75)
 const studyDays = (id) => Math.ceil(researchCost(id) / 4);
 function doResearch(id) {
   const r = RESEARCH[id];
-  if (!r || S.study || (!REPEAT_RESEARCH.includes(id) && has(id)) || S.res.research < researchCost(id) || (r.after && !has(r.after))) return;
+  if (!r || S.study || (!REPEAT_RESEARCH.includes(id) && has(id)) || S.res.research < researchCost(id) || (r.after && !has(r.after)) || (r.spell && !built("arcanum"))) return;
   S.study = { id, left: studyDays(id) };
   S.res.research -= researchCost(id);
   save();
@@ -1761,8 +1762,8 @@ function reached(f) {
 
 const roomType = (r, scav) => {
   const t = Math.random();
-  r.type = scav ? (t < 0.2 ? "fight" : t < 0.6 ? "treasure" : t < 0.75 ? "empty" : t < 0.85 ? "shrine" : "event")
-    : t < 0.5 ? "fight" : t < 0.65 ? "treasure" : t < 0.8 ? "empty" : t < 0.88 ? "shrine" : "event";
+  r.type = scav ? (t < 0.2 ? "fight" : t < 0.6 ? "treasure" : t < 0.75 ? "empty" : t < 0.85 ? "shrine" : t < 0.88 ? "enchant" : "event")
+    : t < 0.5 ? "fight" : t < 0.65 ? "treasure" : t < 0.8 ? "empty" : t < 0.88 ? "shrine" : t < 0.92 ? "enchant" : "event";
   if (r.type === "event") r.event = pick(EVENTS).id;
   else delete r.event;
 };
@@ -1932,6 +1933,14 @@ function enterRoom() {
   } else if (r.type === "shrine") {
     partyAlive().forEach((s) => (s.hp = Math.min(stats(s).hpMax, s.hp + Math.ceil(stats(s).hpMax * 0.4))));
     gameLog(`Floor ${f}: shrine. Party healed.`, "good", [], true);
+  } else if (r.type === "enchant") {
+    if (S.arcane) {
+      e.loot.relics = (e.loot.relics || 0) + 1;
+      gameLog(`Floor ${f}: enchanting room. +1🏺`, "good", [], true);
+    } else {
+      S.arcane = true;
+      gameLog(`Floor ${f}: enchanting room. Spells can be studied.`, "story", partyAlive(), true);
+    }
   } else if (r.type === "stairs") {
     reached(f);
     gameLog(`Floor ${f}: stairs down.`, "story", [], true);

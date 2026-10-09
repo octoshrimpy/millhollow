@@ -136,6 +136,7 @@ const ICONS = {
   "🚪": ["lu-door-open", "brown"],
   "💰": ["lu-coins", "yellow"],
   "⛲": ["ra-ankh", "teal"],
+  "🔮": ["lu-wand-sparkles", "purple"],
   "❔": ["lu-circle-question-mark", "purple"],
   "🪜": ["lu-door-stairwell", "gray"],
   "🌬": ["mh-windmill", "brown"], "👑": ["lu-crown", "yellow"],
