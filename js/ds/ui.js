@@ -1231,6 +1231,16 @@ function importCode(text) {
   });
 }
 
+// Tapping a villager's log opens it full-height over their sheet. Backdrop, links or back close it.
+const logpop = $("#logpop");
+document.addEventListener("click", (e) => {
+  if (logpop.open && (e.target === logpop || e.target.closest("#logpop [data-act]"))) logpop.close();
+  const log = e.target.closest("#sheet .lifelog");
+  if (!log || sheet?.ties || log.contains(e.target.closest("[data-act]"))) return;
+  logpop.querySelector("h3").innerHTML = iconize(`📖 ${esc(S.settlers.find((s) => s.id === sheet.person)?.name || "")}`);
+  logpop.querySelector(".lifelog").innerHTML = log.innerHTML;
+  logpop.showModal();
+});
 document.addEventListener("click", (e) => {
   const el = e.target.closest("[data-act]");
   if (!el || el.tagName === "SELECT" || el.disabled) return;
@@ -1243,7 +1253,8 @@ document.addEventListener("click", (e) => {
 let backTo = null;
 function goBack() {
   const home = S.expedition ? "dungeon" : "village";
-  if (sheet) run("close");
+  if (logpop.open) logpop.close();
+  else if (sheet) run("close");
   else if (S.recruits) run("back");
   else if (tab !== home) run("tab", home);
   else return false;

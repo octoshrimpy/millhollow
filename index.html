@@ -567,6 +567,11 @@
   .remembered { display: flex; flex-wrap: wrap; gap: 6px; }
   .remembered button { display: inline-flex; align-items: center; gap: .4em; padding: .2em .6em .2em .2em; border-radius: 999px; }
   .remembered img, .arrival.gone .face { filter: var(--face-filter) grayscale(1); }
+  #logpop { padding: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--bg); color: inherit; width: min(30em, calc(100vw - 32px)); max-height: 85vh; }
+  #logpop::backdrop { background: #000a; } #logpop:focus { outline: none; } #logpop .lifelog { border-top: 0; margin-top: 0; padding-top: 0; }
+  #logpop .inner { padding: 0 16px 1em; }
+  #logpop h3 { position: sticky; top: 0; margin: 0; padding: 1em 0 .5em; background: var(--bg); text-align: center; }
+  #sheet .lifelog:not(:has(.tie)) { cursor: zoom-in; }
   .lifelog { border-top: 1px solid var(--line); margin-top: .8em; padding-top: .4em; font-size: .85rem; }
   .lifelog p { margin: .3em 0; } .lifelog small { color: var(--dim); margin-right: .3em; }
   .lifelog p.felt { font-style: italic; }
@@ -594,6 +599,7 @@
   <nav id="tabs"></nav>
 </footer>
 <div id="sheet" data-act="close" hidden><div class="inner"></div></div>
+<dialog id="logpop"><div class="inner"><h3></h3><div class="lifelog"></div></div></dialog>
 <div id="fight" hidden></div>
 <canvas id="fx"></canvas>
 <div id="floats"></div>
