@@ -102,7 +102,9 @@
   .tile { position: relative; }
   .land { position: relative; overflow: auto; max-height: 62vh; margin: .6em 0; overscroll-behavior: contain; scrollbar-width: none; touch-action: pan-x pan-y; }
   .land::-webkit-scrollbar { display: none; }
-  .land .grid { --t: min(76px, calc((100vw - 60px) / 5.5)); grid-auto-rows: var(--t); grid-template-columns: repeat(var(--w), var(--t)); width: max-content; margin: 0 auto; }
+  .land .grid { --t: calc(min(76px, calc((100vw - 60px) / 5.5)) * var(--zoom, 1)); grid-auto-rows: var(--t); grid-template-columns: repeat(var(--w), var(--t)); width: max-content; margin: 0 auto; }
+  #goals { position: relative; }
+  #goals.new::after { content: ""; position: absolute; top: .25em; right: .2em; width: .5em; height: .5em; border-radius: 50%; background: var(--bad); }
   .land.drag { cursor: grabbing; user-select: none; }
   .tile.fog { border-color: transparent; background: radial-gradient(circle, color-mix(in srgb, var(--ink) 5%, transparent), transparent 70%); }
   .tile.hall { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
