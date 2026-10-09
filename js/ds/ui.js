@@ -98,7 +98,7 @@ function renderTop() {
     .filter(([k]) => S.res[k] > 0 || k === "food" || k === "wood")
     .map(([k, r]) => `<span data-tooltip="${r.name}${capOf(k) < Infinity ? ` ${S.res[k]}/${capOf(k)}` : ""}" data-placement="bottom" data-k="${k}" class="${packing[k] ? "packed" : S.res[k] >= capOf(k) ? "full" : ""}">${r.icon}${S.res[k] - (packing[k] || 0) - (owed[k] || 0)}</span>`).join("")));
   morph($("#goals"), iconize("🔔"));
-  $("#goals").classList.toggle("new", GOALS.some(([t, ok]) => ok() && !(S.claimed ||= []).includes(t)));
+  $("#goals").classList.toggle("new", GOALS.some((g) => goalDone(g) && !S.claimed.includes(g[0])));
   morph($("#menu"), iconize("⚙"));
   morph($("#savebtn"), iconize(botTimer ? "⏹" : "💾"));
   $("#savebtn").dataset.act = botTimer ? "botstop" : "savefile";
@@ -822,25 +822,29 @@ document.addEventListener("fullscreenchange", () => { if (sheet?.menu) renderShe
 
 const GOALS = [
   ["Build a hut", () => built("hut"), { wood: 5 }],
-  ["Put someone to work", () => S.grid.some((b) => b && b.worker), { food: 5 }],
+  ["Put someone to work", () => S.grid.some((b) => b && b.worker), { food: 5 }, "Build a hut"],
   ["Reach floor 1", () => S.deepest >= 1, { food: 5 }],
   ["Research something", () => S.research.length > 0, { research: 2 }],
-  ["Claim land", () => S.cleared > 0, { stone: 5 }],
-  ["Reach floor 5", () => S.deepest >= 5, { silver: 2 }],
-  ["Reach floor 10", () => S.deepest >= 10, { silver: 4 }],
-  ["Reach floor 20", () => S.deepest >= 20, { starmetal: 1 }],
-  ["Have 10 villagers", () => living().length >= 10, { food: 15 }],
-  ["Level 10 villager", () => S.settlers.some((s) => s.level >= 10), { potions: 2 }],
-  ["Build a chapel", () => built("chapel"), { herbs: 5 }],
-  ["Find an enchanting room", () => S.arcane, { relics: 2 }],
-  ["Build a storehouse", () => built("storehouse") || built("vault"), { stone: 10 }],
-  ["Build the wonder", () => built("wonder"), { relics: 5 }],
+  ["Claim land", () => S.cleared > 0, { stone: 5 }, "Build a hut"],
+  ["Reach floor 5", () => S.deepest >= 5, { silver: 2 }, "Reach floor 1"],
+  ["Reach floor 10", () => S.deepest >= 10, { silver: 4 }, "Reach floor 5"],
+  ["Reach floor 20", () => S.deepest >= 20, { starmetal: 1 }, "Reach floor 10"],
+  ["Have 10 villagers", () => living().length >= 10, { food: 15 }, "Put someone to work"],
+  ["Level 10 villager", () => S.settlers.some((s) => s.level >= 10), { potions: 2 }, "Reach floor 5"],
+  ["Build a chapel", () => built("chapel"), { herbs: 5 }, "Claim land"],
+  ["Find an enchanting room", () => S.arcane, { relics: 2 }, "Research something"],
+  ["Build a storehouse", () => built("storehouse") || built("vault"), { stone: 10 }, "Claim land"],
+  ["Build the wonder", () => built("wonder"), { relics: 5 }, "Build a storehouse"],
 ];
+// A goal opens once the one it follows is claimed; only open goals can finish.
+const goalOpen = ([t, , , after]) => !after || (S.claimed ||= []).includes(after) || S.claimed.includes(t);
+const goalDone = (g) => goalOpen(g) && g[1]();
 const sheetBeasts = () => `<div class="menu"><h3>📖 Beastiary</h3><div class="beasts">${Object.values(ENEMIES).map((e) => {
   const n = S.beasts[e.name] || 0;
   return `<p class="${n ? "" : "dim"}"><span>${n ? e.icon : "❔"}</span>${n ? ` <b>${e.name}</b> ${n}` : ""}</p>`; }).join("")}</div></div>`;
 function sheetGoals() {
   return `<div class="menu"><h3>🔔 Goals</h3><div class="goals">${GOALS.map(([t, ok, win], i) => S.claimed.includes(t) ? `<p class="good">✓ ${t} <span class="dim">${goods(win)}</span></p>`
+    : !goalOpen(GOALS[i]) ? `<p class="dim locked" aria-hidden="true">○ ${t} <span>${goods(win)}</span></p>`
     : ok() ? `<button data-act="claimgoal" data-v="${i}">${t} <span>${goods(win)}</span></button>`
     : `<p class="dim">○ ${t} <span>${goods(win)}</span></p>`).join("")}</div></div>`;
 }
@@ -1104,7 +1108,7 @@ const ACTS = {
   goals: () => { sheet = { goals: true }; },
   claimgoal: (v, el) => {
     const [t, , win] = GOALS[v];
-    if (S.claimed.includes(t)) return "keep";
+    if (S.claimed.includes(t) || !goalDone(GOALS[v])) return "keep";
     S.claimed.push(t);
     for (const k in win) {
       S.res[k] += win[k]; owed[k] = (owed[k] || 0) + win[k]; // the count ticks up when the icon lands
@@ -1329,16 +1333,17 @@ function snap() {
 
 const LOUD = /now level|died|joined|Learned|wiped out/;
 
+let bannerAt = 0; // goal banners queue so a chain of unlocks doesn't stack them
 function celebrate(b) {
   const e = S.expedition;
   // ponytail: old saves start with whatever's already done, so nothing fires retroactively
-  if (!S.goals) S.goals = GOALS.filter(([, ok]) => ok()).map(([t]) => t);
-  const fresh = GOALS.filter(([t, ok]) => !S.goals.includes(t) && ok()).map(([t]) => t);
+  if (!S.goals) S.goals = GOALS.filter(goalDone).map(([t]) => t);
+  const fresh = GOALS.filter((g) => !S.goals.includes(g[0]) && goalDone(g)).map(([t]) => t);
   if (fresh.length) {
     S.goals.push(...fresh);
     renderTop(); save();
   }
-  fresh.forEach((t, n) => setTimeout(() => {
+  fresh.forEach((t) => setTimeout(() => {
     const v = Juice.center($("#view")), bell = $("#goals");
     Juice.float(v.x, v.y, `✓ ${t}`, "banner goal", 1600);
     Juice.burst(v.x, v.y, { n: 30, colors: PAL.gold, speed: 220, up: 160, gravity: 520, life: 1.1, size: 3, drag: 0.95 });
@@ -1347,7 +1352,7 @@ function celebrate(b) {
       Juice.pop(bell, 1.5);
       Juice.burst(p.x, p.y, { n: 20, colors: PAL.gold, speed: 160, up: 60, life: 0.7, size: 3, spark: true });
     }), 900);
-  }, 500 + n * 1800));
+  }, (bannerAt = Math.max(Date.now() + 500, bannerAt + 1800)) - Date.now()));
   if (e && b.exp && (e.crowns || (e.crown ? 1 : 0)) > b.exp.crowns) setTimeout(() => Juice.prize("👑", $("#res")), 400);
   if (S.won && !b.won) setTimeout(() => {
     const v = Juice.center($("#view"));
