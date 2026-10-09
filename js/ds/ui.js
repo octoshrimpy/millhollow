@@ -264,7 +264,7 @@ function sheetPlot(i) {
       <span class="ico">${S.land[i] === "forest" ? "🪓" : "⛏️"}</span><span><b>Clear</b> ${costText(clearCost())} → ${gainText(t.clear)}</span></button>`;
   }
   if (!b) {
-    return `<h3>Build</h3><div class="picks">` + Object.entries(BUILDINGS).filter(([id]) => (S.hall == null) === (id === "townhall")).map(([id, d]) => {
+    return `<h3>Build</h3><div class="picks">` + Object.entries(BUILDINGS).filter(([id, d]) => (S.hall == null) === (id === "townhall") && (!d.arcane || S.arcane)).map(([id, d]) => {
       const locked = d.needs && !has(d.needs), far = d.near && !beside(i, d.near);
       return `<button class="opt" data-act="build" data-v="${id}" ${locked || far || !afford(d.cost) ? "disabled" : ""}>
         <span class="ico">${d.icon}</span><span><b>${d.name}</b>${S.asks?.[id]?.length ? ` ${tip("Asked for", `🙋${S.asks[id].length}`)}` : ""} ${costText(d.cost)}${besideTag(i, id)}<br><small>${locked ? `🔒 📜 ${RESEARCH[d.needs].name}` : far ? `🔒 ${TERRAIN[d.near].icon}` : d.desc}</small></span></button>`;
@@ -522,10 +522,10 @@ function viewResearch() {
   if (!built("library")) return `<p class="dim">Build a library first.</p>`;
   if (!staffed("library")) return `<p class="dim">The library needs a worker.</p>`;
   return `<p class="dim">Staffed library: 1🏺 → research per day.</p><div class="picks">` +
-    Object.entries(RESEARCH).map(([id, r]) => {
+    Object.entries(RESEARCH).filter(([, r]) => !r.spell || built("arcanum")).map(([id, r]) => {
       const locked = r.after && !has(r.after), repeat = REPEAT_RESEARCH.includes(id), n = tech(id), cost = researchCost(id), now = S.study && S.study.id === id;
       return `<button class="opt ${has(id) || now ? "on" : ""}" data-act="research" data-v="${id}" ${(!repeat && has(id)) || locked || S.study || S.res.research < cost ? "disabled" : ""}>
-      <span><b>${r.name}</b> ${now ? tip("Days", `⏳ ${S.study.left}d`) : has(id) && !repeat ? "✓" : `${costText({ research: cost })} ${tip("Days", `⏳ ${studyDays(id)}d`)}`}${repeat && n ? ` <small>lv ${n}</small>` : ""}<br><small>${locked ? `🔒 📜 ${RESEARCH[r.after].name}` : r.desc}</small></span></button>`;
+      <span><b>${r.spell ? `${CLASSES[r.cls].icon} ` : ""}${r.name}</b> ${now ? tip("Days", `⏳ ${S.study.left}d`) : has(id) && !repeat ? "✓" : `${costText({ research: cost })} ${tip("Days", `⏳ ${studyDays(id)}d`)}`}${repeat && n ? ` <small>lv ${n}</small>` : ""}<br><small>${locked ? `🔒 📜 ${RESEARCH[r.after].name}` : r.spell ? `lv ${r.lvl}. ${r.desc}` : r.desc}</small></span></button>`;
     }).join("") + `</div>`;
 }
 
@@ -566,7 +566,7 @@ function viewExpedition() {
     <button class="primary wide" data-act="depart" ${plan.party.length ? "" : "disabled"}>Set out</button></div></div>`;
 }
 
-const ROOM_ICON = { entrance: "🚪", fight: "🤺", boss: "☠️", treasure: "💰", empty: "·", shrine: "⛲", event: "❔", stairs: "🪜" };
+const ROOM_ICON = { entrance: "🚪", fight: "🤺", boss: "☠️", treasure: "💰", empty: "·", shrine: "⛲", event: "❔", stairs: "🪜", enchant: "🔮" };
 
 function viewDungeon() {
   const e = S.expedition, m = e.map, near = neighbours(m.rooms, m.at);
@@ -646,7 +646,8 @@ function tickFight() {
     el.querySelector(".hp i").style.width = `${(h.hp / h.hpMax) * 100}%`;
     el.querySelector(".atb i").style.width = `${Math.min(100, h.gauge)}%`;
     el.querySelector("b").textContent = `${h.name} ${Math.ceil(h.hp)}/${h.hpMax}`;
-    skill.textContent = `${CLASSES[h.cls].skill.name}${h.cd > 0 ? ` ${Math.ceil(h.cd)}s` : " ready"}`;
+    const sks = [[CLASSES[h.cls].skill, h.cd], ...spellsOf(h).map((sp) => [sp, h.cds?.[sp.id] ?? 2])];
+    skill.textContent = sks.map(([sk, cd]) => `${sk.name}${cd > 0 ? ` ${Math.ceil(cd)}s` : " ready"}`).join(" · ");
     skill.title = CLASSES[h.cls].skill.desc;
     el.classList.toggle("dead", h.hp <= 0);
     el.classList.toggle("flash", h.flash > 0);

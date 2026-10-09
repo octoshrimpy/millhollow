@@ -180,6 +180,12 @@
 - Floors are random room maps, kept once found: the same rooms on the next dive, looted stashes
   still empty, some cleared fights and spent shrines back. Fights are real-time auto-battles with pause, speed, potions and
   retreat. A hero under a quarter HP drinks a potion by themselves; tapping 🧪 still drinks one any time. Death is permanent.
+- Magic: a rare enchanting room (🔮, about 4% of rooms) turns up on any floor. The first one sets `S.arcane`
+  and unlocks the Arcanum (wood, stone, 3 relics). Later ones give 1 relic. With an Arcanum built, the library
+  research list also offers spells, two per class (`RESEARCH` entries with `spell`, `cls`, `lvl`): warrior Bash/Bulwark,
+  ranger Snare/Barrage, mystic Ember storm/Meteor, cleric Smite/Renew. A hero casts a learned spell once their level
+  reaches `lvl` (3 and 6; the second needs the first). Spells run beside the class skill in combat.js with their own
+  cooldowns in `h.cds`.
 - A won fight closes itself. The celebration scales with how lopsided the fight was against the
   party at the start, more for a keeper and for depth: a stomp gets a faint word, an upset fills
   the screen. It plays over the dungeon and doesn't block the next move.
