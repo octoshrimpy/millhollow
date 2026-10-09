@@ -835,17 +835,26 @@ const GOALS = [
   ["Find an enchanting room", () => S.arcane, { relics: 2 }, "Research something"],
   ["Build a storehouse", () => built("storehouse") || built("vault"), { stone: 10 }, "Claim land"],
   ["Build the wonder", () => built("wonder"), { relics: 5 }, "Build a storehouse"],
+  // Hidden until they happen.
+  ["Wedding bells", () => S.settlers.some((s) => s.spouse), { herbs: 5 }, null, true],
+  ["Left at the altar", () => felt("jilted"), { food: 5 }, null, true],
+  ["Settle a rivalry", () => felt("triumph"), { silver: 1 }, null, true],
+  ["A poem lands", () => felt("liked"), { research: 2 }, null, true],
+  ["Seen a ghost", () => felt("snapped"), { potions: 1 }, null, true],
+  ["Crown the hall", () => S.claim > 0, { relics: 2 }, null, true],
 ];
+function felt(k) { return S.settlers.some((s) => s.story?.some((e) => e.k === k)); }
 // A goal opens once the one it follows is claimed; only open goals can finish.
 const goalOpen = ([t, , , after]) => !after || (S.claimed ||= []).includes(after) || S.claimed.includes(t);
-const goalDone = (g) => goalOpen(g) && g[1]();
+const goalDone = (g) => goalOpen(g) && (!!S.goals?.includes(g[0]) || !!g[1]()); // once reached, it stays reached
 const sheetBeasts = () => `<div class="menu"><h3>📖 Beastiary</h3><div class="beasts">${Object.values(ENEMIES).map((e) => {
   const n = S.beasts[e.name] || 0;
   return `<p class="${n ? "" : "dim"}"><span>${n ? e.icon : "❔"}</span>${n ? ` <b>${e.name}</b> ${n}` : ""}</p>`; }).join("")}</div></div>`;
 function sheetGoals() {
-  return `<div class="menu"><h3>🔔 Goals</h3><div class="goals">${GOALS.map(([t, ok, win], i) => S.claimed.includes(t) ? `<p class="good">✓ ${t} <span class="dim">${goods(win)}</span></p>`
+  return `<div class="menu"><h3>🔔 Goals</h3><div class="goals">${GOALS.map(([t, , win], i) => S.claimed.includes(t) ? `<p class="good">✓ ${t} <span class="dim">${goods(win)}</span></p>`
     : !goalOpen(GOALS[i]) ? `<p class="dim locked" aria-hidden="true">○ ${t} <span>${goods(win)}</span></p>`
-    : ok() ? `<button data-act="claimgoal" data-v="${i}">${t} <span>${goods(win)}</span></button>`
+    : !goalDone(GOALS[i]) && GOALS[i][4] ? `<p class="dim">○ ???</p>`
+    : goalDone(GOALS[i]) ? `<button data-act="claimgoal" data-v="${i}">${t} <span>${goods(win)}</span></button>`
     : `<p class="dim">○ ${t} <span>${goods(win)}</span></p>`).join("")}</div></div>`;
 }
 
