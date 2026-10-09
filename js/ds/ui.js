@@ -452,11 +452,19 @@ const blames = (s) => {
 function sheetPerson() {
   const s = byId(sheet.person), c = CLASSES[s.cls];
   const days = (e) => e.to > e.day ? `d${e.day}–${e.to}` : `d${e.day}`;
+  // What a line did: morale as a number, drives as up/down arrows (traits scale the size).
+  const fx = (e) => {
+    const t = THOUGHTS[e.k], f = t ? { morale: t.morale * (e.x || 1), ...t.stir } : e.fx;
+    if (!f) return "";
+    const m = f.morale ? `<b class="${f.morale > 0 ? "good" : "bad"}">${f.morale > 0 ? "+" : "−"}${Math.abs(f.morale)}</b>` : "";
+    const ds = Object.keys(DRIVES).filter((d) => f[d]).map((d) => `${DRIVE_ICON[d]}<b class="${(f[d] > 0) === (DRIVES[d] === "happy") ? "good" : "bad"}">${f[d] > 0 ? "▴" : "▾"}</b>`);
+    return `<span class="fx">${[m, ...ds].join(" ")}</span>`;
+  };
   const line = (e) => {
     if (e.kind === "past") return `<p class="past">${esc(e.text)}</p>`;
-    if (!e.k) return `<p class="${e.kind || ""}"><small>${days(e)}</small> ${named(esc(e.text))}</p>`;
+    if (!e.k) return `<p class="${e.kind || ""}">${fx(e)}<small>${days(e)}</small> ${named(esc(e.text))}</p>`;
     const t = THOUGHTS[e.k];
-    return `<p class="felt ${t.morale > 0 ? "good" : "bad"}"><small>${days(e)}</small> ${t.icon} ${t.name}${e.x > 1 ? ` ×${e.x}` : ""}</p>`;
+    return `<p class="felt ${t.morale > 0 ? "good" : "bad"}">${fx(e)}<small>${days(e)}</small> ${t.icon} ${t.name}${e.x > 1 ? ` ×${e.x}` : ""}</p>`;
   };
   const st = stats(s);
   const skills = Object.entries(s.skills).filter(([, x]) => x >= 0.1)

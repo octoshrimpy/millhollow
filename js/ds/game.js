@@ -1138,6 +1138,7 @@ function leisure(home) {
       if (hot) spend(s, "anger", 0.3);
       stir(s, "restless", -15); stir(s, "grief", -5); stir(s, "warmth", 5);
       s.morale = clampMorale(s.morale + 2);
+      const fx = { morale: 2, restless: -15, grief: -5, warmth: 5, ...(hot && { anger: -1 }) };
       const cap = (x) => x[0].toUpperCase() + x.slice(1) + ".", withO = t.includes("{o}");
       if (together) {
         const what = game ? `at ${game}` : at ? `at the ${BUILDINGS[at].name.toLowerCase()}` : PASTIMES[s.pastime].name;
@@ -1149,11 +1150,11 @@ function leisure(home) {
           gameLog(`${o.name} took up ${PASTIMES[s.pastime].name}, thanks to ${s.name}.`, "story", [o, s]);
         }
         stir(s, "pride", 8); stir(o, "warmth", 8); tie(s, o, c < 0 ? Math.max(-3, c) : tieOf(s, o) < FRIEND ? Math.min(4, 1 + c) : 1);
-        note(s, { text: cap(`I ${(withO ? line : `${line} with ${o.name}`).replace(/\btheir\b/g, "my")}`) });
-        note(o, { text: cap(withO ? `${s.name} ${line.replace(o.name, "me")}` : `I ${line} with ${s.name}`) });
+        note(s, { text: cap(`I ${(withO ? line : `${line} with ${o.name}`).replace(/\btheir\b/g, "my")}`), fx: { ...fx, pride: 8 } });
+        note(o, { text: cap(withO ? `${s.name} ${line.replace(o.name, "me")}` : `I ${line} with ${s.name}`), fx: { warmth: 8 } });
         if (hot || seen.has(s) || seen.has(o)) gameLog(`${s.name} ${withO ? line : `${line} with ${o.name}`}.`, "good", [], !hot);
       } else {
-        note(s, { text: cap(`I ${line.replace(/\btheir\b/g, "my")}${snub ? " alone" : ""}`) });
+        note(s, { text: cap(`I ${line.replace(/\btheir\b/g, "my")}${snub ? " alone" : ""}`), fx });
         if (hot || snub || seen.has(s)) gameLog(snub ? `${snub.name} turned down ${s.name}. ${s.name} ${line} alone.` : `${s.name} ${line}.`, snub ? "story" : "good", [], !hot);
       }
       break;
