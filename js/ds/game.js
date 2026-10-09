@@ -622,6 +622,7 @@ function load() {
     S.claim ??= 0;
     S.arcane ??= false;
     S.beasts ??= {};
+    S.claimed ??= [...(S.goals || [])]; // goals reached before claiming existed were paid on the spot
     S.towns ??= places();
     S.town ??= S.recruits ? S.towns[0] : "Millhollow";
     if (S.expedition && S.expedition.fight) S.expedition.fight = null; // a fight restarts on reload

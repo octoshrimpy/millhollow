@@ -90,14 +90,15 @@ function viewRecruits() {
     <button class="primary go" data-act="settlein" ${chosen.length === STARTERS ? "" : "disabled"}><i>✓</i> ${chosen.length === STARTERS ? "Embark! " : ""}${chosen.length}/${STARTERS}</button></div>`;
 }
 
+const owed = {}; // goal rewards still flying to the top bar
 function renderTop() {
   const packing = !S.expedition && tab === "expedition" ? { food: plan.rations, meals: plan.meals || 0 } : {};
   if (S.recruits) return morph($("#res"), iconize(`<button class="ghost back" data-act="back" aria-label="Back">⬅</button>`));
   morph($("#res"), iconize(`<span class="day">Day ${S.day}</span>` + Object.entries(RESOURCES)
     .filter(([k]) => S.res[k] > 0 || k === "food" || k === "wood")
-    .map(([k, r]) => `<span data-tooltip="${r.name}${capOf(k) < Infinity ? ` ${S.res[k]}/${capOf(k)}` : ""}" data-placement="bottom" data-k="${k}" class="${packing[k] ? "packed" : S.res[k] >= capOf(k) ? "full" : ""}">${r.icon}${S.res[k] - (packing[k] || 0)}</span>`).join("")));
+    .map(([k, r]) => `<span data-tooltip="${r.name}${capOf(k) < Infinity ? ` ${S.res[k]}/${capOf(k)}` : ""}" data-placement="bottom" data-k="${k}" class="${packing[k] ? "packed" : S.res[k] >= capOf(k) ? "full" : ""}">${r.icon}${S.res[k] - (packing[k] || 0) - (owed[k] || 0)}</span>`).join("")));
   morph($("#goals"), iconize("🔔"));
-  $("#goals").classList.toggle("new", !!S.goalNew);
+  $("#goals").classList.toggle("new", GOALS.some(([t, ok]) => ok() && !(S.claimed ||= []).includes(t)));
   morph($("#menu"), iconize("⚙"));
   morph($("#savebtn"), iconize(botTimer ? "⏹" : "💾"));
   $("#savebtn").dataset.act = botTimer ? "botstop" : "savefile";
@@ -839,7 +840,9 @@ const sheetBeasts = () => `<div class="menu"><h3>📖 Beastiary</h3><div class="
   const n = S.beasts[e.name] || 0;
   return `<p class="${n ? "" : "dim"}"><span>${n ? e.icon : "❔"}</span>${n ? ` <b>${e.name}</b> ${n}` : ""}</p>`; }).join("")}</div></div>`;
 function sheetGoals() {
-  return `<div class="menu"><h3>🔔 Goals</h3><div class="goals">${GOALS.map(([t, ok, win]) => `<p class="${ok() ? "good" : "dim"}">${ok() ? "✓" : "○"} ${t} <span class="dim">${goods(win)}</span></p>`).join("")}</div></div>`;
+  return `<div class="menu"><h3>🔔 Goals</h3><div class="goals">${GOALS.map(([t, ok, win], i) => S.claimed.includes(t) ? `<p class="good">✓ ${t} <span class="dim">${goods(win)}</span></p>`
+    : ok() ? `<button data-act="claimgoal" data-v="${i}">${t} <span>${goods(win)}</span></button>`
+    : `<p class="dim">○ ${t} <span>${goods(win)}</span></p>`).join("")}</div></div>`;
 }
 
 function sheetMenu() {
@@ -1098,7 +1101,21 @@ const ACTS = {
   },
   asides: () => (root.classList.toggle("asides"), "keep"),
   older: () => (older = true),
-  goals: () => { S.goalNew = false; save(); sheet = { goals: true }; },
+  goals: () => { sheet = { goals: true }; },
+  claimgoal: (v, el) => {
+    const [t, , win] = GOALS[v];
+    if (S.claimed.includes(t)) return "keep";
+    S.claimed.push(t);
+    for (const k in win) {
+      S.res[k] += win[k]; owed[k] = (owed[k] || 0) + win[k]; // the count ticks up when the icon lands
+      Juice.carry(RESOURCES[k].icon, el, $(`#res [data-k="${k}"]`) || $("#res"), () => {
+        owed[k] -= win[k]; renderTop();
+        const at = $(`#res [data-k="${k}"]`) || $("#res"), p = Juice.center(at);
+        Juice.pop(at, 1.4); Juice.float(p.x, p.y + 16, `+${win[k]}`, "res up");
+      });
+    }
+    save();
+  },
   beasts: () => (sheet = { beasts: true }),
   menu: () => { if (secretOpened) { secretOpened = false; return "keep"; } sheet = { menu: true }; },
   theme: (v) => { applyTheme(v); },
@@ -1318,8 +1335,7 @@ function celebrate(b) {
   if (!S.goals) S.goals = GOALS.filter(([, ok]) => ok()).map(([t]) => t);
   const fresh = GOALS.filter(([t, ok]) => !S.goals.includes(t) && ok()).map(([t]) => t);
   if (fresh.length) {
-    S.goals.push(...fresh); S.goalNew = true;
-    GOALS.filter(([t]) => fresh.includes(t)).forEach(([, , win]) => { for (const k in win) S.res[k] += win[k]; });
+    S.goals.push(...fresh);
     renderTop(); save();
   }
   fresh.forEach((t, n) => setTimeout(() => {
@@ -1357,7 +1373,7 @@ function celebrate(b) {
     }, b.exp && !e ? 1500 : 300);
   }
   for (const k in S.res) {
-    const d = Math.round((S.res[k] - b.res[k]) * 10) / 10, el = document.querySelector(`#res [data-k="${k}"]`);
+    const d = Math.round((S.res[k] - (owed[k] || 0) - b.res[k]) * 10) / 10, el = document.querySelector(`#res [data-k="${k}"]`);
     if (!d || !el) continue;
     Juice.pop(el, 1.35);
     const p = Juice.center(el);
