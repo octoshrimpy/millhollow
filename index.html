@@ -333,6 +333,7 @@
   #sheet, #fight { position: fixed; inset: 0; background: #000a; z-index: 10; display: flex; align-items: flex-end; justify-content: center; }
   #sheet .inner { background: var(--bg); border: 1px solid var(--line); border-radius: 14px 14px 0 0; width: 100%; max-width: 30em; max-height: 85vh; overflow-y: auto; overscroll-behavior: contain; padding: 1.4em 16px 1em; position: relative; transition: transform .22s ease-in; }
   #sheet .inner::before { content: ""; position: absolute; top: 7px; left: 50%; width: 38px; height: 5px; margin-left: -19px; border-radius: 3px; background: var(--line); }
+  #sheet .inner > div > h3:first-child { position: sticky; top: -1.4em; z-index: 2; margin-top: -1.4em; padding: 1.4em 0 .5em; background: var(--bg); }
   #sheet { transition: background .22s; }
   #sheet .inner:has(.personsheet) { height: 85vh; display: flex; flex-direction: column; }
   .personsheet { flex: 1; min-height: 0; display: flex; flex-direction: column; }
