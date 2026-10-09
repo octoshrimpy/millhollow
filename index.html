@@ -567,7 +567,7 @@
   .remembered { display: flex; flex-wrap: wrap; gap: 6px; }
   .remembered button { display: inline-flex; align-items: center; gap: .4em; padding: .2em .6em .2em .2em; border-radius: 999px; }
   .remembered img, .arrival.gone .face { filter: var(--face-filter) grayscale(1); }
-  #logpop { margin: auto auto 0; padding: 0; border: 1px solid var(--line); border-bottom: 0; border-radius: 14px 14px 0 0; background: var(--bg); color: inherit; width: 100%; max-width: 30em; max-height: 85vh; }
+  #logpop { margin: auto auto 0; padding: 0; border: 1px solid var(--line); border-bottom: 0; border-radius: 14px 14px 0 0; background: var(--bg); color: inherit; width: 100%; max-width: 30em; max-height: 85vh; overflow-y: auto; overscroll-behavior: contain; transition: transform .22s ease-in; }
   #logpop[open] { animation: sheet-up .28s cubic-bezier(.2, .8, .2, 1); }
   #logpop::backdrop { background: #000a; } #logpop:focus { outline: none; } #logpop .lifelog { border-top: 0; margin-top: 0; padding-top: 0; }
   #logpop .inner { padding: 0 16px 1em; }

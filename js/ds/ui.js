@@ -892,8 +892,8 @@ function renderSheet() {
     : sheet.keep != null ? sheetKeep() : sheet.events ? sheetEvents() : sheetPlot(sheet.i)));
 }
 
-(() => {
-  const box = $("#sheet"), inner = box.querySelector(".inner");
+// Drag a bottom sheet down to dismiss it. shade is the dimmed overlay behind it, if we control it.
+function swipeDown(inner, shade, close) {
   let y0 = null, t0 = 0, dy = 0, dragged = false;
   inner.addEventListener("touchstart", (e) => {
     y0 = inner.scrollTop <= 0 ? e.touches[0].clientY : null;
@@ -908,19 +908,26 @@ function renderSheet() {
     const d = Math.max(0, dy);
     inner.style.transition = "none";
     inner.style.transform = `translateY(${d}px)`;
-    box.style.background = `rgba(0,0,0,${0.67 * Math.max(0, 1 - d / inner.offsetHeight)})`;
+    if (shade) shade.style.background = `rgba(0,0,0,${0.67 * Math.max(0, 1 - d / inner.offsetHeight)})`;
   }, { passive: false });
   inner.addEventListener("touchend", () => {
     if (y0 == null) return;
     y0 = null;
     inner.style.transition = "";
     const fast = dy / (performance.now() - t0) > 0.5;
-    if (dy > inner.offsetHeight * 0.3 || (fast && dy > 30)) run("close");
-    else { inner.style.transform = ""; box.style.background = ""; }
+    if (dy > inner.offsetHeight * 0.3 || (fast && dy > 30)) close();
+    else { inner.style.transform = ""; if (shade) shade.style.background = ""; }
   });
   // A drag that ends over a button shouldn't press it.
   inner.addEventListener("click", (e) => { if (dragged) { e.stopPropagation(); dragged = false; } }, true);
-})();
+}
+swipeDown($("#sheet .inner"), $("#sheet"), () => run("close"));
+const logpop = $("#logpop");
+function shutLog() {
+  logpop.style.transform = "translateY(100%)";
+  setTimeout(() => { logpop.close(); logpop.style.transform = ""; }, calmMotion ? 0 : 220);
+}
+swipeDown(logpop, null, shutLog);
 
 // The land keeps its place between renders as the map spot at the middle of the window, so
 // newly revealed rows don't shift it. The first look is at the town hall. It's counted from the
@@ -1232,12 +1239,11 @@ function importCode(text) {
 }
 
 // Tapping a villager's log opens it full-height over their sheet. Backdrop, links or back close it.
-const logpop = $("#logpop");
 document.addEventListener("click", (e) => {
-  if (logpop.open && (e.target === logpop || e.target.closest("#logpop [data-act]"))) logpop.close();
+  if (logpop.open && (e.target === logpop || e.target.closest("#logpop [data-act]"))) shutLog();
   const log = e.target.closest("#sheet .lifelog");
   if (!log || sheet?.ties || log.contains(e.target.closest("[data-act]"))) return;
-  logpop.querySelector("h3").innerHTML = iconize(`📖 ${esc(S.settlers.find((s) => s.id === sheet.person)?.name || "")}`);
+  logpop.querySelector("h3").innerHTML = `${esc(S.settlers.find((s) => s.id === sheet.person)?.name || "")}'s log`;
   logpop.querySelector(".lifelog").innerHTML = log.innerHTML;
   logpop.showModal();
 });
@@ -1253,7 +1259,7 @@ document.addEventListener("click", (e) => {
 let backTo = null;
 function goBack() {
   const home = S.expedition ? "dungeon" : "village";
-  if (logpop.open) logpop.close();
+  if (logpop.open) shutLog();
   else if (sheet) run("close");
   else if (S.recruits) run("back");
   else if (tab !== home) run("tab", home);
