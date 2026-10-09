@@ -1972,10 +1972,11 @@ function enterRoom() {
   }
 }
 
-const grim = (floor) => Math.max(1, 1.15 ** (floor - 1) / (1 + 0.3 * (floor - 1)));
+// Linear through the third crown floor, compounding after; each site found starts harder on the same ramp.
+const grim = (floor) => 1.1 ** Math.max(0, floor - 9);
+const SITE_STEP = 1.25, EASE = 0.75; // EASE: overall enemy strength knob
 function scaleEnemy(base, floor, boss = false) {
-  floor += 2 * tierOf(siteOf());
-  const k = (boss ? 1 : 1 + 0.3 * (floor - 1)) * grim(floor);
+  const k = (boss ? 1 : 1 + 0.3 * (floor - 1)) * grim(floor) * SITE_STEP ** tierOf(siteOf()) * EASE;
   const hp = Math.round(base.hp * k);
   return {
     name: base.name, icon: base.icon, flying: !!base.flying, ranged: !!base.ranged, aoeEvery: base.aoeEvery || 0, boss,
