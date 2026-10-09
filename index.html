@@ -567,10 +567,12 @@
   .remembered { display: flex; flex-wrap: wrap; gap: 6px; }
   .remembered button { display: inline-flex; align-items: center; gap: .4em; padding: .2em .6em .2em .2em; border-radius: 999px; }
   .remembered img, .arrival.gone .face { filter: var(--face-filter) grayscale(1); }
-  #logpop { padding: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--bg); color: inherit; width: min(30em, calc(100vw - 32px)); max-height: 85vh; }
+  #logpop { margin: auto auto 0; padding: 0; border: 1px solid var(--line); border-bottom: 0; border-radius: 14px 14px 0 0; background: var(--bg); color: inherit; width: 100%; max-width: 30em; max-height: 85vh; }
+  #logpop[open] { animation: sheet-up .28s cubic-bezier(.2, .8, .2, 1); }
   #logpop::backdrop { background: #000a; } #logpop:focus { outline: none; } #logpop .lifelog { border-top: 0; margin-top: 0; padding-top: 0; }
   #logpop .inner { padding: 0 16px 1em; }
-  #logpop h3 { position: sticky; top: 0; margin: 0; padding: 1em 0 .5em; background: var(--bg); text-align: center; }
+  #logpop h3 { position: sticky; top: 0; margin: 0; padding: 1.4em 0 .5em; background: var(--bg); text-align: center; }
+  #logpop h3::before { content: ""; position: absolute; top: 7px; left: 50%; width: 38px; height: 5px; margin-left: -19px; border-radius: 3px; background: var(--line); }
   #sheet .lifelog:not(:has(.tie)) { cursor: zoom-in; }
   .lifelog { border-top: 1px solid var(--line); margin-top: .8em; padding-top: .4em; font-size: .85rem; }
   .lifelog p { margin: .3em 0; } .lifelog small { color: var(--dim); margin-right: .3em; }
