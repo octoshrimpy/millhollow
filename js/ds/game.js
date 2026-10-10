@@ -1095,7 +1095,7 @@ function leisure(home) {
     let o = mate(s, home.filter((x) => x !== s && (x.id !== s.played || chance(0.2))));
     s.played = o?.id;
     const own = v.filter((k) => VENUES[k].for.includes(s.pastime));
-    const first = hot ? pick(steam) : own.length && chance(0.7) ? pick(own) : v.length && chance(0.3) ? pick(v) : null;
+    const first = hot ? pick(steam) : own.length && chance(0.9) ? pick(own) : v.length && chance(0.5) ? pick(v) : null;
     const tries = hot ? steam : [first, null, ...own, ...v];
     for (const at of tries) {
       const lines = at || can(PASTIMES[s.pastime].needs) ? (at ? VENUES[at] : PASTIMES[s.pastime]).does.filter((x) => doable(x, s, o, at)) : [];
@@ -1121,6 +1121,8 @@ function leisure(home) {
       }
       const line = roll(t.replace("{o}", o?.name));
       if (at) { const b = S.grid.find((b) => b?.type === at); if (b) b.maker ??= s.id; }
+      // a night out takes the edge off work: a day off the streak at their own place, sometimes elsewhere
+      if (at && s.same?.n > 0 && (own.includes(at) || chance(0.5))) s.same.n--;
       const game = /\bat (dice|cards|checkers|chess|backgammon)\b/.exec(t)?.[1], won = /^(beat|won)\b/.test(t);
       if (game && (won || /^lost\b/.test(t))) {
         const [w, l] = won ? [s, o] : [o, s];

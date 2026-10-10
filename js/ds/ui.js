@@ -270,7 +270,7 @@ function sheetPlot(i) {
     return `<h3>Build</h3><div class="picks">` + Object.entries(BUILDINGS).filter(([id, d]) => (S.hall == null) === (id === "townhall") && (!d.arcane || S.arcane)).map(([id, d]) => {
       const locked = d.needs && !has(d.needs), far = d.near && !beside(i, d.near);
       return `<button class="opt" data-act="build" data-v="${id}" ${locked || far || !fits(i, id) || !afford(d.cost) ? "disabled" : ""}>
-        <span class="ico">${d.icon}</span><span><b>${d.name}</b>${S.asks?.[id]?.length ? ` ${tip("Asked for", `🙋${S.asks[id].length}`)}` : ""} ${costText(d.cost)}${besideTag(i, id)}<br><small>${locked ? `🔒 📜 ${RESEARCH[d.needs].name}` : far ? `🔒 ${TERRAIN[d.near].icon}` : d.desc}</small></span></button>`;
+        <span class="ico">${d.icon}</span><span><b>${d.name}</b>${S.asks?.[id]?.length ? ` ${tip("Asked for", `🙋${S.asks[id].length}`)}` : ""} ${costText(d.cost)}${besideTag(i, id)}<br><small>${locked ? `🔒 📜 ${RESEARCH[d.needs].name}` : far ? `🔒 ${TERRAIN[d.near].icon}` : d.big && !fits(i, id) ? "Needs a 2×2 area." : d.desc}</small></span></button>`;
     }).join("") + `</div>`;
   }
   const d = BUILDINGS[b.type];
@@ -667,7 +667,9 @@ function tickFight() {
     el.querySelector(".atb i").style.width = `${Math.min(100, h.gauge)}%`;
     el.querySelector("b").textContent = `${h.name} ${Math.ceil(h.hp)}/${h.hpMax}`;
     const sks = [[CLASSES[h.cls].skill, h.cd], ...spellsOf(h).map((sp) => [sp, h.cds?.[sp.id] ?? 2])];
-    skill.textContent = sks.map(([sk, cd]) => `${sk.name}${cd > 0 ? ` ${Math.ceil(cd)}s` : " ready"}`).join(" · ");
+    const names = sks.map(([sk]) => sk.name).join("|");
+    if (skill.dataset.k !== names) { skill.innerHTML = sks.map(([sk]) => `<span>${esc(sk.name)}</span>`).join(""); skill.dataset.k = names; }
+    sks.forEach(([sk, cd], j) => { const el = skill.children[j]; el.style.setProperty("--p", Math.max(0, 1 - cd / sk.cd)); el.classList.toggle("ready", cd <= 0); });
     skill.title = CLASSES[h.cls].skill.desc;
     el.classList.toggle("dead", h.hp <= 0);
     el.classList.toggle("flash", h.flash > 0);
@@ -1472,7 +1474,8 @@ function celebrate(b) {
     }, 150 + n * 70 + j * 260)));
   }
 
-  S.grid.forEach((t, i) => {
+  // ponytail: a grown map shifts every index; skip rather than remap, nothing gets built while surveying
+  if (b.grid.length === S.grid.length) S.grid.forEach((t, i) => {
     if ((t && t.type) === b.grid[i]) return;
     const el = document.querySelector(`.tile[data-i="${i}"]`);
     if (!el) return;
