@@ -66,7 +66,7 @@ drawn by hand in the script. Licences are in `ICON-LICENSES.md`.
 
 ## Themes
 
-Sixteen of them, half dark and half light, picked from the gear menu. Your pick isn't part
+Eighteen of them, half dark and half light, picked from the gear menu. Your pick isn't part
 of the save. Portraits get tinted to match, except in the Millhollow theme, which shows them
 as drawn.
 
