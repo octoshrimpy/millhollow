@@ -13,7 +13,7 @@ let plan = { party: [], rations: 6, meals: 0, floor: 1 };
 function faceFor(s, hp, hpMax) {
   let m = mood(s);
   if (hp != null) m = hp <= 0 ? "sad" : hp < hpMax * 0.3 ? "scared" : hp < hpMax * 0.7 ? "sad" : m;
-  return `assets/face-${s.face}-${s.age}-${m}.avif`;
+  return `assets/face-${s.face}-${bandOf(s)}-${m}.avif`;
 }
 const bar = (v, max, cls = "") =>
   `<div class="bar ${cls}"><i style="width:${Math.max(0, Math.min(100, (v / max) * 100))}%"></i></div>`;
@@ -540,6 +540,7 @@ function sheetPerson() {
     <div class="row center">${c.icon} ${c.name} · lv ${s.level}${isGuard(s) ? (s.wasJob ? ` · <span class="dim">${BUILDINGS[s.wasJob.type].icon}</span>` : "") : jobText(s) ? ` · ${jobText(s)}` : ""}
     ${s.dead || away(s) ? "" : `<button class="small ${isGuard(s) ? "on" : "ghost"}" data-act="guard" aria-label="Guard">👀</button>`}</div>
     ${s.dead ? restText(s) : ""}
+    ${family(s)}
     ${s.dead ? "" : `<div class="hpline">${bar(s.hp, st.hpMax, "hp")}</div>
     ${injuries(s).length ? `<p class="bad hurts">${injuries(s).join(" · ")}</p>` : ""}
     <div class="stats">${statLine(st, `❤️${s.hp}/${st.hpMax}`, s)}</div>`}</div></div>
@@ -556,6 +557,11 @@ function sheetPerson() {
   <div><div class="sites lifetabs"><button class="${sheet.ties ? "" : "on"}" data-act="lifetab" data-v="log" aria-label="Log">📖</button><button class="${sheet.ties ? "on" : ""}" data-act="lifetab" data-v="ties" aria-label="Relationships">👥</button></div>
   <div class="lifelog">${sheet.ties ? tiesOf(s) : (s.story || []).slice().reverse().map(line).join("")}</div></div></div>`;
 }
+const family = (s) => {
+  const link = (o) => `<u class="nm" data-act="person" data-v="${o.id}">${esc(o.name)}</u>`;
+  const ps = (s.parents || []).map(byId).filter(Boolean), cs = everyone().filter((o) => o.parents?.includes(s.id));
+  return `<p class="dim">${s.dead ? "Died aged" : "Aged"} ${Math.floor(((s.dead ? s.diedOn ?? S.day : S.day) - s.born) / 365)}.${ps.length ? ` Child of ${ps.map(link).join(" and ")}.` : ""}${cs.length ? ` Parent of ${cs.map(link).join(", ")}.` : ""}</p>`;
+};
 const FEELS = [[90, "would die for"], [75, "would do anything for"], [60, "devoted to"], [45, "close to"], [30, "fond of"],
   [15, "enjoys company of"], [5, "gets along with"], [1, "warming to"], [0, "indifferent to"], [-4, "unsure of"],
   [-14, "annoyed at"], [-29, "irritated by"], [-44, "dislikes"], [-59, "resents"], [-74, "can't stand"], [-89, "loathes"], [-100, "hates"]];
@@ -970,8 +976,9 @@ const GOALS = [
   ["A year gone", () => logged(/A year gone/), { relics: 2 }, null, true],
   // Pets
   ["A friend at the door", () => S.pets?.adopted > 0, { food: 5 }, null, true],
-  ["Years by their side", () => S.pets?.best >= 5 || S.settlers.some((s) => s.pet && s.pet.ageAt !== s.age && petYears(s.pet) >= 1), { herbs: 5 }, null, true],
+  ["Years by their side", () => S.pets?.best >= 5 || S.settlers.some((s) => s.pet && s.pet.ageAt !== bandOf(s) && petYears(s.pet) >= 1), { herbs: 5 }, null, true],
   ["Laid to rest", () => S.pets?.buried > 0, { herbs: 2 }, null, true],
+  ["First child", () => logged(/ was born to /), { food: 10 }, null, true],
   // Everyone who ever lived here counts, so the big numbers are for the long game.
   ...[[10, "Ten", { food: 10 }], [25, "Twenty-five", { potions: 2 }], [50, "Fifty", { relics: 2 }], [100, "A hundred", { starmetal: 1, relics: 2 }], [200, "Two hundred", { starmetal: 3 }]]
     .map(([n, name, win]) => [`${name} villagers in all`, () => everyone().length >= n, win, null, true]),
