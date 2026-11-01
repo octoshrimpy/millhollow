@@ -641,7 +641,7 @@ function rest(s) {
   const down = laidUp(s);
   if (down && s.laid == null) {
     if (s.job != null && S.grid[s.job]) { s.wasJob = { i: s.job, type: S.grid[s.job].type }; S.grid[s.job].worker = null; }
-    s.job = null; S.guards = S.guards.filter((id) => id !== s.id);
+    s.job = null; S.guards = S.guards.filter((id) => id !== s.id); S.militia = (S.militia || []).filter((id) => id !== s.id);
     const bed = ["infirmary", "hut", "stonehouse", "townhall"].map((t) => S.grid.findIndex((b) => b?.type === t)).find((i) => i >= 0);
     s.laid = bed ?? S.hall;
     gameLog(`${s.name} can't work. Laid up in the ${BUILDINGS[S.grid[s.laid].type].name.toLowerCase()}.`, "bad", [s]);
@@ -703,6 +703,7 @@ function load() {
     if (S.expedition) (siteOf().floors ||= {})[S.expedition.map.floor] = S.expedition.map;
     for (const j of S.forging || []) if (j.until) { delete j.until; j.left = 1; }
     S.guards ??= S.guard ? [S.guard] : []; delete S.guard;
+    S.militia ??= [];
     if (S.research.includes("walls")) S.ladders ??= S.day + 10 + rand(21);
     if (S.trouble?.kind === "trader" && !S.trouble.offers) S.trouble.offers = [{ take: S.trouble.take, give: S.trouble.give }];
     for (const e of [...S.log, ...[...S.settlers, S.visitor].filter(Boolean).flatMap((s) => s.story || [])]) e.text = PAST_WAS[e.text] || e.text;
@@ -834,6 +835,8 @@ function raid() {
       w.hp = Math.max(1, w.hp - Math.ceil(stats(w).hpMax * (0.3 + Math.random() * 0.3)));
       think(w, "raided");
       gameLog(`Something came up in the night at the ${def.name.toLowerCase()}. ${w.name} drove it off.`, "bad", [w]);
+    } else if (drilled().length && chance(Math.min(0.9, 0.3 * drilled().length))) {
+      gameLog(`Something came up in the night at the ${def.name.toLowerCase()}. The militia ran it off.`, "good", drilled());
     } else {
       if (w) w.job = null;
       S.grid[i] = null;
@@ -845,7 +848,7 @@ const pastHas = (s, text) => (s.story || []).some((e) => e.kind === "past" && (e
 // Food, wood, stone, ore, herbs and meals stop at the cap; storehouses raise it. Gains stop at it, stock above it stays.
 const CAPPED = ["food", "wood", "stone", "ore", "herbs", "meals"], STORE = { storehouse: 200, vault: 400 };
 const capOf = (r) => CAPPED.includes(r) ? S.grid.reduce((a, b) => a + (b && STORE[b.type] || 0), 200) : Infinity;
-const shield = () => staffed("vault") ? 0.4 : built("storehouse") || built("vault") ? 0.7 : 1;
+const shield = () => (staffed("vault") ? 0.4 : built("storehouse") || built("vault") ? 0.7 : 1) * (1 - Math.min(0.4, 0.1 * drilled().length));
 const stock = () => ["food", "meals", "wood", "stone", "ore", "herbs"].reduce((a, r) => a + (S.res[r] || 0), 0);
 const hurt = (s, lo, hi) => (s.hp = Math.max(1, s.hp - Math.ceil(stats(s).hpMax * (lo + Math.random() * (hi - lo)))));
 const guards = () => S.guards.map(byId).filter((g) => g && !g.dead && !away(g) && g.job == null);
@@ -854,12 +857,46 @@ const watchMax = () => (has("nightwatch") ? 2 : 1);
 function standDown(off) {
   const was = off.wasJob, b = was && S.grid[was.i];
   S.guards = S.guards.filter((id) => id !== off.id); off.wasJob = null;
+  S.militia = (S.militia || []).filter((id) => id !== off.id);
   if (b && b.type === was.type && !b.worker && off.job == null && !off.dead) { b.worker = off.id; off.job = was.i; }
+}
+// Militia: villagers drilled at barracks. They leave their work, eat extra, and weigh more at the gate; shield() cuts what raiders take.
+const MILITIA_SEATS = 3, MILITIA_FOOD = 2, MILITIA_XP = 4, MILITIA_WEIGHT = 6;
+const militiaMax = () => MILITIA_SEATS * S.grid.filter((b) => b?.type === "barracks").length;
+const militia = () => (S.militia ||= []).map(byId).filter((m) => m && !m.dead && S.settlers.includes(m) && !away(m) && m.laid == null && m.job == null).slice(0, militiaMax());
+const isMilitia = (s) => militia().includes(s);
+const drilled = () => (S.drilled === false ? [] : militia());
+function setMilitia(id) {
+  const s = byId(id);
+  if (!s || s.dead || away(s) || s.laid != null) return;
+  S.militia = militia().map((m) => m.id);
+  if (isMilitia(s)) standDown(s);
+  else if (S.militia.length < militiaMax()) {
+    if (isGuard(s)) standDown(s);
+    s.wasJob = s.job != null && S.grid[s.job] ? { i: s.job, type: S.grid[s.job].type } : null;
+    if (s.wasJob) S.grid[s.job].worker = null;
+    s.job = null; S.militia.push(id);
+  }
+  save();
+}
+// Each morning's drill: 2🍞 and some xp apiece. Without the food there is no drill and the militia stands as plain villagers.
+function drill(spent) {
+  const ids = (S.militia || []).filter((id) => { const m = byId(id); return m && !m.dead && S.settlers.includes(m); });
+  S.militia = ids.slice(0, militiaMax());
+  ids.slice(militiaMax()).forEach((id) => standDown(byId(id)));
+  const men = militia(), due = MILITIA_FOOD * men.length, ok = S.res.food >= due;
+  if (men.length && !ok && S.drilled !== false) gameLog(`Not enough food to drill the militia.`, "bad", men);
+  S.drilled = ok;
+  if (!men.length || !ok) return;
+  S.res.food -= due;
+  spent.food = (spent.food || 0) + due;
+  men.forEach((m) => gainXp(m, MILITIA_XP));
 }
 function setGuard(id) {
   const s = byId(id);
   if (!s || s.dead || away(s) || s.laid != null) return;
   S.guards = guards().map((g) => g.id);
+  if (isMilitia(s)) standDown(s);
   if (isGuard(s)) standDown(s);
   else {
     if (S.guards.length >= watchMax()) standDown(byId(S.guards[0]));
@@ -870,9 +907,83 @@ function setGuard(id) {
   save();
 }
 const holds = (n) => {
-  const p = living().filter((s) => !away(s)).reduce((a, s) => a + (isGuard(s) ? 2 : 1) * (stats(s).atk + stats(s).def) * s.hp / stats(s).hpMax, 0);
+  const p = living().filter((s) => !away(s)).reduce((a, s) => a + (drilled().includes(s) ? MILITIA_WEIGHT : isGuard(s) ? 2 : 1) * (stats(s).atk + stats(s).def) * s.hp / stats(s).hpMax, 0);
   return p / (p + n * 7 * (1 + S.day / 80));
 };
+// Rare late-game callers through the same gate as bandits, one at a time. The village has to be far enough along to be worth a visit.
+const freeBeds = () => beds() - living().length;
+const burnable = () => S.grid.map((b, i) => (b && !b.part && !["townhall", "wonder"].includes(b.type) ? i : -1)).filter((i) => i >= 0);
+// A grown newcomer with one extra line of past, at the level a seasoned arrival would have.
+function newcomer(cls, line, lvl = 1) {
+  const s = makeSettler(cls);
+  s.story.splice(1, 0, pastLine(line));
+  while (s.level < lvl) { s.level++; s.hpMax += Math.max(1, Math.round(16 * Math.log(s.level / (s.level - 1)))); }
+  s.hp = s.hpMax;
+  S.settlers.push(s);
+  gameLog(`${s.name} joined.`, "good", living());
+  return s;
+}
+function offence() {
+  const k = S.res.silver ? "silver" : "food", n = Math.min(40, Math.ceil(S.res[k] / 4));
+  S.res[k] -= n;
+  return `−${n}${RESOURCES[k].icon}`;
+}
+const GUESTS = [
+  { kind: "royal", can: (home) => S.day > 150 && home.length >= 4 && freeBeds() >= 2 && S.res.food >= 60,
+    make: (home) => ({ kind: "royal", beds: 2, take: { food: 30 + 5 * home.length } }), log: () => "A royal party at the gate.",
+    yes(t, home) {
+      pay(t.take);
+      if (freeBeds() >= t.beds && living().every((s) => !s.unfed) && home.every((s) => s.morale >= 40)) {
+        const win = { silver: 4, relics: 2, research: 8 };
+        addCost(S.res, win);
+        home.forEach((o) => think(o, "feast"));
+        return gameLog(`The royal party left well pleased. ${gainText(win)}`, "good", home);
+      }
+      gameLog(`The royal party left in a sour mood: short beds, or a hungry village. ${offence()}`, "bad");
+    },
+    no: () => gameLog(`The royal party was turned away. A steward came for a gift to smooth it over. ${offence()}`, "bad") },
+  { kind: "refugees", can: (home) => S.day > 100 && home.length >= 3 && S.res.food >= 60,
+    make: () => ({ kind: "refugees", folk: 2 + rand(2), take: { food: 30 } }), log: () => "A family at the gate, running from bandits.",
+    yes(t) {
+      const kin = Array.from({ length: t.folk }, () => newcomer(null, "Fled {bandits|raiders} that burned the family farm."));
+      kin.forEach((a, i) => kin.slice(i + 1).forEach((b) => tie(a, b, 35)));
+      S.pursuit = S.day + 4 + rand(8);
+      pay(t.take);
+      gameLog(`The runaways were taken in. Whoever chased them won't be far behind.`, "story", kin);
+    },
+    no: () => gameLog(`The family went on down the road.`, "story") },
+  { kind: "defectors", can: (home) => S.day > 150 && home.length >= 5 && S.res.food >= 60,
+    make: () => ({ kind: "defectors", folk: 2, take: { food: 20 } }), log: () => "Deserters at the gate, done with their bandit band.",
+    yes(t, home) {
+      pay(t.take);
+      const kin = Array.from({ length: t.folk }, () => newcomer(pick(["warrior", "ranger"]), "Rode with {a bandit gang|river raiders} until it turned on them.", Math.min(8, 2 + Math.floor(S.day / 100))));
+      for (const o of [...new Set([...home.filter(() => chance(0.35)), ...(home.length ? [pick(home)] : [])])].slice(0, 2)) {
+        (o.heard ||= []).push({ about: kin[0].id, death: `rode${kin[0].id}`, what: ["rode with the bandits", "left the bandits for good"], v: -1, hops: 0, until: fades() });
+        think(o, "grudge", kin[0].id); tie(o, kin[0], -20);
+        gameLog(`${o.name} won't forgive ${kin[0].name} for riding with the bandits.`, "story", [o, kin[0]]);
+      }
+    },
+    no: () => gameLog(`The deserters went back to the road.`, "story") },
+  { kind: "wildfire", can: () => S.day > 60 && burnable().length >= 3,
+    make: () => { const n = burnable().length; return { kind: "wildfire", at: pick(burnable()), take: { wood: 8 + n, stone: 4 + Math.floor(n / 2) } }; },
+    log: (t) => `Lightning struck near the ${BUILDINGS[S.grid[t.at].type].name.toLowerCase()}. Fire!`,
+    yes: (t) => { pay(t.take); gameLog(`Cut a firebreak and put the fire out. −${Object.entries(t.take).map(([r, n]) => `${n}${RESOURCES[r].icon}`).join(" ")}`, "good"); },
+    no(t) {
+      const b = S.grid[t.at];
+      if (!b) return gameLog(`The fire burned itself out.`, "story");
+      const what = BUILDINGS[b.type].name.toLowerCase();
+      burn(t.at);
+      gameLog(`Nobody fought the fire. The ${what} burned to the ground.`, "bad", living());
+    } },
+];
+function guestCome(home) {
+  const g = pick(GUESTS.filter((x) => x.can(home)));
+  if (!g) return false;
+  S.guestDay = S.day;
+  S.trouble = g.make(home);
+  gameLog(g.log(S.trouble), "story");
+  return true;
+}
 function trouble(home, hold) {
   const t = S.trouble;
   if (S.dropped) {
@@ -941,6 +1052,12 @@ function trouble(home, hold) {
     break;
   }
   if (S.trouble) return;
+  if (S.pursuit && S.day >= S.pursuit && home.length) {
+    S.pursuit = null;
+    const r = ["food", "wood", "stone", "ore", "herbs"].sort((a, b) => S.res[b] - S.res[a])[0];
+    S.trouble = { kind: "bandits", n: 2 + Math.floor(stock() / 150), take: { [r]: Math.ceil(S.res[r] / 3 * shield()) } };
+    return gameLog(`Bandits at the gate, asking after the family.`, "bad");
+  }
   if (S.ladders && S.day >= S.ladders && home.length) {
     S.ladders = S.day + 10 + rand(21);
     const r = ["food", "wood", "stone", "ore", "herbs"].sort((a, b) => S.res[b] - S.res[a])[0];
@@ -968,6 +1085,7 @@ function trouble(home, hold) {
     S.trouble = { kind: "fey", who: fey.id, take: { relics: 1 + rand(2), [pick(["ore", "herbs", "silver"])]: 3 + rand(3) } };
     return gameLog(`${fey.name} shut the forge door.`, "story", [fey]);
   }
+  if (S.day - (S.guestDay ?? -99) >= 20 && chance(0.01) && guestCome(home)) return;
   const pirates = wet() && chance(0.25);
   if (S.day > 12 && chance(Math.min(0.06, (stock() - 120) / 2500) * 0.5 ** guards().length * (has("walls") && !pirates ? 0.5 : 1))) {
     const r = ["food", "wood", "stone", "ore", "herbs"].sort((a, b) => S.res[b] - S.res[a])[0];
@@ -1410,6 +1528,8 @@ function settle(how) {
     } else gameLog(`${s.name} came out of the forge with nothing.`, "bad", [s]);
     return;
   }
+  const guest = GUESTS.find((g) => g.kind === t.kind);
+  if (guest) return how === "yes" && afford(t.take) ? guest.yes(t, atHome()) : guest.no(t);
   const who = { debt: "The collectors", pirates: "The pirates" }[t.kind] || "The bandits";
   if (how === "yes") { grab(1); return gameLog(`Paid ${what}. ${who} left.`, "bad"); }
   if (how === "ignore") { grab(2); return gameLog(`Nobody went to the gate. ${who} took ${what} twice over.`, "bad"); }
@@ -1538,6 +1658,7 @@ function assign(i, settlerId) {
     b.worker = s.id;
     b.maker ??= s.id;
     S.guards = S.guards.filter((id) => id !== s.id);
+    S.militia = (S.militia || []).filter((id) => id !== s.id);
     s.wasJob = null;
   }
   save();
@@ -1689,6 +1810,7 @@ function endDay(hold) {
   gossip(home);
   if (living().length > beds()) home.forEach((s) => think(s, "rough"));
   home.forEach((s) => { if (s.job != null && commute(s) > 4) think(s, "farwalk"); });
+  drill(spent);
   raid();
   trouble(home, hold);
   boon(home);

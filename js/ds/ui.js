@@ -230,7 +230,8 @@ function troubleHead(t) {
   const s = t.who && byId(t.who);
   const face = s ? mug(s) : "";
   if (t.pair) { const [a, b] = t.pair.map(byId); return `<b class="row">${mug(a)} 💍 ${mug(b)}</b>`; }
-  return { bandits: `<b>🗡 ×${t.n}</b>`, pirates: `<b>🌊🗡 ×${t.n}</b>`, debt: `${face} 💰`, fey: `${face} ⚒🔒`, feast: `<b>🍖</b>`, trader: `<b>🛣</b>` }[t.kind];
+  return { bandits: `<b>🗡 ×${t.n}</b>`, pirates: `<b>🌊🗡 ×${t.n}</b>`, debt: `${face} 💰`, fey: `${face} ⚒🔒`, feast: `<b>🍖</b>`, trader: `<b>🛣</b>`,
+    royal: `<b>👑</b>`, refugees: `<b>🏕 ×${t.folk}</b>`, defectors: `<b>🗡 ×${t.folk}</b>`, wildfire: `<b>🔥</b>` }[t.kind];
 }
 function troubleStakes(t) {
   const s = t.who && byId(t.who), want = goods(t.take), twice = goods(Object.fromEntries(Object.entries(t.take).map(([r, n]) => [r, 2 * n])));
@@ -243,14 +244,20 @@ function troubleStakes(t) {
     feast: [`A feast for everyone home: ${want}.`],
     wedding: [`${want} buys the whole village a wedding.`],
     trader: [`A trader at the gate.`],
+    royal: [`Royalty want ${t.beds} free beds (you have ${Math.max(0, freeBeds())}) and ${want}.`, `Hosted well, fed village: silver, relics, research.`, `Ill-hosted or turned away: offence, and a levy.`],
+    refugees: [`${t.folk} runaways ask for shelter: ${want}.`, `Taken in: they join, but whoever chased them may follow.`, `Turned away: they walk on.`],
+    defectors: [`${t.folk} deserters want to join: ${want}.`, `Taken in: seasoned fighters, and someone may not forgive.`, `Turned away: they go back to the road.`],
+    wildfire: [`Fire near the ${BUILDINGS[S.grid[t.at]?.type]?.name.toLowerCase()}: ${want} to put it out.`, `Left to burn: the ${BUILDINGS[S.grid[t.at]?.type]?.name.toLowerCase()} is lost.`],
   }[t.kind] || [];
   return `<div class="stakes">${lines.map((l) => `<p>${l}</p>`).join("")}</div>`;
 }
-const TROUBLE_TITLE = { bandits: "Bandits!", pirates: "River pirates!", debt: "Debt collectors", fey: "Fey mood", feast: "Feast", wedding: "Wedding!", trader: "Trader" };
+const TROUBLE_TITLE = { bandits: "Bandits!", pirates: "River pirates!", debt: "Debt collectors", fey: "Fey mood", feast: "Feast", wedding: "Wedding!", trader: "Trader",
+  royal: "Royal party", refugees: "Runaways", defectors: "Deserters", wildfire: "Fire!" };
 function sheetTrouble() {
   const t = S.trouble, ok = afford(t.take), title = `<h3>${TROUBLE_TITLE[t.kind]}</h3>`;
   const odds = t.n && holds(t.n), label = (x) => `<small>${x}</small>`;
-  const [noText, yesText] = { wedding: ["Small ceremony", "Throw a feast"], feast: ["Skip", "Feast"], fey: ["Refuse", "Give"], debt: ["Refuse", "Pay"], bandits: ["", "Pay"], pirates: ["", "Pay"] }[t.kind] || ["", ""];
+  const [noText, yesText] = { wedding: ["Small ceremony", "Throw a feast"], feast: ["Skip", "Feast"], fey: ["Refuse", "Give"], debt: ["Refuse", "Pay"], bandits: ["", "Pay"], pirates: ["", "Pay"],
+    royal: ["Turn away", "Host"], refugees: ["Turn away", "Take in"], defectors: ["Turn away", "Take in"], wildfire: ["Let it burn", "Fight it"] }[t.kind] || ["", ""];
   const no = t.n ? `⚔ ${Math.round(odds * 100)}%${label(odds >= 0.65 ? "Likely win" : odds >= 0.4 ? "Even fight" : "Likely loss")}` : (t.pair ? "💍" : "✕") + label(noText);
   const yes = costText(t.take) + (t.give ? ` ❯ ${goods(t.give)}` : "") + label(yesText);
   if (t.offers) return `<div class="arrival">${title}<div class="row center">${troubleHead(t)}</div>${troubleStakes(t)}
@@ -313,6 +320,7 @@ function sheetPlot(i) {
         <b>${esc(s.name)}</b>${st}</button>`;
     }).join("") + `</div>`;
   }
+  if (b.type === "barracks") body += `<button class="opt" data-act="militia"><span class="ico">🛡</span><span><b>Militia</b> ${militia().length}/${militiaMax()}<br><small>Pick who drills.</small></span></button>`;
   return body;
 }
 
@@ -394,7 +402,7 @@ function settlerCard(s) {
       <div class="row between"><span class="feel">${moraleFace(s)}${feel}</span><span class="stats">${statLine(st, "", s)}</span></div>
     </div></div>`;
 }
-const jobText = (s) => below(s) ? "🪜" : s.wander?.seen ? "👣" : isGuard(s) ? "👀" : s.job != null && S.grid[s.job] ? BUILDINGS[S.grid[s.job].type].icon : "";
+const jobText = (s) => below(s) ? "🪜" : s.wander?.seen ? "👣" : isMilitia(s) ? "🛡" : isGuard(s) ? "👀" : s.job != null && S.grid[s.job] ? BUILDINGS[S.grid[s.job].type].icon : "";
 const moraleFace = (s) => `<span data-tooltip="Morale" data-placement="bottom">${s.morale >= 75 ? "😄" : s.morale >= 50 ? "🙂" : s.morale >= 30 ? "😐" : "😠"} ${s.morale}</span>`;
 
 let gearPick = null;
@@ -588,6 +596,7 @@ function viewExpedition() {
     ${home.length ? `<div class="row between"><span>👀 Gate watch</span><span class="keepers">${Array.from({ length: watchMax() }, (_, i) => {
       const on = guards()[i];
       return `<button class="pick" data-act="keepdrop" data-v="${i}">${on ? `<img class="mini" src="${faceSrc(on)}" alt=""><span><b>${esc(on.name)}</b> ${CLASSES[on.cls].icon} lv ${on.level}</span>` : "<span>—</span>"}</button>`; }).join("")}</span></div>` : ""}
+    ${built("barracks") ? `<div class="row between"><span>🛡 Militia</span><button class="pick" data-act="militia"><span><b>${militia().length}/${militiaMax()}</b> drilled</span></button></div>` : ""}
     ${stepper("rations", "🍞", plan.rations)}${cook ? stepper("meals", "🥪", plan.meals) : ""}
     <div class="row pair"><button class="${plan.scav ? "" : "on"}" data-act="mode" data-v="0">🤺 Delve</button><button class="${plan.scav ? "on" : ""}" data-act="mode" data-v="1">💰 Scavenge</button></div>
     ${plan.scav ? "" : `<div class="row between"><span>Start at floor</span><select data-act="floor">${floors.map((f) =>
@@ -885,6 +894,10 @@ const GOALS = [
   ["Drove them off", () => logged(/^Drove off /), { silver: 1 }, null, true],
   ["Ladders on the walls", () => logged(/^Ladders on the walls\./), { stone: 5 }, null, true],
   ["Music draws a crowd", () => logged(/ heard the music and wants to join\./), { herbs: 3 }, null, true],
+  ["Fit for a king", () => logged(/^A royal party at the gate\./), { silver: 2 }, null, true],
+  ["Runaways", () => logged(/^A family at the gate, running from bandits\./), { food: 10 }, null, true],
+  ["Turncoats", () => logged(/^Deserters at the gate, /), { potions: 1 }, null, true],
+  ["Struck by lightning", () => logged(/^Lightning struck near /), { wood: 10 }, null, true],
   // Below
   ["Slay a boss", () => felt("victory"), { relics: 1 }, null, true],
   ["Close call", () => felt("neardeath"), { potions: 1 }, null, true],
@@ -1019,6 +1032,9 @@ const sheetAsk = () => { const a = sheet.ask, [no, yes] = a.labels || ["✕<smal
 const sheetKeep = () => { const on = guards()[sheet.keep], home = living().filter((s) => !away(s) && !plan.party.includes(s.id));
   return `<div class="menu"><h3>👀 Gate watch</h3><div class="watchers"><button data-act="keep" data-v="">✕ <b>None</b></button>${home.filter((s) => s === on || !isGuard(s)).map((s) =>
     `<button class="${s === on ? "on" : ""}" data-act="keep" data-v="${s.id}" ${s.laid != null ? "disabled" : ""}><img class="mini" src="${faceSrc(s)}" alt=""><span><b>${esc(s.name)}</b> ${CLASSES[s.cls].icon} ${s.level}<br><small>${statLine(stats(s), `❤️${s.hp}/${stats(s).hpMax}`)}</small></span></button>`).join("")}</div></div>`; };
+const sheetMilitia = () => { const home = living().filter((s) => !away(s) && !plan.party.includes(s.id)), on = militia(), full = on.length >= militiaMax(), odds = holds(2 + Math.floor(stock() / 150));
+  return `<div class="menu"><h3>🛡 Militia <small>${on.length}/${militiaMax()}</small></h3><p class="dim">Each leaves their work and eats ${MILITIA_FOOD}${RESOURCES.food.icon} a day to drill. At the gate now: ⚔ ${Math.round(odds * 100)}%.</p><div class="watchers">${home.map((s) =>
+    `<button class="${on.includes(s) ? "on" : ""}" data-act="enlist" data-v="${s.id}" ${s.laid != null || (full && !on.includes(s)) ? "disabled" : ""}><img class="mini" src="${faceSrc(s)}" alt=""><span><b>${esc(s.name)}</b> ${CLASSES[s.cls].icon} ${s.level} ${jobText(s)}<br><small>${statLine(stats(s), `❤️${s.hp}/${stats(s).hpMax}`)}</small></span></button>`).join("")}</div></div>`; };
 const sheetEvents = () => { const take = feastCost(), wait = feastWait();
   return `<div class="menu"><h3>🎉 Events</h3><div class="watchers">
     <button data-act="dayoff">🏖 <span><b>Day off</b><br><small>No work. Ends the day.</small></span></button>
@@ -1045,7 +1061,7 @@ function renderSheet() {
     box.classList.add("open");
   }
   morph(inner, iconize(sheet.ask ? sheetAsk() : sheet.goals ? sheetGoals() : sheet.recap ? sheetRecap(sheet.recap) : sheet.beasts ? sheetBeasts() : sheet.menu ? sheetMenu() : sheet.event ? sheetEvent() : sheet.visitor ? sheetVisitor() : sheet.trouble ? sheetTrouble() : sheet.person ? sheetPerson()
-    : sheet.keep != null ? sheetKeep() : sheet.events ? sheetEvents() : sheetPlot(sheet.i)));
+    : sheet.keep != null ? sheetKeep() : sheet.militia ? sheetMilitia() : sheet.events ? sheetEvents() : sheetPlot(sheet.i)));
 }
 
 // Drag a bottom sheet down to dismiss it. shade is the dimmed overlay behind it, if we control it.
@@ -1313,6 +1329,8 @@ const ACTS = {
   lifetab: (v) => { sheet.ties = v === "ties"; },
   guard: () => setGuard(sheet.person),
   keepdrop: (v) => (sheet = { keep: +v }),
+  militia: () => (sheet = { militia: true }),
+  enlist: (v) => setMilitia(+v),
   events: () => (sheet = { events: true }),
   dayoff: () => { sheet = null; dayOff(); passDays(1); },
   feast: () => { sheet = null; feast(); save(); },

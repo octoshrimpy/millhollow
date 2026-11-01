@@ -393,6 +393,7 @@ const BUILDINGS = {
   vault: { name: "Guarded storehouse", icon: "🔐", cost: { wood: 14, stone: 24, ore: 3 }, job: "guarding", needs: "walls", desc: "+400 storage. Guarded: raiders take 60% less." },
   wonder: { name: "Wonder", icon: "🗼", cost: { wood: 300, stone: 300, ore: 40 }, needs: "architecture", big: true, desc: "2×2. Raise it to win." },
   smokehouse: { name: "Smokehouse", icon: "🍖", cost: { wood: 8, stone: 2 }, job: "cooking", needs: "smoking", desc: "3🍞 → 1🥪 trail meal per day." },
+  barracks: { name: "Barracks", icon: "🛡", cost: { wood: 16, stone: 14, ore: 2 }, needs: "militia", desc: "3 militia seats. Drilled, they hold the gate harder and cut what raiders take. Each leaves their work and eats 2🍞 extra a day." },
 };
 const IMPROVABLE = (type) => !!(BUILDINGS[type].yields || ["library", "smokehouse", "forge"].includes(type));
 const IMPROVE = [
@@ -418,6 +419,7 @@ const RESEARCH = {
   silverwork: { name: "Silverwork", cost: 12, after: "smelting", desc: "Silver gear. Workplaces to +50%. Silver lies below floor 3." },
   lanterns: { name: "Deep lanterns", cost: 12, desc: "See inside rooms next to you." },
   walls: { name: "Fortified walls", cost: 14, after: "nightwatch", desc: "Half the bandits." },
+  militia: { name: "Militia", cost: 12, after: "nightwatch", desc: "Barracks: drilled villagers stand against raiders." },
   architecture: { name: "Architecture", cost: 14, after: "masonry", desc: "Manors (6 beds)." },
   cartography: { name: "Cartography", cost: 16, after: "surveying", desc: "See 2 further again." },
   green: { name: "Village green", cost: 6, desc: "Parks, playgrounds, chapels, bandstands." },
