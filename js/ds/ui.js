@@ -1100,7 +1100,7 @@ function sheetMenu() {
   return `<div class="menu"><h3>Settings</h3>${secret}<div class="themes">${THEMES.map(swatch).join("")}</div>${saves}<button class="wide" data-act="slots">🗂 Save slots</button>`
     + `<div class="row pair acts">${installer ? `<button class="install stack" data-act="install">📲<small>Install</small></button>` : ""}`
     + `<button class="stack ${speedOpen ? "on" : ""}" data-act="speed">🕐<small>Fight speed</small></button>${document.fullscreenEnabled ? `<button class="stack ${document.fullscreenElement ? "on" : ""}" data-act="fullscreen">⛶<small>Fullscreen</small></button>` : ""}</div>` + (speedOpen ? `<label class="speedrange"><span>Fight speed</span><input id="fightspeed" type="range" min="0" max="${SPEEDS.length - 1}" step="1" value="${SPEEDS.indexOf(fightSpeed)}"><b id="fsval">${fightSpeed}×</b></label>` : "")
-    + `<a class="src" href="https://github.com/octoshrimpy/millhollow" target="_blank" rel="noopener">${GITHUB_MARK}<small>Source</small></a></div>`;
+    + `<a class="src" href="https://github.com/octoshrimpy/millhollow" target="_blank" rel="noopener"><small>v${VERSION}</small>${GITHUB_MARK}<small>Source</small></a></div>`;
 }
 
 const ask = (title, text, act, v, labels, nay) => (sheet = { ask: { title, text, act, v, labels, nay, back: sheet } });

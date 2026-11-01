@@ -10,6 +10,8 @@ const NAMES = {
     "Hesper", "Hollis", "Kestrel", "Mabry", "Perrin", "Pike", "Rowan", "Sorrel",
     "Wren", "Wyn"],
 };
+// Shown in settings; release.sh sets it with the Android versionName.
+const VERSION = "1.6.2";
 const FACES = 90;
 const FACE_F = [1, 4, 6, 8, 13, 14, 16, 23, 24, 25, 26, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 51, 53, 55, 57, 59,
   62, 64, 66, 68, 70, 72, 74, 76, 78, 80, 82, 84, 86, 88];
