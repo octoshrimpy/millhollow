@@ -17,7 +17,7 @@ function manage() {
   // answer whatever is at the gate
   const t = S.trouble;
   if (t) {
-    if (["feast", "wedding", "fey"].includes(t.kind)) settle(afford(t.take) && chance(0.8) ? "yes" : "no");
+    if (["feast", "wedding", "fey", "royal", "refugees", "defectors", "wildfire"].includes(t.kind)) settle(afford(t.take) && chance(0.8) ? "yes" : "no");
     else if (t.kind === "trader") {
       // trade a plenty for a little: pay only from a pile that stays big, and only for something nearly out
       const k = t.offers.findIndex((o) => afford(o.take) && Object.entries(o.take).every(([r, n]) => S.res[r] - n >= (r === "food" ? 40 : 20)) && Object.keys(o.give).every((r) => S.res[r] < 6));
