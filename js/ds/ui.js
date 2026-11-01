@@ -428,10 +428,18 @@ function settlerCard(s) {
   return `<div class="card person" data-act="person" data-v="${s.id}">
     ${mug(s, "face")}
     <div class="grow">
-      <div class="row between"><span>${s.guest ? "🚪 " : ""}<small class="dim">lv ${s.level}</small> <small class="dim">${jobText(s)}</small></span><small class="cls">${c.icon} ${c.name}</small></div>
+      <div class="row between"><span>${s.guest ? "🚪 " : ""}<small class="dim">lv ${s.level}</small> <small class="dim">${jobText(s)}</small>${s.pet ? ` ${tip(`${esc(s.pet.name)} the ${PETS[s.pet.kind].name}`, PETS[s.pet.kind].icon)}` : ""}</span><small class="cls">${c.icon} ${c.name}</small></div>
       ${bar(s.hp, st.hpMax, "hp")}
       <div class="row between"><span class="feel">${moraleFace(s)}${feel}</span><span class="stats">${statLine(st, "", s)}</span></div>
     </div></div>`;
+}
+// A pet's icon, name and kind, and how long they've been together.
+function petLine(s) {
+  const p = s.pet;
+  if (!p) return "";
+  const k = PETS[p.kind], d = S.day - p.since, y = Math.floor(d / 365);
+  const time = y ? many(y, "year") : d >= 60 ? many(Math.floor(d / 30), "month") : d ? many(d, "day") : "since today";
+  return `<div class="row wrap center">${tip("Pet", `${k.icon} ${esc(p.name)} · ${k.name}${petOld(p) > k.span ? ", getting on" : ""}`, "chip")} <small class="dim">${d ? `together ${time}` : time}${p.from ? `, was ${esc(p.from)}'s` : ""}</small></div>`;
 }
 const jobText = (s) => below(s) ? "🪜" : s.wander?.seen ? "👣" : isGuard(s) ? "👀" : s.job != null && S.grid[s.job] ? BUILDINGS[S.grid[s.job].type].icon : "";
 const moraleFace = (s) => `<span data-tooltip="Morale" data-placement="bottom">${s.morale >= 75 ? "😄" : s.morale >= 50 ? "🙂" : s.morale >= 30 ? "😐" : "😠"} ${s.morale}</span>`;
@@ -533,6 +541,7 @@ function sheetPerson() {
     ${s.dead ? "" : `<div class="thoughts">${fresh(s).sort((x, y) => y.n - x.n).map(thoughtChip).join("")}</div>
     ${drivePips(s)}
     <div class="row wrap center">${skills}${traitsOf(s).map((k) => tip("Nature", `${TRAITS[k].icon} ${TRAITS[k].name}`, "chip")).join("")}${s.pastime ? tip("Pastime", `${PASTIMES[s.pastime].icon} ${PASTIMES[s.pastime].name}`, "chip") : ""}</div>
+    ${petLine(s)}
     ${blames(s)}
     ${gearRow(s)}`}
   </div>
@@ -945,6 +954,10 @@ const GOALS = [
   ["Know your foes", () => Object.values(ENEMIES).every((e) => S.beasts?.[e.name]), { relics: 3 }, null, true],
   // Time
   ["A year gone", () => logged(/A year gone/), { relics: 2 }, null, true],
+  // Pets
+  ["A friend at the door", () => S.pets?.adopted > 0, { food: 5 }, null, true],
+  ["Years by their side", () => S.pets?.best >= 5 || S.settlers.some((s) => s.pet && s.pet.ageAt !== s.age && petYears(s.pet) >= 1), { herbs: 5 }, null, true],
+  ["Laid to rest", () => S.pets?.buried > 0, { herbs: 2 }, null, true],
   // Everyone who ever lived here counts, so the big numbers are for the long game.
   ...[[10, "Ten", { food: 10 }], [25, "Twenty-five", { potions: 2 }], [50, "Fifty", { relics: 2 }], [100, "A hundred", { starmetal: 1, relics: 2 }], [200, "Two hundred", { starmetal: 3 }]]
     .map(([n, name, win]) => [`${name} villagers in all`, () => everyone().length >= n, win, null, true]),
