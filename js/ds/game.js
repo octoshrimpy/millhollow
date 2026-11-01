@@ -1328,6 +1328,39 @@ function leave(s) {
   s.job = null;
   S.remains.forEach((r) => { if (r.haunts === s.id) r.haunts = null; });
 }
+// One way through the wonder's gate. Eligible: at home, on their feet, not a visitor; couples go together and someone always stays.
+const gateReady = () => built("wonder") && !(typeof S.wonder?.wear === "number" && S.wonder.ruined);
+const canTravel = (s) => available(s) && !laidUp(s) && s.laid == null && s !== S.visitor;
+function travellers(ids) {
+  const goes = living().filter((s) => ids.includes(s.id) && canTravel(s));
+  const mate = (s) => living().find((o) => o.id === s.spouse);
+  const pairs = goes.filter((s) => !mate(s) || goes.includes(mate(s)));
+  return living().length > pairs.length ? pairs : [];
+}
+// k: a settlement in others, or null to found a new one. Returns how many went.
+function sendThrough(ids, k = null) {
+  const goes = gateReady() ? travellers(ids) : [];
+  if (!goes.length || S.expedition || (k == null && others.length >= 2)) return 0;
+  if (k == null) {
+    const used = new Set([S.town, ...others.map((o) => o.S.town)]);
+    k = openTown(places(6).find((n) => !used.has(n)) ?? places()[0]);
+  }
+  const there = others[k].S, here = S, ids2 = new Set(goes.map((s) => s.id));
+  S = there;
+  for (const s of goes) {
+    const c = JSON.parse(JSON.stringify(s));
+    for (const x of ["job", "wasJob", "laid", "wander", "balk", "guest", "met", "quit", "fz", "was"]) delete c[x];
+    c.job = null; c.heard = []; c.mem = [];
+    c.thoughts = (c.thoughts || []).filter((x) => !x.who);
+    for (const x of ["ties", "pals"]) if (c[x]) c[x] = Array.isArray(c[x]) ? c[x].filter((i) => ids2.has(i)) : Object.fromEntries(Object.entries(c[x]).filter(([i]) => ids2.has(+i)));
+    S.settlers.push(c);
+  }
+  gameLog(`${goes.map((s) => s.name).join(", ")} came through the gate from ${here.town}.`, "story", goes.map((s) => S.settlers.find((o) => o.id === s.id)));
+  S = here;
+  for (const s of goes) { leave(s); S.guards = S.guards.filter((id) => id !== s.id); }
+  gameLog(`${goes.map((s) => s.name).join(", ")} went through the gate to ${there.town}.`, "story", goes);
+  return goes.length;
+}
 function brawl(a, b, lead = "") {
   hurt(a, 0.1, 0.3); hurt(b, 0.15, 0.35);
   think(a, "brawl", b.id); think(b, "brawl", a.id); tie(a, b, -15);
