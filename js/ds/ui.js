@@ -15,8 +15,30 @@ function noteError(m) {
   if (errLog.length > 30) errLog.shift();
   try { localStorage.setItem("mh-errors", JSON.stringify(errLog)); } catch {}
 }
-addEventListener("error", (e) => noteError(`${e.message} @${(e.filename || "").split("/").pop()}:${e.lineno}`));
-addEventListener("unhandledrejection", (e) => noteError(`promise: ${e.reason?.message || e.reason}`));
+// An uncaught error opens a dialog to copy or email. One per distinct message, so a loop of the same error shows once.
+const crashSeen = new Set();
+function crash(m) {
+  noteError(m);
+  const d = $("#crash");
+  if (!d || crashSeen.has(m.slice(0, 160))) return;
+  crashSeen.add(m.slice(0, 160));
+  const report = [`Millhollow v${VERSION}`, navigator.userAgent, typeof S === "object" && S?.settlers ? `day ${S.day}, ${S.settlers.length} settlers` : "no village", "", m, "", ...errLog.slice(-5, -1)].join("\n");
+  d.querySelector("pre").textContent = report;
+  d.dataset.report = report;
+  $("#crashcopy").textContent = "Copy";
+  if (!d.open) d.showModal();
+}
+$("#crashcopy")?.addEventListener("click", async () => {
+  const d = $("#crash"), t = d.dataset.report;
+  try { await navigator.clipboard.writeText(t); } catch { const a = document.createElement("textarea"); a.value = t; d.append(a); a.select(); document.execCommand("copy"); a.remove(); }
+  $("#crashcopy").textContent = "Copied";
+});
+$("#crashmail")?.addEventListener("click", () => {
+  const t = $("#crash").dataset.report;
+  location.href = `mailto:millhollow@octo.sh?subject=${encodeURIComponent(`Millhollow crash v${VERSION}`)}&body=${encodeURIComponent(t.slice(0, 1600))}`;
+});
+addEventListener("error", (e) => { if (!/ResizeObserver|^Script error/.test(e.message)) crash(`${e.message} @${(e.filename || "").split("/").pop()}:${e.lineno}\n${(e.error?.stack || "").split("\n").slice(0, 4).join("\n")}`); });
+addEventListener("unhandledrejection", (e) => crash(`promise: ${e.reason?.message || e.reason}\n${(e.reason?.stack || "").split("\n").slice(0, 4).join("\n")}`));
 const logError = console.error.bind(console);
 console.error = (...a) => { noteError(a.map((x) => x?.stack?.split("\n").slice(0, 3).join(" ") || String(x)).join(" ")); logError(...a); };
 let plan = { party: [], rations: 6, meals: 0, floor: 1 };
@@ -372,7 +394,7 @@ function epitaphs() {
   if (!gs.length) return "";
   return `<h4>🪦 ${many(S.graves.length, "grave")}</h4>` + gs.map((g) => {
     const d = byId(g.id), last = g.said ? `“${esc(g.said.text)}” <small>d${g.said.day}</small>` : esc(g.cause || ""), rite = Object.values(DEITIES).find((x) => x.rite === g.rite)?.riteName || "Burial";
-    return `<p><small>d${d.diedOn ?? g.day}</small> ${named(esc(d.name))} <span class="dim">${esc(rite)}${last ? ` · ${last}` : ""}</span>${g.claims?.length && !g.said ? `<br><small class="dim">${named(esc(g.claims.join("; ")))}</small>` : ""}</p>`;
+    return `<p><small>d${d.diedOn ?? g.day}</small> ${g.ghost ? "👻 " : ""}${named(esc(d.name))} <span class="dim">${esc(rite)}${last ? ` · ${last}` : ""}</span>${g.claims?.length && !g.said ? `<br><small class="dim">${named(esc(g.claims.join("; ")))}</small>` : ""}</p>`;
   }).join("");
 }
 
@@ -987,6 +1009,7 @@ const GOALS = [
   ["Butterfingers", () => logged(/ dropped the keeper's crown /), { silver: 1 }, null, true],
   ["Lost below", () => logged(/ died on floor \d+\./), { relics: 1 }, null, true],
   ["Bring them home", () => logged(/: found .+'s remains\./), { herbs: 3 }, null, true],
+  ["A haunting", () => logged(/ haunts /), { potions: 1 }, null, true],
   ["Heeded the dead", () => logged(/^Heeded /), { herbs: 3 }, null, true],
   ["Inspired by the dead", () => felt("inspired"), { research: 2 }, null, true],
   ["Rat catcher", () => (S.beasts?.["Cellar rat"] || 0) >= 50, { food: 10 }, null, true],
@@ -1149,7 +1172,7 @@ function renderSheet() {
   try {
     html = iconize(sheet.errors ? sheetErrors() : sheet.ask ? sheetAsk() : sheet.goals ? sheetGoals() : sheet.recap ? sheetRecap(sheet.recap) : sheet.beasts ? sheetBeasts() : sheet.menu ? sheetMenu() : sheet.event ? sheetEvent() : sheet.visitor ? sheetVisitor() : sheet.trouble ? sheetTrouble() : sheet.person ? sheetPerson()
       : sheet.keep != null ? sheetKeep() : sheet.militia ? sheetMilitia() : sheet.events ? sheetEvents() : sheetPlot(sheet.i));
-  } catch (e) { console.error(e); sheet = null; box.hidden = true; box.classList.remove("open", "closing"); inner.replaceChildren(); return; }
+  } catch (e) { crash(`sheet ${JSON.stringify(sheet)}: ${e.stack?.split("\n").slice(0, 4).join("\n") || e}`); sheet = null; box.hidden = true; box.classList.remove("open", "closing"); inner.replaceChildren(); return; }
   if (box.hidden || box.classList.contains("closing")) {
     box.classList.remove("closing");
     inner.style.transform = box.style.background = "";
