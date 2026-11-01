@@ -912,6 +912,7 @@ const GOALS = [
   ["Just friends", () => logged(/ would rather stay friends\./), { food: 5 }, null, true],
   ["The whole village came", () => logged(/ married\. The whole village came/), { relics: 1 }, null, true],
   ["Still married", () => S.settlers.some((s) => s.spouse && !s.dead && S.day - s.wedDay >= 100), { herbs: 5 }, null, true],
+  ["Parted ways", () => logged(/ blames .+ for the divorce\./), { herbs: 5 }, null, true],
   ["Followed their heart", () => logged(/ came looking for .+ Wants to join\./), { food: 5 }, null, true],
   ["Wish granted", () => felt("wish"), { research: 2 }, null, true],
   ["A gift", () => logged(/ gave .+\. Thanks for /), { herbs: 2 }, null, true],

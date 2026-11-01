@@ -43,6 +43,7 @@ const many = (n, one, more = `${one}s`) => `${n} ${n === 1 ? one : more}`;
 const YEAR_EVENTS = [
   ["joined", /^.+ joined\.$/, 0, "👥", (n) => many(n, "newcomer")],
   ["wed", / married( quietly|\.)/, 5, "💍", (n) => many(n, "wedding")],
+  ["divorced", / blames .+ for the divorce\./, 3, "💔", (n) => many(n, "divorce")],
   ["friends", / are friends now\./, 2, "🤗", (n) => many(n, "new friendship")],
   ["feuds", / can't stand each other\./, 2, "😠", (n) => many(n, "new feud")],
   ["left", / (never came back|walked off|slipped away in the night|packed up and left in the night|left to find food elsewhere|didn't come back)\./, 3, "🚪", (n) => `${n} left`],
@@ -227,6 +228,8 @@ function tie(a, b, n) {
   if (!a || !b || a === b) return;
   const was = tieOf(a, b), now = Math.max(-100, Math.min(100, was + n));
   (a.ties ||= {})[b.id] = now; (b.ties ||= {})[a.id] = now;
+  if (now <= -70) { (a.feudSince ||= {})[b.id] ??= S.day; (b.feudSince ||= {})[a.id] ??= S.day; }
+  else { delete a.feudSince?.[b.id]; delete b.feudSince?.[a.id]; }
   if (was < FRIEND && now >= FRIEND && !(a.pals ||= []).includes(b.id)) (a.pals.push(b.id), (b.pals ||= []).push(a.id)), gameLog(`${a.name} and ${b.name} are friends now.`, "story", [a, b]);
   else if (was > -FRIEND && now <= -FRIEND) gameLog(`${a.name} and ${b.name} can't stand each other.`, "bad", [a, b]);
 }
@@ -382,6 +385,7 @@ const THOUGHTS = {
   made:      { name: "Made something", icon: "✨", mood: "happy", morale: 12, days: 5, stir: { grief: -25, anger: -15, pride: 30 } },
   jilted:    { name: "Jilted", icon: "💔", mood: "sad", morale: -15, days: 6, stir: { grief: 30, anger: 20, warmth: -30 } },
   wed:       { name: "Married", icon: "💍", mood: "happy", morale: 15, days: 6, stir: { restless: -30, warmth: 30 } },
+  divorced:  { name: "Divorced", icon: "💔", mood: "sad", morale: -12, days: 8, stir: { anger: 20, warmth: -25, restless: 15 } },
   hungover:  { name: "Sore head", icon: "🍖", mood: "sad", morale: -2, days: 1, stir: { restless: -10 } },
   feast:     { name: "Feast", icon: "🍖", mood: "happy", morale: 10, days: 3, stir: { anger: -20, grief: -15, restless: -10, warmth: 20 } },
   mended:    { name: "Mended", icon: "🩹", mood: "happy", morale: 4, days: 2, stir: { fear: -10, warmth: 15 } },
@@ -873,7 +877,7 @@ function migrate() {
   }
   for (const s of [...S.settlers, S.visitor].filter(Boolean)) s.pastime ??= pastimeOf(s);
   // Older villagers get a nature now, and couples count their years from the upgrade.
-  for (const s of [...S.settlers, S.visitor].filter(Boolean)) { traitsOf(s); delete s.wins; if (s.spouse != null) s.wedDay ??= S.day; }
+  for (const s of [...S.settlers, S.visitor].filter(Boolean)) { traitsOf(s); s.feudSince ??= {}; delete s.wins; if (s.spouse != null) s.wedDay ??= S.day; }
 }
 
 // Saves from before the overworld had a 6×4 grid. It moves to the middle of the land, and the
@@ -1493,6 +1497,18 @@ function remembrance(home) {
     gameLog(`${a.name} and ${b.name} marked ${y > 1 ? `${y} years` : "a year"} wed.`, "good", [a, b]);
   }
 }
+function divorce(home) {
+  const pairs = home.filter((a) => a.spouse && a.id < a.spouse).map((a) => [a, byId(a.spouse)])
+    .filter(([a, b]) => b && !b.dead && S.day - a.wedDay >= 730 && a.feudSince?.[b.id] <= S.day - 365 && chance(0.0004));
+  const pair = pick(pairs);
+  if (!pair) return;
+  const [a, b] = pair, blamer = chance(0.5) ? a : b, blamed = blamer === a ? b : a;
+  delete a.spouse; delete b.spouse; delete a.wedDay; delete b.wedDay;
+  think(a, "divorced", b.id); think(b, "divorced", a.id);
+  (blamer.heard ||= []).push({ about: blamed.id, what: [`blames ${blamed.name} for the divorce`, `blames ${blamed.name} for the divorce`], v: -1, hops: 0, until: fades() });
+  gameLog(`${blamer.name} blames ${blamed.name} for the divorce.`, "bad", [a, b]);
+  if (chance(0.25)) { const left = chance(0.5) ? a : b; leave(left); gameLog(`${left.name} packed up and left in the night.`, "bad", [left]); }
+}
 function burn(i) {
   const b = S.grid[i];
   if (b.worker) byId(b.worker).job = null;
@@ -1949,6 +1965,7 @@ function endDay(hold) {
   });
   home.forEach((s) => rest(s));
   gossip(home);
+  divorce(home);
   graveSpeaks(home);
   if (living().length > beds()) home.forEach((s) => think(s, "rough"));
   home.forEach((s) => { if (s.job != null && commute(s) > 4) think(s, "farwalk"); });
