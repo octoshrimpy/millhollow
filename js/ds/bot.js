@@ -11,7 +11,13 @@ const count = (t) => S.grid.filter((b) => b && b.type === t).length;
 // Out of meadow: clear the nearest woods or hills inside the ward, if food allows.
 const clearOne = () => { const i = S.grid.map((_, i) => i).filter((i) => TERRAIN[S.land[i]].clear && S.seen[i] && !siteAt(i) && !contested(i)).sort((a, b) => dist(a, S.hall) - dist(b, S.hall))[0];
   if (i != null && S.res.food - clearCost().food > 2 * living().length) { clearLand(i); return true; } };
-const tryBuild = (t) => { const i = spot(t) ?? (clearOne() ? spot(t) : null); if (i != null && afford(BUILDINGS[t].cost) && (!BUILDINGS[t].needs || has(BUILDINGS[t].needs))) { build(i, t); return S.grid[i]?.type === t; } };
+const tryBuild = (t) => { const i = spot(t) ?? (clearOne() ? spot(t) : null); if (i != null && afford(BUILDINGS[t].cost) && (!BUILDINGS[t].needs || has(BUILDINGS[t].needs))) {
+  const old = LAND;
+  build(i, t);
+  let at = i, size = old;
+  while (size < LAND) { at = (Math.floor(at / size) + 8) * (size + 16) + at % size + 8; size += 16; }
+  return S.grid[at]?.type === t;
+} };
 
 function manage() {
   // answer whatever is at the gate

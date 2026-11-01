@@ -28,10 +28,34 @@ function crash(m) {
   $("#crashcopy").textContent = "Copy";
   if (!d.open) d.showModal();
 }
+async function copyText(text, target) {
+  try {
+    if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(text);
+    else throw new Error("clipboard unavailable");
+    return true;
+  } catch {}
+  const temporary = !target, active = document.activeElement;
+  const a = target || document.createElement("textarea");
+  if (temporary) {
+    a.value = text;
+    a.setAttribute("aria-hidden", "true");
+    a.style.cssText = "position:fixed;left:-9999px";
+    (document.querySelector("dialog[open]") || document.body).append(a);
+  }
+  try { a.focus(); } catch {}
+  try { a.select(); } catch {}
+  let ok = false;
+  try { ok = document.execCommand("copy") === true; } catch {}
+  if (temporary) {
+    a.remove();
+    try { active?.focus(); } catch {}
+  }
+  return ok;
+}
 $("#crashcopy")?.addEventListener("click", async () => {
   const d = $("#crash"), t = d.dataset.report;
-  try { await navigator.clipboard.writeText(t); } catch { const a = document.createElement("textarea"); a.value = t; d.append(a); a.select(); document.execCommand("copy"); a.remove(); }
-  $("#crashcopy").textContent = "Copied";
+  const ok = await copyText(t);
+  $("#crashcopy").textContent = ok ? "Copied" : "Copy failed";
 });
 $("#crashmail")?.addEventListener("click", () => {
   const t = $("#crash").dataset.report;
@@ -81,6 +105,7 @@ function render() {
       <p class="dim">${S.day} days. Deepest floor: ${S.deepest}.</p></div>`));
     renderLog();
     $("#fight").hidden = true;
+    renderSheet();
     return;
   }
   if (S.visitor && S.visitor.id !== knocked && tab === "village" && !sheet && !S.expedition && !botTimer) {
@@ -191,15 +216,16 @@ const morph = (el, html) => {
 let logSeen = Infinity;
 const logLine = (l) => `<p data-key="${l.n}" class="${l.kind} ${l.aside ? "aside" : ""} ${l.n > logSeen ? "new" : ""}"><small>d${l.day}</small> ${named(esc(l.text))}</p>`;
 // Anyone named in a line opens their sheet. ponytail: names are matched as words, so two settlers with one name both open the first.
-let nameRe = null, nameKey = "";
+let nameRe = null, nameIds = null, nameRoster = null, nameCount = -1; // ponytail: names never change, so the roster array and its length identify the matcher
 const named = (html) => {
-  const ns = S.settlers.map((s) => esc(s.name)), key = ns.join("|");
-  if (key !== nameKey) {
-    nameKey = key;
-    const alt = [...new Set(ns)].sort((a, b) => b.length - a.length).map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  if (S.settlers !== nameRoster || S.settlers.length !== nameCount) {
+    nameRoster = S.settlers; nameCount = S.settlers.length;
+    nameIds = new Map();
+    for (const s of S.settlers) { const n = esc(s.name); if (!nameIds.has(n)) nameIds.set(n, s.id); }
+    const alt = [...nameIds.keys()].sort((a, b) => b.length - a.length).map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
     nameRe = alt.length ? new RegExp(`(?<!\\p{L})(${alt.join("|")})(?!\\p{L})`, "gu") : null;
   }
-  return nameRe ? html.replace(nameRe, (n) => `<u class="nm" data-act="person" data-v="${S.settlers[ns.indexOf(n)].id}">${n}</u>`) : html;
+  return nameRe ? html.replace(nameRe, (n) => `<u class="nm" data-act="person" data-v="${nameIds.get(n)}">${n}</u>`) : html;
 };
 function renderLog() {
   const el = $("#log");
@@ -1396,7 +1422,11 @@ const ACTS = {
   newgame: () => (sheet = { menu: true, slots: true, sure: true }),
   slots: () => (sheet = { menu: true, slots: true }),
   errors: () => (sheet = { errors: true }),
-  copyerrors: () => { navigator.clipboard?.writeText(errLog.join("\n")); Juice.toast("📋 Copied", "good"); return "keep"; },
+  copyerrors: () => {
+    const target = $(".errs");
+    copyText(errLog.join("\n"), target).then((ok) => Juice.toast(ok ? "📋 Copied" : "📋 Copy failed", ok ? "good" : "bad"));
+    return "keep";
+  },
   clearerrors: () => { errLog.length = 0; localStorage.removeItem("mh-errors"); },
   slot: (v) => { if (+v === slot) return "keep"; backTo = slotInfo(+v) || S.recruits ? null : slot; useSlot(+v); landPos = null; plan = { party: [], rations: 6, meals: 0, floor: 1 }; tab = "village"; sheet = null; knocked = null; chosen = []; },
   towns: () => { S.towns = places(); S.town = S.towns[0]; save(); const el = document.getElementById("town"); if (el) el.value = S.town; },
@@ -1446,7 +1476,7 @@ const ACTS = {
   center: () => { placeLand(true); return "keep"; },
   demolish: () => {
     const back = Object.entries(refundOf(sheet.i)).map(([k, v]) => `${v} ${RESOURCES[k].name.toLowerCase()}`).join(", ");
-    ask(back ? `Demolish? Get back ${back}.` : "Demolish? No refund.", "demolished", sheet.i);
+    ask("Demolish?", back ? `Get back ${back}.` : "No refund.", "demolished", sheet.i);
   },
   demolished: (v) => { demolish(+v); sheet = null; },
   yes: () => { const a = sheet.ask; sheet = a.back; ACTS[a.act](a.v); },
@@ -1516,13 +1546,11 @@ const ACTS = {
   // Save import/export works on the open sheet in place, so none of these re-render it.
   savecopy: () => {
     exportSave().then((code) => {
-      $("#savecode").value = code;
-      $("#savecode").select();
-      (navigator.clipboard ? navigator.clipboard.writeText(code) : Promise.reject())
-        // Plain http (the LAN address) has no clipboard API; the old copy command still works there.
-        .catch(() => { if (!document.execCommand("copy")) throw 0; })
-        .then(() => Juice.toast("📋 ✓", "good"), () => {});
-    });
+      const target = $("#savecode");
+      target.value = code;
+      target.select();
+      return copyText(code, target);
+    }).then((ok) => Juice.toast(ok ? "📋 ✓" : "📋 Copy failed", ok ? "good" : "bad"), () => Juice.toast("📋 Copy failed", "bad"));
     return "keep";
   },
   fullscreen: () => { (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen({ navigationUI: "hide" })).catch(() => {}); },
@@ -1744,7 +1772,12 @@ document.addEventListener("input", (e) => {
 });
 document.addEventListener("change", (e) => {
   const el = e.target;
-  if (el.id === "savepick") { const f = el.files[0]; el.value = ""; if (f) f.text().then(loadCode); return; }
+  if (el.id === "savepick") {
+    const f = el.files[0];
+    el.value = "";
+    if (f) f.text().then((text) => { loadCode(text); render(); }).catch((e) => crash(`save read failed: ${e?.message || e}`));
+    return;
+  }
   if (!el.dataset.act) return;
   if (el.dataset.act === "floor") plan.floor = +el.value;
   render();

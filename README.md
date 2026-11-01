@@ -37,7 +37,8 @@ a ruin whose foes are your own dead villagers.
 A barracks lets villagers drill as militia, while royal parties, refugees, deserters and
 wildfires can bring new choices to the gate. Once the wonder stands, its gate can found and
 switch between up to three settlements or send villagers through; settlements you are not
-playing stay frozen.
+playing stay frozen. Travellers keep their ages, pet ages and remaining thought durations
+when crossing between settlements with different local dates.
 
 Ninety portraits change with a person's age and mood.
 
@@ -52,8 +53,18 @@ Past recaps are under the clock tab.
 Plain JavaScript, no build step, no server code. Your save lives in the browser, and the
 gear menu can export it as a code or a file.
 
+Settings stays available even when a village is empty, so you can switch slots or import
+a save. File imports ask before replacing the current game. Settings also has error logs;
+an unexpected error opens a report with Copy and Email actions.
+
 ```
 python3 serve.py   # http://localhost:8791
+```
+
+Run the focused simulation regression checks without changing any saved games:
+
+```
+node tools/sim/regressions.js
 ```
 
 ## Where things are

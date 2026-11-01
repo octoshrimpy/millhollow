@@ -1,6 +1,7 @@
 package sh.octo.millhollow;
 
 import android.app.Activity;
+import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
@@ -8,6 +9,7 @@ import android.os.Bundle;
 import android.view.WindowInsets;
 import android.window.OnBackInvokedDispatcher;
 import android.widget.FrameLayout;
+import android.widget.Toast;
 import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -57,7 +59,11 @@ public class MainActivity extends Activity {
       }
       @Override public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
         if (HOST.equals(r.getUrl().getHost())) return false;
-        startActivity(new Intent(Intent.ACTION_VIEW, r.getUrl()));
+        try {
+          startActivity(new Intent(Intent.ACTION_VIEW, r.getUrl()));
+        } catch (ActivityNotFoundException e) {
+          Toast.makeText(MainActivity.this, "No app available; copy the link instead.", Toast.LENGTH_SHORT).show();
+        }
         return true;
       }
     });

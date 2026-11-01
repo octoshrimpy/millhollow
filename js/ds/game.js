@@ -655,7 +655,9 @@ function grow(pad = 8) {
   S.sites.forEach((x) => (x.i = to(x.i)));
   for (const s of [...S.settlers, S.visitor].filter(Boolean)) {
     if (s.job != null) s.job = to(s.job);
-    if (s.was) s.was.i = to(s.was.i);
+    if (s.wasJob?.i != null) s.wasJob.i = to(s.wasJob.i);
+    if (s.was?.i != null) s.was.i = to(s.was.i);
+    if (s.laid != null) s.laid = to(s.laid);
   }
   newLand = newLand.map(to);
   setLand(S.size = n);
@@ -877,7 +879,7 @@ function migrate() {
   S.graves.forEach((g) => g.rite ??= "burial");
   S.graves.forEach((g) => { g.ghost ??= true; }); // graves from before ghosts were chosen already spoke
   // Floors kept from before the save were one object with the expedition's map.
-  if (S.expedition) (siteOf().floors ||= {})[S.expedition.map.floor] = S.expedition.map;
+  if (S.expedition) (siteOf()[S.expedition.scav ? "scav" : "floors"] ||= {})[S.expedition.map.floor] = S.expedition.map;
   for (const j of S.forging || []) if (j.until) { delete j.until; j.left = 1; }
   S.guards ??= S.guard ? [S.guard] : []; delete S.guard;
   if (S.research.includes("walls")) S.ladders ??= S.day + 10 + rand(21);
@@ -1690,10 +1692,19 @@ function sendThrough(ids, k = null) {
     const used = new Set([S.town, ...others.map((o) => o.S.town)]);
     k = openTown(places(6).find((n) => !used.has(n)) ?? places()[0]);
   }
-  const there = others[k].S, here = S, ids2 = new Set(goes.map((s) => s.id));
+  const there = others[k].S, here = S, ids2 = new Set(goes.map((s) => s.id)), shift = there.day - here.day;
+  const move = (o, key) => { if (o?.[key] != null) o[key] += shift; };
+  const moveMap = (o, key) => { if (o?.[key]) for (const id of Object.keys(o[key])) if (o[key][id] != null) o[key][id] += shift; };
   S = there;
   for (const s of goes) {
     const c = JSON.parse(JSON.stringify(s));
+    move(c, "born"); move(c, "upDay"); move(c, "tookUp"); move(c, "fey"); move(c, "graft");
+    move(c.pet, "since");
+    for (const x of c.thoughts || []) move(x, "until");
+    for (const x of c.story || []) { move(x, "day"); move(x, "to"); }
+    for (const x of c.owes || []) move(x, "day");
+    move(c.same, "day"); move(c.sweet, "day");
+    moveMap(c, "feudSince"); moveMap(c, "fought");
     for (const x of ["job", "wasJob", "laid", "wander", "balk", "guest", "met", "quit", "fz", "was"]) delete c[x];
     c.job = null; c.heard = []; c.mem = [];
     c.thoughts = (c.thoughts || []).filter((x) => !x.who);
@@ -1883,7 +1894,7 @@ function build(i, type) {
   if (b.near && !beside(i, b.near)) return;
   if ((S.hall == null) !== (type === "townhall")) return;
   pay(b.cost);
-  S.grid[i] = { type, worker: null, spent: { ...b.cost } };
+  const raised = S.grid[i] = { type, worker: null, spent: { ...b.cost } };
   if (b.big) cellsOf(i, type).slice(1).forEach((j) => (S.grid[j] = { type, part: 1, worker: null, spent: {} }));
   if (type === "townhall") {
     S.hall = i;
@@ -1898,7 +1909,7 @@ function build(i, type) {
     reveal(i, 1);
     gameLog(`Built ${b.name.toLowerCase()}.`);
   }
-  raisedVenue(S.grid[i]);
+  raisedVenue(raised);
   if (type === "graveyard") bury();
   living().filter((s) => !away(s)).forEach((s) => think(s, "built"));
   (S.asks?.[type] || []).map(byId).filter((s) => s && !s.dead).forEach((s) => think(s, "wish"));
@@ -2431,7 +2442,7 @@ function lay(m, site) {
   Object.values(rooms).forEach((r) => delete r.body);
   const here = S.remains.filter((x) => x.at === "below" && S.sites[x.site] === site && x.floor === m.floor);
   for (const x of here) {
-    const k = rooms[x.room] ? x.room : pick(Object.keys(rooms).filter((k) => !rooms[k].body && !["entrance", "stairs", "boss"].includes(rooms[k].type)));
+    const k = rooms[x.room] && !rooms[x.room].body ? x.room : pick(Object.keys(rooms).filter((k) => !rooms[k].body && !["entrance", "stairs", "boss"].includes(rooms[k].type)));
     if (k) { rooms[k].body = x.id; x.room = k; }
   }
   return m;
