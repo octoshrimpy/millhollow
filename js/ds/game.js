@@ -892,7 +892,10 @@ function migrate() {
   }
   for (const s of [...S.settlers, S.visitor].filter(Boolean)) s.pastime ??= pastimeOf(s);
   // Portrait bands used to be fixed words; they become birthdays that land in the same band.
-  for (const s of [...S.settlers, ...(S.gone || []), ...(S.recruits || []), S.visitor].filter(Boolean)) if (s.born == null) { s.born = S.day - 365 * grownAge(s.age || "mid", s.id); delete s.age; }
+  for (const s of [...S.settlers, ...(S.gone || []), ...(S.recruits || []), S.visitor].filter(Boolean)) {
+    if (s.face > FACES) s.face = (s.face - 1) % FACES + 1;
+    if (s.born == null) { s.born = S.day - 365 * grownAge(s.age || "mid", s.id); delete s.age; }
+  }
   for (const s of [...S.settlers, ...(S.gone || []), ...(S.recruits || []), S.visitor].filter(Boolean)) s.faith ??= Object.keys(DEITIES)[(s.id - 1) % Object.keys(DEITIES).length];
   // Older villagers get a nature now, and couples count their years from the upgrade.
   for (const s of [...S.settlers, S.visitor].filter(Boolean)) { traitsOf(s); s.feudSince ??= {}; delete s.wins; if (s.spouse != null) s.wedDay ??= S.day; }
@@ -1658,7 +1661,7 @@ function leave(s) {
   s.job = null;
 }
 // One way through the wonder's gate. Eligible: at home, on their feet, not a visitor; couples go together and someone always stays.
-const gateReady = () => built("wonder") && !(typeof S.wonder?.wear === "number" && S.wonder.ruined);
+const gateReady = () => built("wonder") && !S.wonder?.ruin;
 const canTravel = (s) => available(s) && !laidUp(s) && s.laid == null && s !== S.visitor;
 function travellers(ids) {
   const goes = living().filter((s) => ids.includes(s.id) && canTravel(s));

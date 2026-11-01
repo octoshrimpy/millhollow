@@ -25,6 +25,22 @@ crown home and your land grows.
 The village talks. When someone dies, people decide whose fault it was, and the story
 changes as it gets passed around. Tap a face to hear what they think.
 
+People age, marry, divorce and have children. Children inherit pieces of their parents'
+natures and grudges, grow up at twelve, and carry the village into another generation.
+Stray pets sometimes find the right person and may pass to someone close when their owner
+dies.
+
+Burial rites follow the dead person's deity. Voices at the graves can warn of trouble or
+inspire the living. The wonder weathers each year; leave it cracked too long and it falls into
+a ruin whose foes are your own dead villagers.
+
+A barracks lets villagers drill as militia, while royal parties, refugees, deserters and
+wildfires can bring new choices to the gate. Once the wonder stands, its gate can found and
+switch between up to three settlements or send villagers through; settlements you are not
+playing stay frozen.
+
+Sixty portraits change with a person's age and mood.
+
 Goals live behind the bell. Some are hidden until they happen, and a few reward the long game:
 how many people have ever lived in the village. Every year (365 days) ends with a recap of who
 came and went, what got built and lost, and a few moments worth remembering, plus a gift of
