@@ -897,6 +897,11 @@ function migrate() {
     if (s.born == null) { s.born = S.day - 365 * grownAge(s.age || "mid", s.id); delete s.age; }
   }
   for (const s of [...S.settlers, ...(S.gone || []), ...(S.recruits || []), S.visitor].filter(Boolean)) s.faith ??= Object.keys(DEITIES)[(s.id - 1) % Object.keys(DEITIES).length];
+  // Thoughts that were removed (haunted) would break every sheet and card that reads them.
+  for (const s of [...S.settlers, ...(S.gone || []), ...(S.recruits || []), S.visitor].filter(Boolean)) {
+    if (s.story) s.story = s.story.filter((e) => !e.k || THOUGHTS[e.k]);
+    if (s.thoughts) s.thoughts = s.thoughts.filter((x) => THOUGHTS[x.k]);
+  }
   // Older villagers get a nature now, and couples count their years from the upgrade.
   for (const s of [...S.settlers, S.visitor].filter(Boolean)) { traitsOf(s); s.feudSince ??= {}; delete s.wins; if (s.spouse != null) s.wedDay ??= S.day; }
 }

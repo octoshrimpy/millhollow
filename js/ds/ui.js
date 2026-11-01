@@ -8,6 +8,17 @@ let pleaded = null;
 let alarmed = null;
 // Ask the browser not to clear the save when it tidies up storage (Safari does after a week away).
 navigator.storage?.persist?.().catch(() => {});
+// Errors go into a small ring in localStorage so settings can show them; a phone has no console.
+const errLog = (() => { try { return JSON.parse(localStorage.getItem("mh-errors") || "[]"); } catch { return []; } })();
+function noteError(m) {
+  errLog.push(`${new Date().toISOString().slice(5, 19)} v${VERSION} ${m}`);
+  if (errLog.length > 30) errLog.shift();
+  try { localStorage.setItem("mh-errors", JSON.stringify(errLog)); } catch {}
+}
+addEventListener("error", (e) => noteError(`${e.message} @${(e.filename || "").split("/").pop()}:${e.lineno}`));
+addEventListener("unhandledrejection", (e) => noteError(`promise: ${e.reason?.message || e.reason}`));
+const logError = console.error.bind(console);
+console.error = (...a) => { noteError(a.map((x) => x?.stack?.split("\n").slice(0, 3).join(" ") || String(x)).join(" ")); logError(...a); };
 let plan = { party: [], rations: 6, meals: 0, floor: 1 };
 
 function faceFor(s, hp, hpMax) {
@@ -1097,12 +1108,14 @@ function sheetMenu() {
     : `<button class="danger wide" data-act="newgame" ${S.recruits ? "disabled" : ""}>New game</button>`) + `</div>`;
   const secret = sheet.secret ? `<div class="row pair bot"><span>🤖</span><input id="botdays" type="number" min="1" value="${botDays}" inputmode="numeric">
     <button data-act="bot">▶</button><button data-act="bot" data-v="all">∞</button><button data-act="botstop" ${botTimer ? "" : "disabled"}>⏹</button></div>` : "";
-  return `<div class="menu"><h3>Settings</h3>${secret}<div class="themes">${THEMES.map(swatch).join("")}</div>${saves}<button class="wide" data-act="slots">🗂 Save slots</button>`
+  return `<div class="menu"><h3>Settings</h3>${secret}<div class="themes">${THEMES.map(swatch).join("")}</div>${saves}<button class="wide" data-act="slots">🗂 Save slots</button><button class="wide" data-act="errors">📋 Logs${errLog.length ? ` (${errLog.length})` : ""}</button>`
     + `<div class="row pair acts">${installer ? `<button class="install stack" data-act="install">📲<small>Install</small></button>` : ""}`
     + `<button class="stack ${speedOpen ? "on" : ""}" data-act="speed">🕐<small>Fight speed</small></button>${document.fullscreenEnabled ? `<button class="stack ${document.fullscreenElement ? "on" : ""}" data-act="fullscreen">⛶<small>Fullscreen</small></button>` : ""}</div>` + (speedOpen ? `<label class="speedrange"><span>Fight speed</span><input id="fightspeed" type="range" min="0" max="${SPEEDS.length - 1}" step="1" value="${SPEEDS.indexOf(fightSpeed)}"><b id="fsval">${fightSpeed}×</b></label>` : "")
     + `<a class="src" href="https://github.com/octoshrimpy/millhollow" target="_blank" rel="noopener"><small>v${VERSION}</small>${GITHUB_MARK}<small>Source</small></a></div>`;
 }
 
+const sheetErrors = () => `<div class="menu"><h3>Logs</h3>${errLog.length ? `<textarea class="errs" readonly>${esc(errLog.join("\n"))}</textarea>` : `<p class="dim">Nothing has gone wrong.</p>`}
+  <div class="row pair"><button data-act="copyerrors" ${errLog.length ? "" : "disabled"}>Copy</button><button data-act="clearerrors" ${errLog.length ? "" : "disabled"}>Clear</button></div></div>`;
 const ask = (title, text, act, v, labels, nay) => (sheet = { ask: { title, text, act, v, labels, nay, back: sheet } });
 const sheetAsk = () => { const a = sheet.ask, [no, yes] = a.labels || ["✕<small>No</small>", "✓<small>Yes</small>"];
   return `<div class="menu"><h3>${a.title}</h3><p>${esc(a.text)}</p><div class="row pair"><button class="${a.nay ? "primary" : ""}" data-act="no">${no}</button><button class="${a.nay ? "" : "primary"}" data-act="yes">${yes}</button></div></div>`; };
@@ -1134,7 +1147,7 @@ function renderSheet() {
   // Build before touching the box: a builder that throws closes the sheet instead of leaving the last one on screen.
   let html;
   try {
-    html = iconize(sheet.ask ? sheetAsk() : sheet.goals ? sheetGoals() : sheet.recap ? sheetRecap(sheet.recap) : sheet.beasts ? sheetBeasts() : sheet.menu ? sheetMenu() : sheet.event ? sheetEvent() : sheet.visitor ? sheetVisitor() : sheet.trouble ? sheetTrouble() : sheet.person ? sheetPerson()
+    html = iconize(sheet.errors ? sheetErrors() : sheet.ask ? sheetAsk() : sheet.goals ? sheetGoals() : sheet.recap ? sheetRecap(sheet.recap) : sheet.beasts ? sheetBeasts() : sheet.menu ? sheetMenu() : sheet.event ? sheetEvent() : sheet.visitor ? sheetVisitor() : sheet.trouble ? sheetTrouble() : sheet.person ? sheetPerson()
       : sheet.keep != null ? sheetKeep() : sheet.militia ? sheetMilitia() : sheet.events ? sheetEvents() : sheetPlot(sheet.i));
   } catch (e) { console.error(e); sheet = null; box.hidden = true; box.classList.remove("open", "closing"); inner.replaceChildren(); return; }
   if (box.hidden || box.classList.contains("closing")) {
@@ -1359,6 +1372,9 @@ const ACTS = {
   theme: (v) => { applyTheme(v); },
   newgame: () => (sheet = { menu: true, slots: true, sure: true }),
   slots: () => (sheet = { menu: true, slots: true }),
+  errors: () => (sheet = { errors: true }),
+  copyerrors: () => { navigator.clipboard?.writeText(errLog.join("\n")); Juice.toast("📋 Copied", "good"); return "keep"; },
+  clearerrors: () => { errLog.length = 0; localStorage.removeItem("mh-errors"); },
   slot: (v) => { if (+v === slot) return "keep"; backTo = slotInfo(+v) || S.recruits ? null : slot; useSlot(+v); landPos = null; plan = { party: [], rations: 6, meals: 0, floor: 1 }; tab = "village"; sheet = null; knocked = null; chosen = []; },
   towns: () => { S.towns = places(); S.town = S.towns[0]; save(); const el = document.getElementById("town"); if (el) el.value = S.town; },
   town: (v) => { S.town = v; save(); const el = document.getElementById("town"); if (el) el.value = v; },
@@ -1508,13 +1524,16 @@ function loadCode(text) {
   if (!String(text).trim()) { $("#savecode").focus(); return "keep"; }
   ask("Load save", "Replace this game?", "imported", text);
 }
+// A pasted code the clipboard cut short fails inside the gunzip; the toast says so.
 function importCode(text) {
   importSave(text).then(() => {
     plan = { party: [], rations: 6, meals: 0, floor: 1 };
     tab = "village"; sheet = null; knocked = null; landPos = null; fightBuilt = null; logSeen = Infinity;
     render();
     Juice.toast(`📥 Day ${S.day}`, "good");
-  }, () => {
+  }, (e) => {
+    noteError(`import failed (${String(text).length} chars): ${e?.message || e}`);
+    Juice.toast(String(text).trim().startsWith(CODE_TAG) ? "📥 Code cut short or damaged" : "📥 Not a save", "bad");
     const box = $("#savecode");
     if (box) { box.value = text; box.classList.remove("nope"); void box.offsetWidth; box.classList.add("nope"); }
   });
