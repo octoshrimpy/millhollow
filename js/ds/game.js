@@ -84,6 +84,11 @@ function yearWin(y) {
   if (y % 10 === 0) { win.relics += 5; win.starmetal += 2; }
   return win;
 }
+function yearsWin(ys) {
+  const sum = {};
+  for (const y of ys) for (const [k, n] of Object.entries(yearWin(y))) sum[k] = (sum[k] || 0) + n;
+  return sum;
+}
 function note(s, entry) {
   s.story ||= [];
   const last = s.story[s.story.length - 1];
@@ -94,9 +99,10 @@ function note(s, entry) {
 
 let nextId = 1;
 function makeSettler(cls) {
-  const used = new Set(S ? [...S.settlers, S.visitor].filter(Boolean).map((s) => s.face) : []);
-  const free = Array.from({ length: FACES }, (_, i) => i + 1).filter((f) => !used.has(f));
-  const face = free.length ? pick(free) : 1 + rand(FACES);
+  // Any face no living villager wears can come as a visitor, including the dead's and the departed's; with every face worn, repeats beat nobody coming.
+  const alive = new Set(S ? [...S.settlers.filter((s) => !s.dead), S.visitor].filter(Boolean).map((s) => s.face) : []);
+  const open = Array.from({ length: FACES }, (_, i) => i + 1).filter((f) => !alive.has(f));
+  const face = pick(open.length ? open : Array.from({ length: FACES }, (_, i) => i + 1));
   const taken = new Set(S ? S.settlers.map((s) => s.name) : []);
   const c = CLASSES[cls || pick(Object.keys(CLASSES))];
   const s = {
@@ -574,7 +580,7 @@ function newGame() {
   S = {
     day: 1, res: { food: 20, wood: 12, stone: 4, ore: 0, herbs: 0, relics: 0, research: 0, potions: 0, meals: 0, silver: 0, starmetal: 0 },
     seed: rand(2 ** 31), carry: {}, grid: Array(LAND * LAND).fill(null), seen: Array(LAND * LAND).fill(false), hall: null, cleared: 0, settlers: [], research: [],
-    deepest: 0, beasts: {}, visitor: null, expedition: null, log: [], remains: [], size: LAND, claim: 0, guards: [], goals: [], recapped: 0,
+    deepest: 0, beasts: {}, visitor: null, expedition: null, log: [], remains: [], size: LAND, claim: 0, guards: [], goals: [], recapped: 0, lapsed: [],
   };
   S.land = genLand(S.seed);
   S.towns = places();
@@ -673,8 +679,11 @@ function load() {
     S.arcane ??= false;
     S.beasts ??= {};
     S.claimed ??= [...(S.goals || [])]; // goals reached before claiming existed were paid on the spot
-    // Saves from before recaps start this year's tally from the log that's left, and don't replay years already gone.
+    // Saves from before recaps start this year's tally from the log that's left. Years with no record were never paid: they come as one catch-up.
     S.recapped ??= yearOf(S.day) - 1;
+    if (!S.lapsed) { S.lapsed = []; for (let y = 1; y < yearOf(S.day); y++) if (!S.years?.[y]) S.lapsed.push(y); }
+    const renamed = (t) => t.replace(/ souls$/, " villagers in all");
+    S.goals = S.goals?.map(renamed); S.claimed = S.claimed.map(renamed);
     if (!S.yr) for (const l of S.log) if (l.kind !== "day" && yearOf(l.day) === yearOf(S.day)) tallyYear(l.text, l.day);
     S.towns ??= places();
     S.town ??= S.recruits ? S.towns[0] : "Millhollow";

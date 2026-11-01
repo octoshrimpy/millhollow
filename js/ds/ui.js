@@ -55,12 +55,13 @@ function render() {
     sheet = { visitor: true };
   }
   if (sheet && sheet.visitor && !S.visitor) sheet = null;
-  if (!sheet && tab === "village" && !S.expedition && !botTimer && S.recapped < yearOf(S.day) - 1) {
-    const y = ++S.recapped, win = yearWin(y);
-    sheet = { recap: y };
-    Juice.veil(`Year ${y}`, y % 10 ? S.town : `A decade in ${S.town}`);
+  if (!sheet && tab === "village" && !S.expedition && !botTimer && (S.lapsed?.length || S.recapped < yearOf(S.day) - 1)) {
+    const ys = S.lapsed?.length ? S.lapsed : [++S.recapped], y = ys[ys.length - 1], win = yearsWin(ys);
+    S.lapsed = [];
+    sheet = { recap: y, ...(ys.length > 1 || S.years?.[y] == null ? { lapsed: ys } : {}) };
+    Juice.veil(ys.length > 1 ? `Years ${ys[0]}–${y}` : `Year ${y}`, y % 10 ? S.town : `A decade in ${S.town}`);
     payOut(win, () => $("#sheet .reward") || $("#view"), 1000);
-    fireworks(y, 400);
+    fireworks(y, 400, ys.some((n) => n % 10 === 0));
     save();
   }
   const ev = S.expedition?.event, here = ev && `${S.expedition.map.floor}:${S.expedition.map.at}`;
@@ -900,7 +901,7 @@ const GOALS = [
   ["A year gone", () => logged(/A year gone/), { relics: 2 }, null, true],
   // Everyone who ever lived here counts, so the big numbers are for the long game.
   ...[[10, "Ten", { food: 10 }], [25, "Twenty-five", { potions: 2 }], [50, "Fifty", { relics: 2 }], [100, "A hundred", { starmetal: 1, relics: 2 }], [200, "Two hundred", { starmetal: 3 }]]
-    .map(([n, name, win]) => [`${name} souls`, () => everyone().length >= n, win, null, true]),
+    .map(([n, name, win]) => [`${name} villagers in all`, () => everyone().length >= n, win, null, true]),
   // Windfalls
   ["Bumper crop", () => logged(/^🌾 Bumper harvest/), { herbs: 3 }, null, true],
   ["Fallen oaks", () => logged(/^🌲 A storm felled/), { stone: 5 }, null, true],
@@ -935,12 +936,20 @@ function sheetGoals() {
   const on = (k) => (k === (sheet.years ? "years" : sheet.secret ? "secret" : "") ? "on" : "");
   const tabs = `<div class="sites lifetabs"><button class="${on("")}" data-act="goaltab" aria-label="Goals">🔔</button><button class="${on("secret")}" data-act="goaltab" data-v="secret" aria-label="Hidden">❔</button><button class="${on("years")}" data-act="goaltab" data-v="years" aria-label="Years">🕐</button></div>`;
   const years = Object.entries(S.years || {}).map(([y, r]) => `<button data-act="recap" data-v="${y}">Year ${y} <span>👥 ${r.pop0}→${r.pop}</span></button>`).join("") || `<p class="dim">The first year isn't over yet.</p>`;
-  return `<div class="menu"><h3>🔔 Goals</h3>${tabs}<div class="goals">${sheet.years ? years : GOALS.map((g, i) => !g[4] === !sheet.secret ? row(g, i) : "").join("")}</div></div>`;
+  const idx = GOALS.map((_, i) => i).filter((i) => !GOALS[i][4] === !sheet.secret);
+  const rank = (i) => (S.claimed.includes(GOALS[i][0]) ? 1 : goalDone(GOALS[i]) ? 0 : 2);
+  if (sheet.secret) idx.sort((a, b) => rank(a) - rank(b)); // found ones first: claimable, then claimed, then still blurred
+  return `<div class="menu"><h3>🔔 Goals</h3>${tabs}<div class="goals">${sheet.years ? years : idx.map((i) => row(GOALS[i], i)).join("")}</div></div>`;
 }
 
 // A year in review: where the village stood, what it counted, and the few moments worth telling again.
 function sheetRecap(y) {
-  const r = S.years?.[y];
+  const r = S.years?.[y], back = sheet.lapsed;
+  if (back) return `<div class="menu recap"><h3>🕐 ${back.length > 1 ? `Years ${back[0]}–${y}` : `Year ${y}`}</h3>
+    <p class="dim lead">${esc(S.town)} · days 1–${365 * y}</p>
+    <p class="lead">${back.length > 1 ? "These years went by before the village kept count." : "This year went by before the village kept count."}</p>
+    <p class="lead reward">${back.some((n) => n % 10 === 0) ? "🎉 " : ""}${goods(yearsWin(back))}</p>
+    <button class="primary" data-act="close">Close</button></div>`;
   if (!r) return `<div class="menu"><h3>🕐 Year ${y}</h3><p class="dim">Nobody kept count.</p></div>`;
   const counts = YEAR_EVENTS.filter(([k]) => r.n[k]).map(([k, , , icon, label]) => `<p><span>${icon}</span> ${label(r.n[k])}</p>`);
   if (r.beasts > 0) counts.push(`<p><span>🐀</span> ${many(r.beasts, "beast")} slain</p>`);
@@ -971,8 +980,8 @@ function payOut(win, from, delay = 0) {
 }
 
 // Small bursts over the dimmed village behind the recap sheet; a decade gets a long show.
-function fireworks(y, after) {
-  const show = y % 10 === 0, n = show ? 16 : 5, hues = show ? [PAL.gold, PAL.fire, PAL.heal, PAL.arcane, PAL.blood] : [PAL.gold];
+function fireworks(y, after, show = y % 10 === 0) {
+  const n = show ? 16 : 5, hues = show ? [PAL.gold, PAL.fire, PAL.heal, PAL.arcane, PAL.blood] : [PAL.gold];
   for (let i = 0; i < n; i++) setTimeout(() => {
     if (sheet?.recap !== y) return;
     const x = innerWidth * (0.1 + Math.random() * 0.8), yy = innerHeight * (0.08 + Math.random() * 0.4), colors = hues[i % hues.length];
