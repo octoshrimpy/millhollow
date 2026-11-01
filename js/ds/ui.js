@@ -111,6 +111,8 @@ function renderTop() {
   morph($("#menu"), iconize("⚙"));
   morph($("#savebtn"), iconize(botTimer ? "⏹" : "💾"));
   $("#savebtn").dataset.act = botTimer ? "botstop" : "savefile";
+  $("#towns").hidden = !others.length;
+  morph($("#towns"), iconize(others.length ? `<button class="small on">🏘 ${esc(S.town)}</button>` + others.map((o, k) => `<button class="small" data-act="switch" data-v="${k}" ${S.expedition ? "disabled" : ""}>${esc(o.S.town)}</button>`).join("") : ""));
   const log = ["log", "Log", "📖"];
   const tabs = S.expedition ? [["dungeon", "Dungeon", "🪜"], ["people", "People", "👥"], log]
     : [["village", "Village", "🏘"], ["people", "People", "👥"], ["forge", "Forge", "⚒"], ["research", "Research", "📜"], log, ["expedition", "Expedition", "🧭"]];
@@ -317,7 +319,20 @@ function sheetPlot(i) {
         <b>${esc(s.name)}</b>${st}</button>`;
     }).join("") + `</div>`;
   }
+  if (b.type === "wonder") body += sheetGate();
   return body;
+}
+
+// The wonder is where settlements meet: switch to another, or send villagers through (one way, once the gate stands).
+function sheetGate() {
+  const there = others.map((o, k) => `<button class="small" data-act="switch" data-v="${k}" ${S.expedition ? "disabled" : ""}>🏘 ${esc(o.S.town)} <small>Day ${o.S.day}</small></button>`).join("");
+  const out = others.length ? `<h3>Settlements</h3><div class="row wrap">${there}</div>` : "";
+  if (!gateReady()) return out + `<p class="dim">🔒 The gate is shut.</p>`;
+  chosen = chosen.filter((id) => living().some((s) => s.id === id && canTravel(s)));
+  const go = travellers(chosen).length, dests = [...others.map((o, k) => [k, o.S.town]), ...(others.length < 2 ? [["new", "A new settlement"]] : [])];
+  return out + `<h3>🚪 Send villagers through</h3><p class="dim">One way. Couples go together, and someone stays.</p><div class="who">`
+    + living().filter(canTravel).map((s) => `<button class="${chosen.includes(s.id) ? "on" : ""}" data-act="gate" data-v="${s.id}"><img src="${faceSrc(s)}" alt=""><b>${esc(s.name)}</b></button>`).join("")
+    + `</div><div class="row wrap">` + dests.map(([k, n]) => `<button class="small" data-act="sendask" data-v="${k}" ${go ? "" : "disabled"}>${k === "new" ? "＋" : "→"} ${esc(n)}</button>`).join("") + `</div>`;
 }
 
 function sheetSite(site) {
@@ -1008,7 +1023,7 @@ function sheetMenu() {
     </div><input id="savepick" type="file" accept=".txt,.json,text/plain,application/json" hidden></div>`;
   if (sheet.slots) return `<div class="menu"><h3>Save slots</h3><div class="slots">${[0, 1, 2].map((n) => {
     const s = n === slot ? { town: S.town, day: S.recruits ? null : S.day } : slotInfo(n);
-    return `<button class="${n === slot ? "on" : ""}" data-act="slot" data-v="${n}">${s ? `${esc(s.town)}${s.day ? `<small>Day ${s.day}</small>` : ""}` : "＋"}</button>`;
+    return `<button class="${n === slot ? "on" : ""}" data-act="slot" data-v="${n}">${s ? `${esc(s.town)}${s.day ? `<small>Day ${s.day}${s.towns > 1 ? ` · ${s.towns} towns` : ""}</small>` : ""}` : "＋"}</button>`;
   }).join("")}</div>` + (sheet.sure
     ? `<div class="row pair"><button data-act="slots">Keep playing</button><button class="danger" data-act="wipe">Delete ${esc(S.town)}</button></div>`
     : `<button class="danger wide" data-act="newgame" ${S.recruits ? "disabled" : ""}>New game</button>`) + `</div>`;
@@ -1285,6 +1300,21 @@ const ACTS = {
   settlein: () => { settleIn(chosen); chosen = []; },
   wipe: () => { newGame(); landPos = null; plan = { party: [], rations: 6, meals: 0, floor: 1 }; tab = "village"; sheet = null; knocked = null; },
   plot: (v) => (sheet = { i: +v }),
+  switch: (v) => {
+    if (!switchTo(+v)) return "keep";
+    clearTimeout(botTimer); botTimer = null;
+    landPos = null; plan = { party: [], rations: 6, meals: 0, floor: 1 }; tab = "village"; sheet = null; knocked = null; chosen = []; pleaded = alarmed = null;
+    save();
+  },
+  gate: (v) => {
+    const s = byId(+v), mate = s.spouse != null && living().find((o) => o.id === s.spouse), ids = [s.id, ...(mate ? [mate.id] : [])];
+    chosen = chosen.includes(s.id) ? chosen.filter((x) => !ids.includes(x)) : [...chosen, ...ids.filter((x) => !chosen.includes(x))];
+  },
+  sendask: (v) => {
+    const names = travellers(chosen).map((s) => s.name).join(", "), to = v === "new" ? "a new settlement" : others[+v].S.town;
+    ask("Send through the gate?", `${names} will go to ${to} and won't be coming back.`, "sent", v);
+  },
+  sent: (v) => { sendThrough(chosen, v === "new" ? null : +v); chosen = []; sheet = null; save(); },
   close: () => (sheet = null),
   back: () => {
     const to = backTo ?? [0, 1, 2].find((n) => n !== slot && slotInfo(n) && !slotInfo(n).founding);
@@ -1453,7 +1483,7 @@ $("#menu").addEventListener("pointerdown", () => { clearTimeout(held); held = se
 $("#menu").addEventListener("contextmenu", (e) => e.preventDefault());
 
 // these swap in a different village, so a diff against the old one is not news
-const NEW_WORLD = ["slot", "back", "wipe"];
+const NEW_WORLD = ["slot", "back", "wipe", "switch"];
 function run(act, v, el) {
   const before = snap(), was = tab, life = act === "lifetab" && !!sheet.ties !== (v === "ties");
   if (ACTS[act](v, el) === "keep") return;
