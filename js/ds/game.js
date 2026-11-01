@@ -78,6 +78,7 @@ function closeYear(y) {
   (S.years ||= {})[y] = { ...t, pop0: mark.pop, pop: living().length, beasts: beastTotal() - mark.beasts, deepest: S.deepest };
   S.yr = { n: {}, top: {} };
   S.mark = { pop: living().length, beasts: beastTotal() };
+  weather();
 }
 // Every year's end pays; every fifth adds starmetal and every tenth pays big. Open-ended, so it isn't in the goals list.
 function yearWin(y) {
@@ -90,6 +91,48 @@ function yearsWin(ys) {
   const sum = {};
   for (const y of ys) for (const [k, n] of Object.entries(yearWin(y))) sum[k] = (sum[k] || 0) + n;
   return sum;
+}
+// The wonder weathers a point a year, says so at WEAR_WARN, and left to WEAR_FALL it falls and becomes a ruin to delve (a site, so its floors and foes are the usual machinery).
+const WEAR_WARN = [3, 5], WEAR_FALL = 7, RESTORE = { stone: 120, ore: 20, relics: 10 };
+const repairCost = () => ({ stone: 15 * S.wonder.wear, ore: 3 * S.wonder.wear, relics: S.wonder.wear });
+function weather() {
+  const w = S.wonder;
+  if (!w || w.ruin) return;
+  if (++w.wear >= WEAR_FALL) return fall();
+  if (w.wear === WEAR_WARN[0]) { w.worn = true; gameLog("The wonder is falling into disrepair!", "bad", [], true); }
+  else if (w.wear === WEAR_WARN[1]) gameLog("The wonder is cracking. Mend it before it falls.", "bad", [], true);
+}
+function repair() {
+  const w = S.wonder;
+  if (!w || w.ruin || !w.wear || !afford(repairCost())) return;
+  pay(repairCost());
+  w.wear = 0; w.fixed = S.day;
+  gameLog("The wonder is mended.", "good", living());
+  save();
+}
+// The ruin's monsters are this village's dead.
+const fallen = () => [...S.settlers, ...(S.gone || [])].filter((s) => s.dead).sort((a, b) => b.level - a.level || a.name.localeCompare(b.name));
+const ghostPic = (s) => `assets/face-${s.face}-${s.age}-angry.avif`;
+const ghostOf = (s) => ({ name: s.name, icon: CLASSES[s.cls].icon, pic: ghostPic(s), hp: 22 + 2 * s.level, atk: 5 + Math.floor(s.level / 3), def: 2, spd: CLASSES[s.cls].spd, ranged: CLASSES[s.cls].range === "ranged", kin: s.id });
+function fall() {
+  const i = S.grid.findIndex((b) => b && b.type === "wonder" && !b.part);
+  if (i < 0) return;
+  S.grid[i] = null; // the other three cells stay as rubble under the ruin's 2×2 tile
+  S.wonder.ruin = true;
+  S.sites.push({ kind: "ruin", i, name: "The fallen wonder", boss: fallen()[0]?.name ?? "The Last Keeper", deepest: 0, tier: 4, ruin: true });
+  gameLog("The wonder has fallen. Something stirs in the rubble.", "bad", living());
+}
+function restore() {
+  const w = S.wonder, k = S.sites.findIndex((x) => x.ruin);
+  if (!w?.ruin || !w.cleared || k < 0 || S.expedition || !afford(RESTORE)) return;
+  pay(RESTORE);
+  const i = S.sites[k].i;
+  S.sites.splice(k, 1);
+  S.remains.forEach((r) => { if (r.site === k && r.at === "below") r.at = "home"; else if (r.site > k) r.site--; });
+  S.grid[i] = { type: "wonder", worker: null, spent: { ...BUILDINGS.wonder.cost } };
+  Object.assign(w, { wear: 0, fixed: S.day, ruin: false, cleared: false, freed: S.day });
+  gameLog("The wonder is whole again.", "good", living());
+  save();
 }
 function note(s, entry) {
   s.story ||= [];
@@ -724,6 +767,7 @@ function migrate() {
   S.claim ??= 0;
   S.arcane ??= false;
   S.beasts ??= {};
+  if (S.won) S.wonder ??= { wear: 0, fixed: S.won };
   S.lately ??= {}; S.tired ??= 0; S.weary ??= 0; S.renewed ??= 0; // venue wear
   S.claimed ??= [...(S.goals || [])]; // goals reached before claiming existed were paid on the spot
   // Saves from before recaps start this year's tally from the log that's left. Years with no record were never paid: they come as one catch-up.
@@ -1605,7 +1649,7 @@ const besideBoost = (i, type) => (BESIDE[type] ? Math.max(0, sides(i).filter((j)
 const addCost = (into, cost) => { for (const [k, v] of Object.entries(cost)) into[k] = (into[k] || 0) + v; return into; };
 
 const cellsOf = (i, type) => BUILDINGS[type].big ? [i, i + 1, i + LAND, i + LAND + 1] : [i];
-const fits = (i, type) => (!BUILDINGS[type].big || xy(i)[0] < LAND - 1) && cellsOf(i, type).every((j) => !S.grid[j] && S.land[j] === "meadow" && !siteAt(j) && S.seen[j]);
+const fits = (i, type) => !(type === "wonder" && S.wonder) && (!BUILDINGS[type].big || xy(i)[0] < LAND - 1) && cellsOf(i, type).every((j) => !S.grid[j] && S.land[j] === "meadow" && !siteAt(j) && S.seen[j]);
 function build(i, type) {
   const b = BUILDINGS[type];
   if (!fits(i, type) || !afford(b.cost) || (b.needs && !has(b.needs)) || (b.arcane && !S.arcane)) return;
@@ -1621,6 +1665,7 @@ function build(i, type) {
   } else if (type === "wonder") {
     reveal(i, 2);
     S.won ??= S.day;
+    S.wonder ??= { wear: 0, fixed: S.day };
     gameLog("The wonder stands.", "story", living());
   } else {
     reveal(i, 1);
@@ -1996,7 +2041,8 @@ const siteOf = () => S.sites[S.expedition.site || 0];
 function keeper(site, floor) {
   if (site.kind === "mill") return bossFor(floor);
   if (floor % 3) return null;
-  return { name: site.boss, icon: SITES[site.kind].boss, hp: 30 + 35 * floor, atk: Math.round(6 + 1.5 * floor), def: 3 + floor / 3, spd: 7, aoeEvery: floor >= 6 ? 3 : 4 };
+  const f = site.ruin ? fallen() : [], dead = f[(floor / 3 - 1) % f.length]; // a keeper each three floors, from the graveyard
+  return { name: dead?.name ?? site.boss, icon: dead ? CLASSES[dead.cls].icon : SITES[site.kind].boss, ...(dead && { pic: ghostPic(dead), kin: dead.id }), hp: 30 + 35 * floor, atk: Math.round(6 + 1.5 * floor), def: 3 + floor / 3, spd: 7, aoeEvery: floor >= 6 ? 3 : 4 };
 }
 function reached(f) {
   if (S.expedition.scav) return;
@@ -2201,11 +2247,12 @@ function enterRoom() {
 // Linear through the third crown floor, compounding after; each site found starts harder on the same ramp.
 const grim = (floor) => 1.1 ** Math.max(0, floor - 9);
 const SITE_STEP = 1.25, EASE = 0.75; // EASE: overall enemy strength knob
+const RUIN_STEP = 1.15; // the ruin hits harder than any other site on its tier, and from floor 4 brings an extra foe
 function scaleEnemy(base, floor, boss = false) {
-  const k = (boss ? 1 : 1 + 0.3 * (floor - 1)) * grim(floor) * SITE_STEP ** tierOf(siteOf()) * EASE;
+  const k = (boss ? 1 : 1 + 0.3 * (floor - 1)) * grim(floor) * SITE_STEP ** tierOf(siteOf()) * EASE * (siteOf().ruin ? RUIN_STEP : 1);
   const hp = Math.round(base.hp * k);
   return {
-    name: base.name, icon: base.icon, flying: !!base.flying, ranged: !!base.ranged, aoeEvery: base.aoeEvery || 0, boss,
+    name: base.name, icon: base.icon, ...(base.pic && { pic: base.pic, kin: base.kin }), flying: !!base.flying, ranged: !!base.ranged, aoeEvery: base.aoeEvery || 0, boss,
     hpMax: hp, hp,
     atk: Math.round(base.atk * k), def: Math.round(base.def + (boss ? 0 : (floor - 1) / 3)), spd: base.spd,
   };
@@ -2214,14 +2261,15 @@ function scaleEnemy(base, floor, boss = false) {
 function rollEnemies(floor) {
   const foes = SITES[siteOf().kind].foes;
   const pool = Object.entries(ENEMIES).filter(([k, e]) => e.from <= floor && foes.includes(k)).map(([, e]) => e);
-  const n = Math.min(5, 1 + rand(2) + Math.floor(floor / 2));
-  return Array.from({ length: n }, () => scaleEnemy(pick(pool), floor));
+  const ruin = siteOf().ruin, n = Math.min(5, 1 + rand(2) + Math.floor(floor / 2)) + (ruin && floor > 3 ? 1 : 0);
+  const dead = ruin ? fallen().sort(() => Math.random() - 0.5) : []; // the ruin's foes are the village's dead; generic ones fill in
+  return Array.from({ length: n }, (_, j) => scaleEnemy(dead[j] ? ghostOf(dead[j]) : pick(pool), floor));
 }
 
 function lootRoll(floor, rolls) {
   const e = S.expedition, found = [];
   floor += tierOf(siteOf());
-  for (let i = 0; i < rolls * (e.scav ? 2 : 1); i++) {
+  for (let i = 0; i < rolls * (e.scav ? 2 : 1) * (siteOf().ruin ? 2 : 1); i++) {
     const deep = Object.keys(ORE_FLOOR).filter((k) => floor >= ORE_FLOOR[k]);
     const r = pick(["ore", "ore", "herbs", "relics", "stone", "wood", ...deep, ...deep, ...SITES[siteOf().kind].loot]);
     const n = ORE_FLOOR[r] ? 1 + rand(1 + Math.floor((floor - ORE_FLOOR[r]) / 2)) : 2 + rand(1 + Math.ceil(floor / 2));
@@ -2281,6 +2329,7 @@ function resolveEvent(act) {
 
 function startFight(enemies) {
   const f = S.expedition.fight = newFight(partyAlive(), enemies);
+  if (S.wonder && enemies.some((x) => x.kin != null)) S.wonder.knew = true;
   if (f.enemies.some((x) => x.boss) || f.odds >= 1 || S.expedition.homing) return;
   f.paused = false;
   if (f.odds >= 0.25) return;
@@ -2375,6 +2424,11 @@ function endFight(won) {
       reached(f);
       partyAlive().forEach((s) => think(s, "victory"));
       gameLog(`Floor ${f}: boss down. Stairs open.`, "story", partyAlive());
+      if (siteOf().ruin && S.wonder && !S.wonder.cleared) {
+        S.wonder.cleared = true;
+        e.loot.relics = (e.loot.relics || 0) + 5;
+        gameLog("The ruin is quiet. The wonder can be raised again. +5🏺", "story", partyAlive());
+      }
       if (f >= crownFloor(e.crowns || (e.crown ? 1 : 0)) && !(e.crown >= f)) {
         e.crowns = (e.crowns || (e.crown ? 1 : 0)) + 1;
         e.crown = f;

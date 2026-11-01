@@ -203,7 +203,7 @@ function viewVillage() {
     const cls = (newLand.includes(i) ? " fresh" : "") + (S.hall != null && contested(i) ? " out" : "");
     if (!S.seen[i]) return `<div class="tile fog" data-i="${i}"></div>`;
     const t = S.land[i], site = siteAt(i), ico = scatter(i, TERRAIN[t].icon);
-    if (site) return `<button class="tile site t-${t}${cls}" ${at}><span class="ico">${SITES[site.kind].icon}</span><small>${esc(site.name)}</small>${site.deepest ? `<span class="lvl">🪜${site.deepest}</span>` : ""}</button>`;
+    if (site) return `<button class="tile site t-${t}${cls}${site.ruin ? " big" : ""}" ${at}><span class="ico">${SITES[site.kind].icon}</span><small>${esc(site.name)}</small>${site.deepest ? `<span class="lvl">🪜${site.deepest}</span>` : ""}</button>`;
     if (wild(i)) return `<button class="tile wild t-${t}${cls}" ${at}>${ico}</button>`;
     if (t !== "meadow") return `<div class="tile still t-${t}${cls}" data-i="${i}"${newLand.includes(i) ? ` style="--d:${dist(i, origin)}"` : ""}>${ico}</div>`;
     if (b?.part) return "";
@@ -282,7 +282,7 @@ function sheetPlot(i) {
     return `<h3>Build</h3><div class="picks">` + Object.entries(BUILDINGS).filter(([id, d]) => (S.hall == null) === (id === "townhall") && (!d.arcane || S.arcane)).map(([id, d]) => {
       const locked = d.needs && !has(d.needs), far = d.near && !beside(i, d.near);
       return `<button class="opt" data-act="build" data-v="${id}" ${locked || far || !fits(i, id) || !afford(d.cost) ? "disabled" : ""}>
-        <span class="ico">${d.icon}</span><span><b>${d.name}</b>${S.asks?.[id]?.length ? ` ${tip("Asked for", `🙋${S.asks[id].length}`)}` : ""} ${costText(d.cost)}${besideTag(i, id)}<br><small>${locked ? `🔒 📜 ${RESEARCH[d.needs].name}` : far ? `🔒 ${TERRAIN[d.near].icon}` : d.big && !fits(i, id) ? "Needs a 2×2 area." : d.desc}</small></span></button>`;
+        <span class="ico">${d.icon}</span><span><b>${d.name}</b>${S.asks?.[id]?.length ? ` ${tip("Asked for", `🙋${S.asks[id].length}`)}` : ""} ${costText(d.cost)}${besideTag(i, id)}<br><small>${locked ? `🔒 📜 ${RESEARCH[d.needs].name}` : far ? `🔒 ${TERRAIN[d.near].icon}` : id === "wonder" && S.wonder ? "One wonder is enough." : d.big && !fits(i, id) ? "Needs a 2×2 area." : d.desc}</small></span></button>`;
     }).join("") + `</div>`;
   }
   const d = BUILDINGS[b.type];
@@ -302,6 +302,11 @@ function sheetPlot(i) {
   if (next) {
     body += `<button class="opt" data-act="improve" ${canImprove(i) ? "" : "disabled"}>
       <span class="ico">⏫</span><span><b>${b.type === "forge" ? `−${Math.round((1 - 1 / (1 + next.boost)) * 100)}%` : `+${Math.round(next.boost * 100)}%`}</b> ${costText(next.cost)} · ${goods(next.upkeep)}/d${has(next.needs) ? "" : `<br><small>🔒 📜 ${RESEARCH[next.needs].name}</small>`}</span></button>`;
+  }
+  if (b.type === "wonder" && S.wonder) {
+    const w = S.wonder, state = w.wear >= WEAR_WARN[1] ? "Cracking" : w.wear >= WEAR_WARN[0] ? "In disrepair" : w.wear ? "Weathered" : "Sound";
+    body += `<p class="${w.wear >= WEAR_WARN[0] ? "bad" : "dim"}">${state} · wear ${w.wear}/${WEAR_FALL} · mended day ${w.fixed}</p>`;
+    if (w.wear) body += `<button class="opt" data-act="repair" ${afford(repairCost()) ? "" : "disabled"}><span class="ico">🔨</span><span><b>Repair</b> ${costText(repairCost())}</span></button>`;
   }
   if (d.job) {
     const sk = (s) => s.skills[d.job] || 0;
@@ -346,12 +351,16 @@ function epitaphs() {
   }).join("");
 }
 
+const RUIN_WARN = "❗ The village's own dead walk here. More foes, hard keepers, rich loot: bring a party around level 10.";
 function sheetSite(site) {
   const d = SITES[site.kind], k = S.sites.indexOf(site), days = travelDays(site);
   const dead = S.remains.filter((r) => r.at === "below" && r.site === k).map((r) => `🦴 ${esc(byId(r.id).name)} · ${r.floor}`);
   const chips = [site.deepest ? tip("Deepest floor", `🪜 ${site.deepest}`) : "", days ? tip("Travel", `👣 ${days}d`) : "", site.boss ? `${d.boss} ${esc(site.boss)}` : "", ...dead]
     .filter(Boolean).map((x) => `<span class="chip">${x}</span>`).join("");
-  return `<h3>${d.icon} ${esc(site.name)}</h3><div class="row wrap">${chips}</div>
+  const ruin = !site.ruin ? "" : S.wonder?.cleared
+    ? `<button class="opt" data-act="restore" ${afford(RESTORE) && !S.expedition ? "" : "disabled"}><span class="ico">🗼</span><span><b>Raise it again</b> ${costText(RESTORE)}</span></button>`
+    : `<p class="bad">${RUIN_WARN}</p>`;
+  return `<h3>${d.icon} ${esc(site.name)}</h3><div class="row wrap">${chips}</div>${ruin}
     <button class="primary wide" data-act="tosite" data-v="${k}" ${S.expedition ? "disabled" : ""}>🧭 Set out</button>`;
 }
 
@@ -612,7 +621,7 @@ function viewExpedition() {
   const stepper = (act, icon, n) => `<div class="row between"><span>${icon}</span><span class="row">
       <button data-act="${act}" data-v="-1" data-hold>−</button><b>${n}</b><button data-act="${act}" data-v="1" data-hold>＋</button></span></div>`;
   return `${where}<div class="row between"><h3>${SITES[site.kind].icon} ${esc(site.name)}</h3><span class="row"><button class="ghost" data-act="beasts" aria-label="Beastiary">📖</button>${days ? tip("Travel", `👣 ${days}d`, "chip") : ""}</span></div>
-    <p class="dim">Party of up to ${partyMax()}. 🍞 ${per("food")}${cook ? ` · 🥪 ${per("meals")}, +${MEAL_HEAL}❤️` : ""}. No food: starving. Death is permanent.</p>
+    ${site.ruin && !S.wonder?.cleared ? `<p class="bad">${RUIN_WARN}</p>` : ""}<p class="dim">Party of up to ${partyMax()}. 🍞 ${per("food")}${cook ? ` · 🥪 ${per("meals")}, +${MEAL_HEAL}❤️` : ""}. No food: starving. Death is permanent.</p>
     <div class="exped"><div class="roster">${ready.map(pickRow).join("")}</div><div class="plan">
     ${plan.party.length ? formation(plan.party.map(byId), false) : ""}
     ${home.length ? `<div class="row between"><span>👀 Gate watch</span><span class="keepers">${Array.from({ length: watchMax() }, (_, i) => {
@@ -674,7 +683,7 @@ function renderFight() {
     fightBuilt = f;
     box.innerHTML = iconize(`<div class="fightbox">
       <div class="foes">${f.enemies.map((en, i) => `<button class="foe ${en.aoeEvery ? "boss" : ""}" style="--i:${i}" data-act="focus" data-v="${i}">
-        <span class="ico">${en.icon}</span><small>${esc(en.name)}</small>${bar(en.hp, en.hpMax, "hp")}${bar(0, 100, "atb")}${en.aoeEvery ? bar(0, 100, "wind") : ""}</button>`).join("")}</div>
+        ${en.pic ? `<img class="ico" src="${en.pic}" alt="">` : `<span class="ico">${en.icon}</span>`}<small>${esc(en.name)}</small>${bar(en.hp, en.hpMax, "hp")}${bar(0, 100, "atb")}${en.aoeEvery ? bar(0, 100, "wind") : ""}</button>`).join("")}</div>
       <div class="lines" id="flines"></div>
       <div class="heroes">${f.heroes.map((h, i) => { const s = byId(h.id); return `<div class="hero">
         <button class="lanebtn" data-act="lane" data-v="${i}"><img class="face" alt=""></button><div class="grow"><b>${esc(h.name)}</b>
@@ -883,6 +892,9 @@ const GOALS = [
   ["A poem lands", () => felt("liked"), { research: 2 }, null, true],
   ["Seen a ghost", () => felt("snapped"), { potions: 1 }, null, true],
   ["Crown the hall", () => S.claim > 0, { relics: 2 }, null, true],
+  ["First disrepair", () => !!S.wonder?.worn, { stone: 10 }, null, true],
+  ["The ruin is quiet", () => !!(S.wonder?.cleared || S.wonder?.freed), { relics: 3 }, null, true],
+  ["A face below", () => !!S.wonder?.knew, { relics: 1 }, null, true],
   // Hearts
   ["Fast friends", () => logged(/ are friends now\./), { food: 3 }, null, true],
   ["Bad blood", () => logged(/ can't stand each other\./), { herbs: 2 }, null, true],
@@ -1352,6 +1364,8 @@ const ACTS = {
   no: () => { const a = sheet.ask; sheet = a.back; if (a.nay) ACTS[a.nay](); },
   upgrade: () => upgrade(sheet.i),
   improve: () => improve(sheet.i),
+  repair: () => repair(),
+  restore: () => { restore(); sheet = null; },
   assign: (v) => { assign(sheet.i, +v); sheet = null; },
   endday: () => passDays(1),
   bot: (v) => { botDays = Math.max(1, +$("#botdays").value || 1); botLeft = v === "all" ? Infinity : botDays; sheet = null; clearTimeout(botTimer); botTimer = setTimeout(botStep, 0); },
@@ -1518,7 +1532,7 @@ function snap() {
   };
 }
 
-const LOUD = /now level|died|joined|Learned|wiped out/;
+const LOUD = /now level|died|joined|Learned|wiped out|disrepair|cracking|has fallen|whole again/;
 
 let bannerAt = 0; // goal banners queue so a chain of unlocks doesn't stack them
 function celebrate(b) {
