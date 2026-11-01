@@ -43,6 +43,8 @@ const many = (n, one, more = `${one}s`) => `${n} ${n === 1 ? one : more}`;
 const YEAR_EVENTS = [
   ["joined", /^.+ joined\.$/, 0, "👥", (n) => many(n, "newcomer")],
   ["wed", / married( quietly|\.)/, 5, "💍", (n) => many(n, "wedding")],
+  ["born", /^.+ was born to /, 3, "🌱", (n) => many(n, "baby", "babies")],
+  ["aged", /, aged \d+\.$/, 2, "🕯", (n) => `${n} gone of old age`],
   ["friends", / are friends now\./, 2, "🤗", (n) => many(n, "new friendship")],
   ["feuds", / can't stand each other\./, 2, "😠", (n) => many(n, "new feud")],
   ["left", / (never came back|walked off|slipped away in the night|packed up and left in the night|left to find food elsewhere|didn't come back)\./, 3, "🚪", (n) => `${n} left`],
@@ -106,7 +108,7 @@ function makeSettler(cls) {
   const taken = new Set(S ? S.settlers.map((s) => s.name) : []);
   const c = CLASSES[cls || pick(Object.keys(CLASSES))];
   const s = {
-    id: nextId++, name: makeName(sexOf(face), taken), face, age: pick(AGES),
+    id: nextId++, name: makeName(sexOf(face), taken), face, born: (S ? S.day : 1) - 365 * grownAge(pick(Object.keys(ARRIVE_AGE))),
     cls: cls || Object.keys(CLASSES).find((k) => CLASSES[k] === c),
     level: 1, xp: 0, hpMax: c.hp, hp: c.hp, morale: 70,
     skills: {}, job: null, gear: { weapon: null, armor: null },
@@ -334,6 +336,7 @@ const THOUGHTS = {
   brawl:     { name: "Brawl", icon: "👊", mood: "angry", morale: -4, days: 2, stir: { anger: 15, warmth: -20 } },
   made:      { name: "Made something", icon: "✨", mood: "happy", morale: 12, days: 5, stir: { grief: -25, anger: -15, pride: 30 } },
   jilted:    { name: "Jilted", icon: "💔", mood: "sad", morale: -15, days: 6, stir: { grief: 30, anger: 20, warmth: -30 } },
+  newborn:   { name: "New baby", icon: "🌱", mood: "happy", morale: 12, days: 8, stir: { warmth: 30, restless: -20, fear: -10 } },
   wed:       { name: "Married", icon: "💍", mood: "happy", morale: 15, days: 6, stir: { restless: -30, warmth: 30 } },
   hungover:  { name: "Sore head", icon: "🍖", mood: "sad", morale: -2, days: 1, stir: { restless: -10 } },
   feast:     { name: "Feast", icon: "🍖", mood: "happy", morale: 10, days: 3, stir: { anger: -20, grief: -15, restless: -10, warmth: 20 } },
@@ -374,8 +377,7 @@ const TRAITS = {
   loyal:    { icon: "🐕", name: "loyal", mul: { warmth: 1.2, restless: 0.6 } },
 };
 const OPPOSED = [["hothead", "calm"], ["gloomy", "cheerful"], ["roamer", "loyal"]];
-function rollTraits(s) {
-  const out = violent(s) ? ["hothead"] : [];
+function rollTraits(s, out = violent(s) ? ["hothead"] : []) {
   while (out.length < 2) {
     const k = pick(Object.keys(TRAITS));
     if (!out.includes(k) && !OPPOSED.some((p) => p.includes(k) && out.some((x) => p.includes(x)))) out.push(k);
@@ -434,7 +436,12 @@ function mood(s) {
   if (s.hp < st.hpMax * 0.7) return "sad";
   return s.morale >= 75 ? "happy" : "neutral";
 }
-const faceSrc = (s) => `assets/face-${s.face}-${s.age}-${mood(s)}.avif`;
+// Age is worked out from the birth day; the portrait band follows it. Anyone under the first band's end is a child.
+const ageOf = (s) => Math.floor((S.day - s.born) / 365);
+const bandOf = (s) => AGE_BANDS.reduce((b, [k, from]) => (ageOf(s) >= from ? k : b), "child");
+const kid = (s) => ageOf(s) < AGE_BANDS[1][1];
+const grownAge = (band, n = rand(1e6)) => { const [lo, hi] = ARRIVE_AGE[band]; return lo + (n % (hi - lo)); };
+const faceSrc = (s) => `assets/face-${s.face}-${bandOf(s)}-${mood(s)}.avif`;
 const living = () => S.settlers.filter((s) => !s.dead).sort((a, b) => b.level - a.level || a.name.localeCompare(b.name));
 const byId = (id) => S.settlers.find((s) => s.id === id) || (S.gone || []).find((s) => s.id === id);
 
@@ -721,6 +728,8 @@ function load() {
       s.story = [...pastOf(s, trade), ...(s.story || [])];
     }
     for (const s of [...S.settlers, S.visitor].filter(Boolean)) s.pastime ??= pastimeOf(s);
+    // Portrait bands used to be fixed words; they become birthdays that land in the same band.
+    for (const s of [...S.settlers, ...(S.gone || []), ...(S.recruits || []), S.visitor].filter(Boolean)) if (s.born == null) { s.born = S.day - 365 * grownAge(s.age || "mid", s.id); delete s.age; }
     // Older villagers get a nature now, and couples count their years from the upgrade.
     for (const s of [...S.settlers, S.visitor].filter(Boolean)) { traitsOf(s); delete s.wins; if (s.spouse != null) s.wedDay ??= S.day; }
     return true;
@@ -804,7 +813,7 @@ const costText = (cost) => Object.entries(cost).map(([k, v]) => S.res[k] >= v ? 
 const built = (type) => S.grid.some((b) => b && b.type === type);
 const staffed = (type) => S.grid.some((b) => b && b.type === type && b.worker && available(byId(b.worker)));
 const below = (s) => !!S.expedition && S.expedition.party.includes(s.id);
-const away = (s) => below(s) || !!s.wander;
+const away = (s) => below(s) || !!s.wander || kid(s);
 const available = (s) => s && !s.dead && !away(s);
 const close = (s, o) => s.spouse === o.id || tieOf(s, o) >= FRIEND || (s.heard || []).some((x) => x.about === o.id && x.v > 0);
 const lostOf = (s) => fresh(s).some((x) => x.k === "grief") ? S.settlers.filter((o) => o.dead && o.diedOn > S.day - THOUGHTS.grief.days) : [];
@@ -989,7 +998,8 @@ const best = (s) => Object.keys(s.skills).sort((a, b) => s.skills[b] - s.skills[
 const hurtest = (s, home) => home.filter((o) => o !== s && o.hp < stats(o).hpMax * 0.6).sort((a, b) => a.hp / stats(a).hpMax - b.hp / stats(b).hpMax)[0];
 const free = (s) => !s.vow && !living().some((o) => o.id === s.spouse);
 const spark = (a, b) => (a.id * b.id * 37 + a.id + b.id) % 10 < 8;
-const sweetheart = (s, home) => free(s) && home.filter((o) => o !== s && free(o) && !s.fz?.includes(o.id) && tieOf(s, o) >= 20 && (drive(o, "warmth") >= 30 || tieOf(s, o) >= FRIEND) && !grudge(s, o) && !grudge(o, s))
+const kin = (a, b) => a.parents?.includes(b.id) || b.parents?.includes(a.id) || !!a.parents?.some((p) => b.parents?.includes(p));
+const sweetheart = (s, home) => free(s) && home.filter((o) => o !== s && free(o) && !kin(s, o) && !s.fz?.includes(o.id) && tieOf(s, o) >= 20 && (drive(o, "warmth") >= 30 || tieOf(s, o) >= FRIEND) && !grudge(s, o) && !grudge(o, s))
   .sort((a, b) => tieOf(s, b) - tieOf(s, a))[0];
 function owe(s, o, why) {
   if (!s || !o || s === o) return;
@@ -1605,10 +1615,80 @@ function boon(home) {
   const b = pick(BOONS.filter((b) => b.can(home)));
   if (b) { S.boonDay = S.day; b.does(home); }
 }
+// Families. Couples with room and food have children now and then; a child is not a hand yet (away() keeps
+// them out of jobs, parties and village doings) until 16, and everyone past OLD_AGE is on borrowed time.
+const BIRTH_GAP = 730, KIDS_MAX = 3, BIRTH_P = 0.0014;
+function born(a, b) {
+  const c = makeSettler();
+  c.born = S.day;
+  c.parents = [a.id, b.id];
+  c.skills = { [c.trade]: 1 };
+  c.story = [{ text: `Born in ${S.town} to ${a.name} and ${b.name}.`, kind: "past" }];
+  const from = pick([a, b]), k = pick(traitsOf(from));
+  // A quarter of the time the nature is nobody's in particular.
+  const variant = chance(0.25);
+  c.traits = rollTraits(c, variant ? [] : [k]);
+  if (!variant) c.heir = [k, from.id];
+  c.lore = chance(0.4);
+  S.settlers.push(c);
+  tie(a, c, 30); tie(b, c, 30);
+  think(a, "newborn", c.id); think(b, "newborn", c.id);
+  gameLog(`${c.name} was born to ${a.name} and ${b.name}.`, "good", [a, b, c]);
+  return c;
+}
+function births(home) {
+  const pop = living().length;
+  if (pop >= beds() || S.res.food < 4 * pop || living().some((s) => s.unfed)) return;
+  for (const a of home) {
+    const b = byId(a.spouse);
+    if (!b || a.id > b.id || !home.includes(b) || ageOf(a) > 45 || ageOf(b) > 45) continue;
+    const kids = S.settlers.filter((k) => k.parents?.includes(a.id) && k.parents.includes(b.id));
+    if (kids.length < KIDS_MAX && kids.every((k) => S.day - k.born >= BIRTH_GAP) && chance(BIRTH_P)) born(a, b);
+  }
+}
+function grewUp(s) {
+  gameLog(`${s.name} grew up.`, "good", [s, ...s.parents.map(byId).filter((p) => p && !p.dead)]);
+  const p = s.heir && byId(s.heir[1]);
+  if (p) gameLog(`${s.name} has ${p.name}'s ${TRAITS[s.heir[0]].name} nature.`, "story", [s, p]);
+  delete s.heir; delete s.lore;
+}
+// A child who picks up a parent's grudge hears it at the table, once.
+function learnGrudge(k) {
+  for (const p of k.parents.map(byId).filter((x) => x && !x.dead)) {
+    const t = living().find((o) => !kid(o) && !k.parents.includes(o.id) && grudge(p, o));
+    if (!t) continue;
+    k.lore = false;
+    (k.heard ||= []).push({ about: t.id, death: `kin${p.id}-${t.id}`, what: [`wronged ${p.name}`, `stood by ${p.name}`], v: -1, hops: 1, from: p.id, until: S.day + 200 + rand(200) });
+    return gameLog(`${k.name} learned to distrust ${t.name}.`, "story", [k, p]);
+  }
+}
+function oldAge(s) {
+  s.dead = true;
+  s.diedOn = S.day;
+  if (s.job != null && S.grid[s.job]) S.grid[s.job].worker = null;
+  s.job = null;
+  S.guards = S.guards.filter((id) => id !== s.id);
+  S.remains.push({ id: s.id, at: "home" });
+  gameLog(`${s.name} died in their sleep, aged ${ageOf(s)}.`, "story", [s, ...living()]);
+  living().forEach((o) => { if (o.spouse === s.id || kin(o, s) || tieOf(o, s) >= 20 || chance(0.3)) think(o, "grief", s.id); });
+  living().filter((o) => o.spouse === s.id && chance(0.3)).forEach((o) => { o.vow = true; gameLog(`${o.name} swore never to marry again.`, "story", [o]); });
+  bury();
+}
+// Strangers knock less as the village fills and its children grow: births carry the late game.
+const outsiders = () => 10 / (10 + Math.max(0, living().length - 6) + 3 * living().filter(kid).length);
+function generations(home) {
+  for (const s of living()) {
+    if (S.day - s.born === AGE_BANDS[1][1] * 365 && s.parents) grewUp(s);
+    else if (s.lore) learnGrudge(s);
+  }
+  // From the day they pass OLD_AGE: 1% a year, then more each year, three in four by ten years on.
+  for (const s of home) if (chance(0.003 * Math.max(0, (S.day - s.born) / 365 - OLD_AGE) ** 2 / 100)) oldAge(s);
+  births(home);
+}
 function endDay(hold) {
   const got = {}, spent = {}, logN = S.logN || 0;
   lastYields = [];
-  const eaters = living().filter((s) => !away(s)).length;
+  const eaters = living().filter((s) => !away(s) || kid(s)).length;
   S.grid.forEach((b, i) => {
     if (!b || !b.worker) return;
     const s = byId(b.worker), def = BUILDINGS[b.type];
@@ -1661,9 +1741,13 @@ function endDay(hold) {
   });
 
   const home = living().filter((s) => !away(s)).sort((a, b) => (b.unfed || 0) - (a.unfed || 0));
+  // Children eat first, a loaf each.
+  const kids = living().filter(kid), kfed = Math.min(S.res.food, kids.length);
+  S.res.food -= kfed;
+  kids.forEach((s, i) => (s.unfed = i < kfed ? 0 : (s.unfed || 0) + 1));
   const fed = Math.min(S.res.food, home.length);
   S.res.food -= fed;
-  spent.food = (spent.food || 0) + fed;
+  spent.food = (spent.food || 0) + fed + kfed;
   const hungry = home.length - fed;
   const off = Math.floor((S.res.food - 20 * living().length) / 20);
   if (off > 0) { S.res.food -= off; spent.food += off; }
@@ -1692,6 +1776,7 @@ function endDay(hold) {
   raid();
   trouble(home, hold);
   boon(home);
+  generations(home);
   if (!S.log.some((e) => e.n > logN && ["story", "good", "bad"].includes(e.kind))) beat(home);
 
   gameLog(`${[tally(got, spent) || "No change.", underway()].filter(Boolean).join(" · ")}${hungry ? ` ${hungry} went hungry.` : ""}`, hungry ? "bad" : "day");
@@ -1712,7 +1797,7 @@ function endDay(hold) {
   }
 
   const since = S.day - (S.lastVisitor ?? -99);
-  if (!S.visitor && since >= 7 && chance(living().length < beds() ? 0.12 : 0.05)) {
+  if (!S.visitor && since >= 7 && chance((living().length < beds() ? 0.12 : 0.05) * outsiders())) {
     S.lastVisitor = S.day;
     S.visitor = makeSettler();
     gameLog(`${S.visitor.name} (${CLASSES[S.visitor.cls].name.toLowerCase()}) wants to join.`, "story");

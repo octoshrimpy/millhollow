@@ -16,7 +16,11 @@ const FACE_ANY = [9];
 const sexOf = (id) => (FACE_F.includes(id) ? "f" : FACE_ANY.includes(id) ? "any" : "m");
 const namesFor = (sex) =>
   sex === "any" ? [...NAMES.f, ...NAMES.m, ...NAMES.any] : NAMES[sex].concat(NAMES.any);
-const AGES = ["young", "mid", "old"];
+// Portrait bands by age in years (365 days each). Visitors arrive grown; a child grows into "young" at 16.
+const AGE_BANDS = [["child", 0], ["young", 16], ["mid", 35], ["old", 55]];
+// Years of age a visitor can arrive at, per band (the top is not reached).
+const ARRIVE_AGE = { young: [18, 35], mid: [35, 55], old: [55, 65] };
+const OLD_AGE = 65;
 
 const RESOURCES = {
   food: { icon: "🍞", name: "Food" },
