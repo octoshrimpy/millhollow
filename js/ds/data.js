@@ -495,6 +495,8 @@ const SITES = {
     nouns: ["Tangle", "Weald", "Thicket"], adj: ["Black", "Crooked", "Weeping"], epithet: ["Rootbound", "Thorned", "Green"], boss: "🌳" },
   shrine: { icon: "⛩️", on: ["meadow", "forest"], by: ["water"], foes: ["wisp", "slime", "cultist", "skeleton"], loot: ["herbs", "relics", "potions"],
     nouns: ["Font", "Chapel", "Well"], adj: ["Sunken", "Drowned", "Weeping"], epithet: ["Drowned", "Weeping", "Pale"], boss: "🕯️" },
+  // The fallen wonder (see fall() in game.js): its foes are mostly the village's own dead.
+  ruin: { icon: "🗼", foes: ["skeleton", "ghoul", "cultist", "bat"], loot: ["relics", "relics", "starmetal", "silver", "stone"], boss: "☠️" },
 };
 
 const bossFor = (floor) => BOSSES[floor] || (floor % 3 === 0 && floor > 6
