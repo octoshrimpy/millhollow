@@ -235,15 +235,15 @@ function troubleHead(t) {
 function troubleStakes(t) {
   const s = t.who && byId(t.who), want = goods(t.take), twice = goods(Object.fromEntries(Object.entries(t.take).map(([r, n]) => [r, 2 * n])));
   const armed = [`⚔ Lost: they take ${twice}, everyone home hurt.`, `Left till End day: they take ${twice}.`];
-  const lines = {
+  const lines = [...{
     bandits: [`${t.n} bandits want ${want}.`, ...armed],
     pirates: [`${t.n} river pirates want ${want}.`, ...armed],
     debt: [`Collectors want ${want} for ${esc(s?.name)}'s debts.`, ...armed],
-    fey: [`${esc(s?.name)} wants ${want}.`, `Given: gear named for their ghost.`, `Refused or left: they smash where they work.`],
+    fey: [`${esc(s?.name)} wants ${want}.`, `Given: gear named for the one they lost.`, `Refused or left: they smash where they work.`],
     feast: [`A feast for everyone home: ${want}.`],
     wedding: [`${want} buys the whole village a wedding.`],
     trader: [`A trader at the gate.`],
-  }[t.kind] || [];
+  }[t.kind] || [], ...(t.warned != null ? [`${esc(byId(t.warned).name)} warned of this. Answer it and it costs less.`] : [])];
   return `<div class="stakes">${lines.map((l) => `<p>${l}</p>`).join("")}</div>`;
 }
 const TROUBLE_TITLE = { bandits: "Bandits!", pirates: "River pirates!", debt: "Debt collectors", fey: "Fey mood", feast: "Feast", wedding: "Wedding!", trader: "Trader" };
@@ -313,7 +313,18 @@ function sheetPlot(i) {
         <b>${esc(s.name)}</b>${st}</button>`;
     }).join("") + `</div>`;
   }
+  if (b.type === "graveyard") body += epitaphs();
   return body;
+}
+
+// The graves, newest first: what the dead last said, or how they fell and what was told of it.
+function epitaphs() {
+  const gs = (S.graves || []).slice(-40).reverse();
+  if (!gs.length) return "";
+  return `<h4>🪦 ${many(S.graves.length, "grave")}</h4>` + gs.map((g) => {
+    const d = byId(g.id), last = g.said ? `“${esc(g.said.text)}” <small>d${g.said.day}</small>` : esc(g.cause || "");
+    return `<p><small>d${d.diedOn ?? g.day}</small> ${named(esc(d.name))} <span class="dim">${last}</span>${g.claims?.length && !g.said ? `<br><small class="dim">${named(esc(g.claims.join("; ")))}</small>` : ""}</p>`;
+  }).join("");
 }
 
 function sheetSite(site) {
@@ -894,7 +905,8 @@ const GOALS = [
   ["Butterfingers", () => logged(/ dropped the keeper's crown /), { silver: 1 }, null, true],
   ["Lost below", () => logged(/ died on floor \d+\./), { relics: 1 }, null, true],
   ["Bring them home", () => logged(/: found .+'s remains\./), { herbs: 3 }, null, true],
-  ["A haunting", () => logged(/ haunts /), { potions: 1 }, null, true],
+  ["Heeded the dead", () => logged(/^Heeded /), { herbs: 3 }, null, true],
+  ["Inspired by the dead", () => felt("inspired"), { research: 2 }, null, true],
   ["Rat catcher", () => (S.beasts?.["Cellar rat"] || 0) >= 50, { food: 10 }, null, true],
   ["Know your foes", () => Object.values(ENEMIES).every((e) => S.beasts?.[e.name]), { relics: 3 }, null, true],
   // Time
@@ -951,7 +963,8 @@ function sheetRecap(y) {
     <p class="lead reward">${back.some((n) => n % 10 === 0) ? "🎉 " : ""}${goods(yearsWin(back))}</p>
     <button class="primary" data-act="close">Close</button></div>`;
   if (!r) return `<div class="menu"><h3>🕐 Year ${y}</h3><p class="dim">Nobody kept count.</p></div>`;
-  const counts = YEAR_EVENTS.filter(([k]) => r.n[k]).map(([k, , , icon, label]) => `<p><span>${icon}</span> ${label(r.n[k])}</p>`);
+  const dead = ["warned", "heeded", "inspired"], spoke = YEAR_EVENTS.filter(([k]) => dead.includes(k) && r.n[k]).map(([k, , , , label]) => label(r.n[k]));
+  const counts = YEAR_EVENTS.filter(([k]) => r.n[k] && !dead.includes(k)).map(([k, , , icon, label]) => `<p><span>${icon}</span> ${label(r.n[k])}</p>`);
   if (r.beasts > 0) counts.push(`<p><span>🐀</span> ${many(r.beasts, "beast")} slain</p>`);
   const moments = YEAR_EVENTS.filter(([k, , w]) => w && r.top[k]).sort((a, b) => b[2] - a[2]).slice(0, 4)
     .map(([k]) => r.top[k]).sort((a, b) => a.day - b.day);
@@ -961,6 +974,7 @@ function sheetRecap(y) {
     <p class="big">👥 ${r.pop0} → ${r.pop}</p>
     ${counts.length ? `<div class="beasts">${counts.join("")}</div>` : `<p class="dim lead">A quiet year.</p>`}
     ${r.deepest ? `<p class="dim lead">Deepest floor so far: ${r.deepest}</p>` : ""}
+    ${spoke.length ? `<p class="lead">🪦 The dead spoke: ${spoke.join(", ")}.</p>` : ""}
     ${moments.length ? `<h4>Remembered</h4>${moments.map((m) => `<p class="moment"><small>d${m.day}</small> ${named(esc(m.text))}</p>`).join("")}` : ""}
     <p class="lead reward">${decade ? "🎉 A decade! " : ""}${goods(yearWin(y))}</p>
     <button class="primary" data-act="close">${y === yearOf(S.day) - 1 ? "On to the next" : "Close"}</button></div>`;

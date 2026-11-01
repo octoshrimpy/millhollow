@@ -103,7 +103,7 @@ Object.entries({
   "🏆": "slew a boss", "⭐": "level up · pride", "👣": "push on · wandering", "😄": "morale high", "🙂": "morale good",
   "😐": "morale middling", "😠": "morale low · grudge · anger", "💬": "blamed", "👀": "guarding", "🚪": "dungeon entrance",
   "💰": "treasure room · debt", "❔": "event room", "🪜": "stairs · below", "👑": "keeper's crown", "👊": "brawl", "✨": "sparkle",
-  "🗡": "bandits · dagger", "🔦": "party position", "🛣": "trader", "🎯": "target", "🎲": "reroll", "👻": "haunted",
+  "🗡": "bandits · dagger", "🔦": "party position", "🛣": "trader", "🎯": "target", "🎲": "reroll", "👻": "snapped",
   "🪦": "grief · grave", "🔥": "warmth · fire", "👁": "fear", "🎣": "fishing", "⛲": "shrine room",
 }).forEach(([e, t]) => use(e, t));
 $("#icons").innerHTML = Object.keys(ICONS).map((e) => `<div class="cell" title="${e}">${ic(e)}<span>${(uses[bare(e)] || ["unused"]).join("<br>")}</span></div>`).join("");
