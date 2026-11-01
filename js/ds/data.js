@@ -10,9 +10,10 @@ const NAMES = {
     "Hesper", "Hollis", "Kestrel", "Mabry", "Perrin", "Pike", "Rowan", "Sorrel",
     "Wren", "Wyn"],
 };
-const FACES = 60;
-const FACE_F = [1, 4, 6, 8, 13, 14, 16, 23, 24, 25, 26, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 51, 53, 55, 57, 59];
-const FACE_ANY = [9];
+const FACES = 90;
+const FACE_F = [1, 4, 6, 8, 13, 14, 16, 23, 24, 25, 26, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 51, 53, 55, 57, 59,
+  62, 64, 66, 68, 70, 72, 74, 76, 78, 80, 82, 84, 86, 88];
+const FACE_ANY = [9, 89];
 const sexOf = (id) => (FACE_F.includes(id) ? "f" : FACE_ANY.includes(id) ? "any" : "m");
 const namesFor = (sex) =>
   sex === "any" ? [...NAMES.f, ...NAMES.m, ...NAMES.any] : NAMES[sex].concat(NAMES.any);

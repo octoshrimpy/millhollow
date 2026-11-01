@@ -39,7 +39,7 @@ wildfires can bring new choices to the gate. Once the wonder stands, its gate ca
 switch between up to three settlements or send villagers through; settlements you are not
 playing stay frozen.
 
-Sixty portraits change with a person's age and mood.
+Ninety portraits change with a person's age and mood.
 
 Goals live behind the bell. Some are hidden until they happen, and a few reward the long game:
 how many people have ever lived in the village. Every year (365 days) ends with a recap of who
