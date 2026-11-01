@@ -277,7 +277,7 @@ function gossip(home) {
 }
 
 function why(s) {
-  const name = (id) => byId(id).name, has = (k) => fresh(s).some((x) => x.k === k), whom = (k) => byId(fresh(s).filter((x) => x.k === k && x.who).pop()?.who);
+  const name = (id) => byId(id)?.name ?? "someone", has = (k) => fresh(s).some((x) => x.k === k), whom = (k) => byId(fresh(s).filter((x) => x.k === k && x.who).pop()?.who);
   const told = (x) => (!x.hops ? "I was there." : x.from ? `${name(x.from)} told me.` : "I heard.");
   const said = [];
   // Same pick all day, so the line holds still between redraws.

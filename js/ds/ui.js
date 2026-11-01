@@ -387,7 +387,7 @@ const besideTag = (i, type) => {
   return tag ? ` <span class="beside">${tag}</span>` : "";
 };
 
-const jobIcon = (job) => Object.values(BUILDINGS).find((d) => d.job === job).icon;
+const jobIcon = (job) => Object.values(BUILDINGS).find((d) => d.job === job)?.icon ?? "";
 
 function sheetEvent() {
   if (S.expedition.prisoner) return sheetPrisoner();
@@ -561,7 +561,7 @@ function sheetPerson() {
     ${gearRow(s)}`}
   </div>
   <div><div class="sites lifetabs"><button class="${sheet.ties ? "" : "on"}" data-act="lifetab" data-v="log" aria-label="Log">📖</button><button class="${sheet.ties ? "on" : ""}" data-act="lifetab" data-v="ties" aria-label="Relationships">👥</button></div>
-  <div class="lifelog">${sheet.ties ? tiesOf(s) : (s.story || []).slice().reverse().map(line).join("")}</div></div></div>`;
+  <div class="lifelog">${sheet.ties ? tiesOf(s) : (s.story || []).slice(-80).reverse().map(line).join("")}</div></div></div>`; // ponytail: newest 80; the full 200 was 37 KB of HTML to parse per tab switch
 }
 const family = (s) => {
   const link = (o) => `<u class="nm" data-act="person" data-v="${o.id}">${esc(o.name)}</u>`;
@@ -1131,14 +1131,19 @@ function renderSheet() {
     return;
   }
   clearTimeout(sheetShut);
+  // Build before touching the box: a builder that throws closes the sheet instead of leaving the last one on screen.
+  let html;
+  try {
+    html = iconize(sheet.ask ? sheetAsk() : sheet.goals ? sheetGoals() : sheet.recap ? sheetRecap(sheet.recap) : sheet.beasts ? sheetBeasts() : sheet.menu ? sheetMenu() : sheet.event ? sheetEvent() : sheet.visitor ? sheetVisitor() : sheet.trouble ? sheetTrouble() : sheet.person ? sheetPerson()
+      : sheet.keep != null ? sheetKeep() : sheet.militia ? sheetMilitia() : sheet.events ? sheetEvents() : sheetPlot(sheet.i));
+  } catch (e) { console.error(e); sheet = null; box.hidden = true; box.classList.remove("open", "closing"); inner.replaceChildren(); return; }
   if (box.hidden || box.classList.contains("closing")) {
     box.classList.remove("closing");
     inner.style.transform = box.style.background = "";
     box.hidden = false;
     box.classList.add("open");
   }
-  morph(inner, iconize(sheet.ask ? sheetAsk() : sheet.goals ? sheetGoals() : sheet.recap ? sheetRecap(sheet.recap) : sheet.beasts ? sheetBeasts() : sheet.menu ? sheetMenu() : sheet.event ? sheetEvent() : sheet.visitor ? sheetVisitor() : sheet.trouble ? sheetTrouble() : sheet.person ? sheetPerson()
-    : sheet.keep != null ? sheetKeep() : sheet.militia ? sheetMilitia() : sheet.events ? sheetEvents() : sheetPlot(sheet.i)));
+  morph(inner, html);
 }
 
 // Drag a bottom sheet down to dismiss it. shade is the dimmed overlay behind it, if we control it.
