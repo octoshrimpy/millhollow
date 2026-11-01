@@ -22,3 +22,33 @@
 58 m an Ethiopian man with medium-dark brown skin, a narrow oval face, large almond eyes, a long straight narrow nose, thin lips, a high forehead, and a rounded mass of soft curly hair
 59 f a woman with deep brown skin and patches of vitiligo, pale cream patches around both eyes and across the chin, a round face, wide-set eyes, a broad nose, full lips, and short tight curls
 60 m a Pakistani Punjabi man with light brown skin, a heavy square face, a large curved nose, deep-set dark eyes under a single heavy brow, a wide mouth, big ears, and thick wavy black hair
+61 m a Scandinavian man with fair freckled skin, a long angular face, pale deep-set eyes, a high straight nose, thin lips, a strong jaw with a short full beard, and long straight hair pulled into a small knot at the back of his head
+62 f an Irish woman with very fair freckled skin, a round face, wide-set eyes, a short upturned nose, a wide mouth with a chipped front tooth, thick straight eyebrows, and a heavy tangle of wavy hair
+63 m a Greek man with olive skin, a strong square face, a large straight nose with a high bridge, heavy dark brows, deep creases beside his mouth, a clean-shaven jaw, and a receding line of short curly hair
+64 f a Somali woman with deep brown skin, a long oval face, high cheekbones, a narrow straight nose, large almond eyes, a slim neck, and hair cut very short and close to her head
+65 m a Zulu man with very dark skin, a broad square face, a wide nose, heavy-lidded eyes, a thick neck, a small notch missing from his left ear, and a completely shaved head
+66 f a Mongolian woman with tan wind-chapped skin, a very broad round face, narrow eyes with a deep epicanthic fold, a small flat nose, full cheeks with a ruddy glow, and thick black hair in a single long braid over one shoulder
+67 m a Sami man with fair weathered skin, a narrow face, pale narrow eyes, a long thin nose, deep lines beside his eyes, a sparse pointed beard, and straight pale hair worn to his shoulders
+68 f a Turkish woman with light olive skin, an oval face, large dark eyes, strong straight brows, a prominent straight nose, a full mouth, and thick dark hair parted in the middle and tucked behind her ears
+69 m a Brazilian man of mixed heritage with warm brown skin, a round face, a broad nose, bright wide-set eyes, a gap in his front teeth, a thin moustache, and tightly curled hair cut in a high fade
+70 f a Maori woman with warm brown skin, a broad face, a wide nose, full lips, strong dark brows, a fine blue-dark tattoo pattern on her chin, and long wavy black hair
+71 m a Hausa man with dark brown skin, a long face, a high forehead, a straight narrow nose, deep-set eyes, a short neat beard, and a shaved head with one old scar across the scalp
+72 f a Nepali woman with light brown skin, a heart-shaped face, large dark eyes, a small straight nose, a small mouth, a tiny stud in her nose, and long black hair worn in a tight low bun
+73 m a Tibetan man with ruddy brown weathered skin, a broad face, high flushed cheekbones, narrow eyes, a short broad nose, chapped lips, and a thick black fringe of straight hair
+74 f a Cree woman with light brown skin, a broad oval face, high cheekbones, dark steady eyes, a straight nose, a wide mouth, and long glossy black hair in two thick braids tied with cord
+75 m a Sicilian man with olive skin, a long face, a strong aquiline nose, heavy lidded dark eyes, a dark stubbled jaw, thick eyebrows that meet in the middle, and slicked-back dark wavy hair
+76 f a Yoruba woman with deep brown skin, a round face, a broad nose, large bright eyes, full lips, a high smooth forehead, and her hair worn in tight cornrows
+77 m a Hmong man with light tan skin, a narrow face, high cheekbones, small narrow eyes, a short straight nose, a thin neat moustache, and thick straight black hair parted to one side
+78 f an English woman with pale pink-flushed skin, a long face, a pointed chin, small close-set grey eyes, a thin straight nose, a thin mouth, and fine straight hair cut at the jaw
+79 m a Polynesian Hawaiian man with warm brown skin, a wide face, a broad flat nose, a heavy brow, kind small eyes, a thick neck, a bristly short beard, and long wavy hair tied up in a top bun
+80 f a Peruvian Amazonian woman with brown skin, a round face, wide-set dark eyes, a short broad nose, a wide mouth, faint curved lines tattooed on her chin, and straight black hair cut in a straight fringe to her chin
+81 m a Russian man with pale ruddy skin, a heavy square face, small pale eyes, a thick flat nose that was once broken, a heavy brow, a bristly jaw, and thick blond hair cut short
+82 f an Afro-Brazilian woman with dark brown skin, a heart-shaped face, a small straight nose, high round cheeks, arched thin eyebrows, a small gap in her teeth, and a large rounded afro
+83 m a Basque man with fair olive skin, a long narrow face, a large prominent nose, deep-set dark eyes, thick brows, a long jaw, big ears, and thick wavy dark hair going grey at the temples
+84 f a Thai woman with warm tan skin, an oval face, wide almond eyes, a small flat nose, full lips, a long neck, and shining black hair in a high ponytail
+85 m a Sudanese man with very dark skin, a long narrow face, high cheekbones, deep-set eyes, a long straight nose, thin lips, a tall narrow forehead, and short tight curls
+86 f a Welsh woman with pale skin, a round soft face, a small snub nose, wide blue eyes, a dimpled chin, heavy dark brows, and wild thick curly hair
+87 m a Hui Chinese man with light olive skin, a long face, a strong straight nose, deep-set eyes, a heavy jaw, a wispy chin beard, and a close-cropped scalp
+88 f an Armenian woman with pale olive skin, a long oval face, a large nose with a high bridge, large dark deep-set eyes, thick joined eyebrows, a small mouth, and a heavy mass of dark wavy hair
+89 any a slight, long-limbed person of mixed heritage with tan skin, a narrow face, large dark eyes, a straight thin nose, a small mouth, a fine scar through one eyebrow, and a ragged mop of dark hair of no particular style
+90 m a Cambodian Khmer man with tan skin, a round face, a broad flat nose, thick lips, a small mole above his lip, a smile that shows large front teeth, and thick straight black hair

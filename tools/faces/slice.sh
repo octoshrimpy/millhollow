@@ -19,7 +19,7 @@ def edges(a, n):
     for k in range(1, n):
         lo = int(k * L / n) - 60
         y = lo + int(np.argmin(std[lo:lo + 120]))
-        if std[y] > 25: sys.exit(f"no gutter near {k * L // n}")
+        if std[y] > 30: sys.exit(f"no gutter near {k * L // n}")
         band = [i for i in range(y - 12, y + 13) if std[i] < std[y] + 10]
         cuts.append((band[0] + band[-1]) // 2)
     cuts.append(L)
