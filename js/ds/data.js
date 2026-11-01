@@ -362,6 +362,32 @@ const BESIDE = { farm: ["water"], dock: ["water"], lumber: ["forest"], quarry: [
 const BESIDE_BOOST = 0.1;
 const BESIDE_YIELDS = { quarry: { mountain: { ore: 0.35 } } };
 
+// Strays that find a villager. `land`: the terrain near the village that makes a species likelier;
+// `likes`: the natures that take one in; `span`: years of life before the odds turn.
+const PETS = {
+  chicken:   { icon: "🐔", name: "chicken", a: "a stray hen", land: ["meadow"], likes: ["kind", "calm", "cheerful"], span: 6 },
+  goat:      { icon: "🐐", name: "goat", a: "a lost goat", land: ["hills", "mountain", "meadow"], likes: ["roamer", "cheerful", "hothead"], span: 10 },
+  sheep:     { icon: "🐑", name: "sheep", a: "a strayed lamb", land: ["meadow", "hills"], likes: ["calm", "kind", "loyal"], span: 10 },
+  horse:     { icon: "🐴", name: "horse", a: "a runaway pony", land: ["meadow", "hills"], likes: ["proud", "roamer", "loyal"], span: 20 },
+  dog:       { icon: "🐶", name: "dog", a: "a stray dog", land: ["meadow", "forest", "hills"], likes: ["loyal", "kind", "cheerful", "hothead"], span: 12 },
+  cat:       { icon: "🐱", name: "cat", a: "a stray cat", land: ["meadow", "ruins", "forest"], likes: ["calm", "gloomy", "proud"], span: 14 },
+  fox:       { icon: "🦊", name: "fox", a: "a fox cub", land: ["forest", "hills"], likes: ["roamer", "proud", "hothead"], span: 9 },
+  raccoon:   { icon: "🦝", name: "raccoon", a: "a raccoon in the grain store", land: ["forest", "water"], likes: ["cheerful", "roamer", "hothead"], span: 8 },
+  possum:    { icon: "🦡", name: "possum", a: "a possum playing dead", land: ["forest", "meadow"], likes: ["gloomy", "calm", "kind"], span: 5 },
+  gecko:     { icon: "🦎", name: "gecko", a: "a gecko on a warm stone", land: ["hills", "mountain", "ruins"], likes: ["calm", "gloomy", "proud"], span: 8 },
+  chameleon: { icon: "🐊", name: "chameleon", a: "a chameleon pretending to be a leaf", land: ["forest", "ruins"], likes: ["calm", "proud", "cheerful"], span: 7 },
+  moth:      { icon: "🦋", name: "giant moth", a: "a giant moth at the lamp", land: ["forest", "ruins"], likes: ["gloomy", "kind", "calm"], span: 1.5 },
+  duck:      { icon: "🦆", name: "duck", a: "a lone duck", land: ["water", "meadow"], likes: ["cheerful", "kind", "calm"], span: 9 },
+  tortoise:  { icon: "🐢", name: "tortoise", a: "a tortoise", land: ["meadow", "hills", "water"], likes: ["calm", "loyal", "gloomy"], span: 30 },
+  rabbit:    { icon: "🐇", name: "rabbit", a: "a lop-eared rabbit", land: ["meadow", "forest"], likes: ["kind", "cheerful"], span: 7 },
+  squirrel:  { icon: "🐿", name: "squirrel", a: "a red squirrel", land: ["forest"], likes: ["cheerful", "roamer", "hothead"], span: 6 },
+  crow:      { icon: "🐦‍⬛", name: "crow", a: "a crow with a bent wing", land: ["ruins", "mountain", "hills"], likes: ["gloomy", "proud", "roamer"], span: 12 },
+  snail:     { icon: "🐌", name: "snail", a: "a very large snail", land: ["water", "forest"], likes: ["calm", "gloomy", "kind"], span: 3 },
+};
+const PET_NAMES = ["Biscuit", "Pepper", "Nettle", "Bramble", "Clover", "Moss", "Pip", "Dumpling", "Sorrel", "Juniper", "Tansy", "Button",
+  "Mudge", "Pudding", "Rook", "Sprout", "Thimble", "Wren", "Hazel", "Barley", "Fennel", "Cobb", "Nutmeg", "Posy", "Tuppence", "Mabel",
+  "Ember", "Gruff", "Sage", "Turnip", "Whistle", "Ash", "Crumb", "Dill", "Flint", "Marrow", "Olive", "Pickle", "Stoat", "Winkle"];
+
 const BUILDINGS = {
   townhall: { name: "Town hall", icon: "🏛️", cost: {}, beds: 4, desc: "4 beds." },
   hut: { name: "Hut", icon: "🛖", cost: { wood: 6 }, beds: 2, desc: "2 beds.", up: { to: "stonehouse", cost: { stone: 8 } } },

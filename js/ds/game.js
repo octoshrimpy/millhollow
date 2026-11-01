@@ -46,6 +46,7 @@ const YEAR_EVENTS = [
   ["friends", / are friends now\./, 2, "🤗", (n) => many(n, "new friendship")],
   ["feuds", / can't stand each other\./, 2, "😠", (n) => many(n, "new feud")],
   ["left", / (never came back|walked off|slipped away in the night|packed up and left in the night|left to find food elsewhere|didn't come back)\./, 3, "🚪", (n) => `${n} left`],
+  ["pets", / named it \S+\.$/, 0, "🐾", (n) => many(n, "new pet")],
   ["died", / died on floor \d+\./, 5, "💀", (n) => `${n} lost below`],
   ["wiped", /^Party wiped out/, 4, "☠", (n) => many(n, "party wiped out", "parties wiped out")],
   ["haunts", / haunts /, 4, "👻", (n) => many(n, "haunting")],
@@ -397,6 +398,61 @@ const chem = (a, b) => {
 // ponytail: a pastime caps at a quarter of the village so nobody's hobby swallows the rest.
 const rare = (p) => living().filter((o) => o.pastime === p).length < Math.max(2, living().length / 4);
 
+// Pets: a stray finds a villager, or they find it. One to a villager, kept on them so it saves, and only a nature the species suits takes it in.
+const petYears = (p) => (S.day - p.since) / 365;
+const petOld = (p) => (p.age0 || 0) + petYears(p);
+const petFits = (s, kind) => traitsOf(s).some((t) => PETS[kind].likes.includes(t));
+const cap = (t) => t[0].toUpperCase() + t.slice(1);
+function petKind(s) {
+  const lands = near(S.hall ?? MID, 4).map((i) => S.land[i]);
+  const w = Object.entries(PETS).map(([k, p]) => [k, (1 + lands.filter((t) => p.land.includes(t)).length / 4) * (petFits(s, k) ? 3 : 1)]);
+  let r = Math.random() * w.reduce((a, [, n]) => a + n, 0);
+  return (w.find(([, n]) => (r -= n) < 0) || w[0])[0];
+}
+function petFind(home) {
+  const s = pick(home.filter((o) => !o.pet)), kind = petKind(s), k = PETS[kind];
+  S.petDay = S.day;
+  const came = chance(1 / 3), took = petFits(s, kind);
+  const lead = came ? `${k.icon} ${cap(k.a)} followed ${s.name} home.` : `${k.icon} ${s.name} found ${k.a}`;
+  if (!took) return gameLog(came ? `${lead} ${s.name} ${pick(["fed it and sent it on its way", "shooed it back out", "said no, firmly"])}.` : `${lead}, but ${pick(["it wasn't for them", "it was no use to them", "they had no room for it"])}. It went on its way.`, "story", [s], true);
+  const used = living().filter((o) => o.pet).map((o) => o.pet.name), name = pick(PET_NAMES.filter((n) => !used.includes(n)));
+  s.pet = { kind, name, since: S.day, age0: Math.round(Math.random() * k.span * 6) / 10, ageAt: s.age };
+  S.pets.adopted++;
+  stir(s, "warmth", 10);
+  gameLog(came ? `${lead} ${s.name} named it ${name}.` : `${lead} and named it ${name}.`, "story", [s], true);
+}
+function petDies(s) {
+  const p = s.pet, k = PETS[p.kind], yrs = Math.floor(petYears(p));
+  delete s.pet;
+  S.pets.buried++;
+  stir(s, "grief", 20);
+  s.morale = clampMorale(s.morale - 8);
+  const mourners = living().filter((o) => o !== s && !away(o) && (o.spouse === s.id || tieOf(o, s) >= 15)).slice(0, 2);
+  mourners.forEach((o) => { tie(o, s, 3); stir(o, "grief", 5); });
+  gameLog(`${k.icon} ${p.name} the ${k.name} ${pick(["passed away in their sleep", "slipped away quietly", "didn't wake up one morning"])}${yrs ? `, after ${many(yrs, "year")} with ${s.name}` : ""}.`, "story", [s]);
+  gameLog(`${mourners.length ? `${mourners.map((o) => o.name).join(" and ")} stood with ${s.name}` : `${s.name} dug the hole alone`}, and ${p.name} was laid under ${pick(["the hedge", "the old fence post", "a flat stone", "the apple tree"])}.`, "story", [s, ...mourners]);
+}
+// An owner who has died leaves the pet to someone who was close and whom the species suits; otherwise it wanders off.
+function petOrphan(s) {
+  const p = s.pet, k = PETS[p.kind], score = (o) => tieOf(o, s) + (o.spouse === s.id ? 100 : 0);
+  delete s.pet;
+  const heir = living().filter((o) => !o.pet && petFits(o, p.kind) && close(o, s)).sort((a, b) => score(b) - score(a))[0];
+  if (!heir) return gameLog(`${k.icon} ${p.name} the ${k.name} wandered off after ${s.name} was gone.`, "story", [], true);
+  heir.pet = { ...p, age0: petOld(p), since: S.day, ageAt: heir.age, from: s.name };
+  gameLog(`${k.icon} ${p.name} the ${k.name} now keeps ${heir.name} company, in memory of ${s.name}.`, "story", [heir]);
+}
+function petDay(home) {
+  S.pets ??= { adopted: 0, buried: 0, best: 0 };
+  S.settlers.filter((o) => o.dead && o.pet).forEach(petOrphan);
+  // Whoever leaves takes their pet along.
+  for (const s of (S.gone || []).filter((o) => o.pet && !o.pet.left)) { s.pet.left = true; gameLog(`${PETS[s.pet.kind].icon} ${s.pet.name} went along with ${s.name}.`, "story", [s], true); }
+  for (const s of living().filter((o) => o.pet)) {
+    S.pets.best = Math.max(S.pets.best, petYears(s.pet));
+    if (chance(0.0001 + Math.max(0, petOld(s.pet) - PETS[s.pet.kind].span) * 0.0008)) petDies(s);
+  }
+  if (S.day > 10 && S.day - (S.petDay ?? -99) >= 8 && chance(0.04) && home.some((o) => !o.pet) && living().filter((o) => o.pet).length < Math.ceil(living().length / 2)) petFind(home);
+}
+
 const DRIVES = { anger: "angry", fear: "scared", grief: "sad", restless: "sad", warmth: "happy", pride: "happy" };
 const drive = (s, d) => s.drive?.[d] || 0;
 function stir(s, d, n) {
@@ -723,6 +779,7 @@ function load() {
     for (const s of [...S.settlers, S.visitor].filter(Boolean)) s.pastime ??= pastimeOf(s);
     // Older villagers get a nature now, and couples count their years from the upgrade.
     for (const s of [...S.settlers, S.visitor].filter(Boolean)) { traitsOf(s); delete s.wins; if (s.spouse != null) s.wedDay ??= S.day; }
+    S.pets ??= { adopted: 0, buried: 0, best: 0 };
     return true;
   } catch (e) { return false; }
 }
@@ -1692,6 +1749,7 @@ function endDay(hold) {
   raid();
   trouble(home, hold);
   boon(home);
+  petDay(home);
   if (!S.log.some((e) => e.n > logN && ["story", "good", "bad"].includes(e.kind))) beat(home);
 
   gameLog(`${[tally(got, spent) || "No change.", underway()].filter(Boolean).join(" · ")}${hungry ? ` ${hungry} went hungry.` : ""}`, hungry ? "bad" : "day");
