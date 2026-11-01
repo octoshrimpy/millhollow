@@ -48,7 +48,9 @@ const YEAR_EVENTS = [
   ["left", / (never came back|walked off|slipped away in the night|packed up and left in the night|left to find food elsewhere|didn't come back)\./, 3, "🚪", (n) => `${n} left`],
   ["died", / died on floor \d+\./, 5, "💀", (n) => `${n} lost below`],
   ["wiped", /^Party wiped out/, 4, "☠", (n) => many(n, "party wiped out", "parties wiped out")],
-  ["haunts", / haunts /, 4, "👻", (n) => many(n, "haunting")],
+  ["warned", / voice at the graves: /, 0, "🪦", (n) => many(n, "warning")],
+  ["heeded", /^Heeded /, 3, "🪔", (n) => `${n} heeded`],
+  ["inspired", / voice reached .+: “/, 2, "✨", (n) => `${n} inspired`],
   ["sorties", /^Set out /, 0, "🧭", (n) => many(n, "expedition")],
   ["floors", /^Floor \d+: first clear/, 0, "🪜", (n) => many(n, "new floor cleared", "new floors cleared")],
   ["keepers", /: boss down\./, 4, "⚔", (n) => many(n, "keeper felled", "keepers felled")],
@@ -158,16 +160,17 @@ function stats(s) {
   const sum = (k) => g.reduce((a, it) => a + (it[k] || 0), 0), hpMax = s.hpMax + sum("hp");
   const atk = Math.ceil((c.atk + Math.floor(4.5 * Math.log(s.level)) + sum("atk") + fitBonus(s.gear.weapon, s)) * (1 - arms(s, hpMax) * 0.1));
   const spd = c.spd + sum("spd") - Math.floor((sore(s, "lleg", hpMax) + sore(s, "rleg", hpMax)) / 2);
-  const h = haunted(s);
   return {
     hpMax,
-    atk: h ? Math.ceil(atk * 0.75) : atk,
+    atk,
     def: Math.max(0, c.def + Math.floor(1.8 * Math.log(s.level)) + sum("def") - sore(s, "torso", hpMax)),
-    spd: Math.max(1, h ? spd - 2 : spd),
+    spd: Math.max(1, spd),
   };
 }
 
-const haunted = (s) => !s.dead && !!S.remains && S.remains.some((r) => r.haunts === s.id);
+// The dead keep speaking: a villager still grieving names the one they lost; a lifted spirit is a thought that runs out on its own.
+const mourned = (s) => fresh(s).find((x) => x.k === "grief" && x.who)?.who;
+const inspired = (s) => fresh(s).some((x) => x.k === "inspired");
 
 const fades = () => S.day + 10 + rand(30);
 const believes = (s, t) => (s.heard || []).filter((x) => x.about === t.id && !(x.until <= S.day)).reduce((a, x) => a + x.v, 0);
@@ -226,8 +229,8 @@ function why(s) {
   const hash = (k) => { let h = 2166136261; for (const c of `${s.id}:${S.day}:${k}`) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return (h ^ h >>> 16) >>> 0; };
   const say = (m, w, ...xs) => said.push([m, w, xs[hash(xs[0]) % xs.length]]);
   const hp = s.hp / stats(s).hpMax, d = (k) => drive(s, k);
-  const ghost = S.remains.find((r) => r.haunts === s.id);
-  if (ghost) say("scared", 90, `${name(ghost.id)} won't leave me be.`, `I keep seeing ${name(ghost.id)}.`, `${name(ghost.id)} was here last night.`);
+  const lift = fresh(s).find((x) => x.k === "inspired");
+  if (lift?.who) say("happy", 70, `${name(lift.who)} is still looking out for me.`, `I heard ${name(lift.who)} out there.`, `${name(lift.who)} would want this done.`);
   if (hp < 0.15) say("scared", 95, "I can't get up.", "I'm not going to make it.", "Everything hurts.");
   else if (hp < 0.3) say("scared", 80, "I can barely stand.", "I need rest.", "I'm in bad shape.");
   const hurt = Object.keys(PARTS).map((p) => [p, sore(s, p)]).filter(([, n]) => n).sort((a, b) => b[1] - a[1]);
@@ -317,7 +320,7 @@ function why(s) {
 
 const THOUGHTS = {
   hungry:    { name: "Hungry", icon: "🍽", mood: "angry", morale: -12, days: 2, stir: { anger: 12, restless: 15 } },
-  haunted:   { name: "Haunted", icon: "👻", mood: "scared", morale: -2, days: 2, stir: { fear: 8, grief: 8 } },
+  inspired:  { name: "Inspired", icon: "🪔", mood: "happy", morale: 6, days: 3, stir: { grief: -15, pride: 15 } },
   starving:  { name: "Starving", icon: "🍽", mood: "angry", morale: -3, days: 1, stir: { anger: 8 } },
   rough:     { name: "No bed", icon: "🛏", mood: "angry", morale: -4, days: 1, stir: { anger: 6, restless: 6 } },
   grief:     { name: "Grieving", icon: "🪦", mood: "sad", morale: -10, days: 4, stir: { grief: 45 } },
@@ -424,7 +427,6 @@ function feeling(s) {
 function mood(s) {
   const st = stats(s);
   if (s.dead) return s.buried ? "happy" : S.remains.some((r) => r.id === s.id) ? "angry" : "sad";
-  if (haunted(s)) return "scared";
   if (s.hp < st.hpMax * 0.3) return "scared";
   const f = feeling(s);
   if (f) return THOUGHTS[f.k].mood;
@@ -744,6 +746,9 @@ function migrate() {
   for (const k of Object.keys(RESOURCES)) S.res[k] ??= 0;
   if (S.expedition) S.expedition.meals ??= 0;
   S.remains ??= [];
+  S.omen ??= null;
+  S.graves ??= S.settlers.filter((s) => s.dead && s.buried).map((s) => ({ id: s.id, day: s.diedOn ?? S.day, cause: "", claims: [] }));
+  S.remains.forEach((r) => delete r.haunts);
   // Floors kept from before the save were one object with the expedition's map.
   if (S.expedition) (siteOf().floors ||= {})[S.expedition.map.floor] = S.expedition.map;
   for (const j of S.forging || []) if (j.until) { delete j.until; j.left = 1; }
@@ -916,6 +921,47 @@ const holds = (n) => {
   const p = living().filter((s) => !away(s)).reduce((a, s) => a + (isGuard(s) ? 2 : 1) * (stats(s).atk + stats(s).def) * s.hp / stats(s).hpMax, 0);
   return p / (p + n * 7 * (1 + S.day / 80));
 };
+// The dead keep speaking, one grave at a time. A grave that has spoken is quiet for a few days.
+const OMENS = {
+  bandits: ["riders coming", "iron on the road", "boots at the gate before long"],
+  pirates: ["lanterns on the water", "oars in the dark"],
+  trader: ["wheels on the road", "a stranger with wares"],
+  boon: ["luck is turning", "something kind is on its way"],
+};
+const MUSE = ["Finish what you started.", "Don't let the day go to waste.", "I'm still here. Get on.", "Mind your hands, mind your heart.", "You're better at this than you think."];
+const speaker = () => (built("graveyard") && pick((S.graves || []).filter((g) => !(S.day < g.quiet)))) || null;
+function speak(g, text, line) {
+  g.said = { day: S.day, text };
+  g.quiet = S.day + 6 + rand(7);
+  gameLog(line, "story", [byId(g.id)]);
+}
+// A grave sometimes names what is coming a day or two early. The thing is already decided and waits in S.omen, so the word is always true.
+function warn(kind, omen) {
+  const g = !S.omen && chance(0.5) && speaker();
+  if (!g) return false;
+  const text = pick(OMENS[kind]);
+  S.omen = { day: S.day + 1 + rand(2), by: g.id, ...omen };
+  speak(g, text, `${byId(g.id).name}'s voice at the graves: ${text}.`);
+  return true;
+}
+function bring(t, line, kind, who) {
+  if (warn(t.kind, { t, line, kind })) return;
+  S.trouble = t;
+  gameLog(line, kind, who);
+}
+// Now and then a grave lifts someone, a kinsman first: better work and a better mood for a day to a week.
+function graveSpeaks(home) {
+  if (!chance(0.06) || living().filter(inspired).length >= 2) return;
+  const g = speaker();
+  if (!g) return;
+  const d = byId(g.id), spare = home.filter((o) => !inspired(o)), kin = spare.filter((o) => o.spouse === d.id || tieOf(o, d) >= 20);
+  const who = kin.length ? pick(kin) : chance(0.3) ? pick(spare) : null;
+  if (!who) return;
+  const text = pick(MUSE), days = 1 + rand(7);
+  think(who, "inspired", d.id);
+  who.thoughts.find((x) => x.k === "inspired").until = S.day + 1 + days;
+  speak(g, text, `${d.name}'s voice reached ${who.name}: “${text}”`);
+}
 function trouble(home, hold) {
   const t = S.trouble;
   if (S.dropped) {
@@ -983,12 +1029,17 @@ function trouble(home, hold) {
     gameLog(`${s.name} ${did}. +${n}${RESOURCES[res].icon}`, "good", [s]);
     break;
   }
-  if (S.trouble) return;
+  if (S.omen?.t && !S.trouble && S.day >= S.omen.day) {
+    const { t, line, kind, by } = S.omen;
+    S.omen = null;
+    S.trouble = { ...t, warned: by };
+    return gameLog(line, kind);
+  }
+  if (S.trouble || S.omen) return;
   if (S.ladders && S.day >= S.ladders && home.length) {
     S.ladders = S.day + 10 + rand(21);
     const r = ["food", "wood", "stone", "ore", "herbs"].sort((a, b) => S.res[b] - S.res[a])[0];
-    S.trouble = { kind: "bandits", n: 3 + Math.floor(stock() / 120), take: { [r]: Math.ceil(S.res[r] / 2 * shield()) } };
-    return gameLog(`Ladders on the walls.`, "bad", living());
+    return bring({ kind: "bandits", n: 3 + Math.floor(stock() / 120), take: { [r]: Math.ceil(S.res[r] / 2 * shield()) } }, `Ladders on the walls.`, "bad", living());
   }
   const plate = 3 * home.length;
   const mourning = !S.expedition && home.some((s) => fresh(s).some((x) => x.k === "grief"));
@@ -999,23 +1050,21 @@ function trouble(home, hold) {
   const piles = ["food", "wood", "stone", "herbs"].sort((a, b) => S.res[b] - S.res[a]).filter((r) => S.res[r] >= 20).slice(0, 2);
   if (S.day > 8 && piles.length && chance(Math.min(0.1, 0.03 + S.res[piles[0]] / 3000))) {
     const wants = ["relics", "ore", "silver", "potions"].sort(() => Math.random() - 0.5).slice(0, 3);
-    S.trouble = { kind: "trader", take: {}, offers: wants.map((w, i) => {
+    return bring({ kind: "trader", take: {}, offers: wants.map((w, i) => {
       const r = piles[i % piles.length], lots = 1 + Math.floor(S.res[r] / 60);
       return { take: { [r]: 20 * lots }, give: { [w]: ({ silver: 2, relics: 1 }[w] || 3) * lots } };
-    }) };
-    return gameLog(`A trader at the gate.`, "story");
+    }) }, `A trader at the gate.`, "story");
   }
-  const fey = home.find((s) => haunted(s) && drive(s, "grief") >= 30 && !(S.day - s.fey < 20) && chance(0.05));
+  const fey = home.find((s) => mourned(s) != null && drive(s, "grief") >= 30 && !(S.day - s.fey < 20) && chance(0.05));
   if (fey && built("forge")) {
     fey.fey = S.day;
-    S.trouble = { kind: "fey", who: fey.id, take: { relics: 1 + rand(2), [pick(["ore", "herbs", "silver"])]: 3 + rand(3) } };
+    S.trouble = { kind: "fey", who: fey.id, for: mourned(fey), take: { relics: 1 + rand(2), [pick(["ore", "herbs", "silver"])]: 3 + rand(3) } };
     return gameLog(`${fey.name} shut the forge door.`, "story", [fey]);
   }
   const pirates = wet() && chance(0.25);
   if (S.day > 12 && chance(Math.min(0.06, (stock() - 120) / 2500) * 0.5 ** guards().length * (has("walls") && !pirates ? 0.5 : 1))) {
     const r = ["food", "wood", "stone", "ore", "herbs"].sort((a, b) => S.res[b] - S.res[a])[0];
-    S.trouble = { kind: pirates ? "pirates" : "bandits", n: 2 + Math.floor(stock() / 150), take: { [r]: Math.ceil(S.res[r] / 3 * shield()) } };
-    gameLog(pirates ? `River pirates at the landing.` : `Bandits at the gate.`, "bad");
+    bring({ kind: pirates ? "pirates" : "bandits", n: 2 + Math.floor(stock() / 150), take: { [r]: Math.ceil(S.res[r] / 3 * shield()) } }, pirates ? `River pirates at the landing.` : `Bandits at the gate.`, "bad");
   }
 }
 // ponytail: hearsay alone never starts a fight, or gossip chains every brawl into the next.
@@ -1046,7 +1095,7 @@ const GIFTS = { carving: "a carved bird", baskets: "a basket", pottery: "a bowl"
   tanning: "a leather pouch", fletching: "a fistful of arrows", sewing: "a mended coat", herbs: "a tea blend", statues: "a clay figure",
   smithing: "a new knife", binding: "a notebook", lute: "a song", singing: "a song", stars: "a name for a star", birds: "a feather", kites: "a kite" };
 const gift = (s) => GIFTS[s.pastime] || pick(["a warm loaf", "a cup of tea", "a handful of berries", "a smooth stone", "the last apple"]);
-const SORE = ["grief", "jilted", "neardeath", "haunted", "snapped", "blamed"];
+const SORE = ["grief", "jilted", "neardeath", "snapped", "blamed"];
 const mourner = (s, home) => home.filter((o) => o !== s && (drive(o, "grief") >= 30 || drive(o, "fear") >= 40 || fresh(o).some((x) => SORE.includes(x.k))) && tieOf(s, o) >= 0 && !fresh(o).some((x) => x.k === "comforted"))
   .sort((a, b) => tieOf(s, b) - tieOf(s, a))[0];
 const spend = (s, d, k = 0) => (s.drive[d] = Math.floor(drive(s, d) * k));
@@ -1218,7 +1267,7 @@ function recall(s) {
   });
 }
 function leisure(home) {
-  const v = venues(), steam = v.filter((k) => VENUES[k].steam), all = home.filter((s) => s.pastime && !haunted(s));
+  const v = venues(), steam = v.filter((k) => VENUES[k].steam), all = home.filter((s) => s.pastime);
   // everyone unwinds, but only a few, the most stirred up, make the village log
   const heat = (s) => Object.values(s.drive || {}).reduce((a, b) => a + b, 0);
   const seen = new Set(all.map((s) => [s, Math.random() * (20 + heat(s))]).sort((a, b) => b[1] - a[1]).slice(0, 2 + rand(3)).map(([s]) => s));
@@ -1297,7 +1346,7 @@ function leisure(home) {
   }
 }
 function verse(home) {
-  const poet = pick(home.filter((s) => s.pastime === "poetry" && !haunted(s) && s.morale >= 30));
+  const poet = pick(home.filter((s) => s.pastime === "poetry" && s.morale >= 30));
   if (!poet || !chance(0.3)) return;
   const fans = home.filter((s) => s !== poet), pleased = [], bored = [];
   for (const s of fans) {
@@ -1354,7 +1403,6 @@ function leave(s) {
   (S.gone ||= []).push(s);
   S.grid.forEach((b) => { if (b && b.worker === s.id) b.worker = null; });
   s.job = null;
-  S.remains.forEach((r) => { if (r.haunts === s.id) r.haunts = null; });
 }
 // One way through the wonder's gate. Eligible: at home, on their feet, not a visitor; couples go together and someone always stays.
 const gateReady = () => built("wonder") && !(typeof S.wonder?.wear === "number" && S.wonder.ruined);
@@ -1450,6 +1498,11 @@ function settle(how) {
   if (!t) return;
   const s = t.who && byId(t.who);
   S.trouble = null;
+  // A warning answered, not ignored, is a warning heeded: a raid then costs less and is easier to hold.
+  if (t.warned != null && how !== "ignore" && (!t.offers || t.offers[+how])) {
+    if (t.n) { t.take = Object.fromEntries(Object.entries(t.take).map(([r, n]) => [r, Math.ceil(n * 0.6)])); t.n = Math.max(1, t.n - 1); }
+    gameLog(`Heeded ${byId(t.warned).name}'s warning.`, "good");
+  }
   const grab = (k) => Object.entries(t.take).forEach(([r, n]) => (S.res[r] = Math.max(0, S.res[r] - n * k)));
   const what = Object.entries(t.take).map(([r, n]) => `${n}${RESOURCES[r].icon}`).join(" ");
   if (t.kind === "wedding") {
@@ -1497,10 +1550,10 @@ function settle(how) {
     if (!s) return;
     if (how === "yes" && afford(t.take) && !s.dead) {
       pay(t.take);
-      const ghost = byId(S.remains.find((x) => x.haunts === s.id)?.id ?? s.id), slot = pick(["weapon", "armor"]);
+      const lost = byId(t.for ?? s.id), slot = pick(["weapon", "armor"]);
       const k = 2 + Math.floor(S.day / 30);
-      const g = slot === "weapon" ? { name: `${ghost.name}'s ${pick(["Lament", "Grief", "Due"])}`, slot, atk: 3 + k, spd: 1 }
-        : { name: `${ghost.name}'s ${pick(["Shroud", "Vigil", "Keepsake"])}`, slot, def: 2 + k, hp: 4 * k };
+      const g = slot === "weapon" ? { name: `${lost.name}'s ${pick(["Lament", "Grief", "Due"])}`, slot, atk: 3 + k, spd: 1 }
+        : { name: `${lost.name}'s ${pick(["Shroud", "Vigil", "Keepsake"])}`, slot, def: 2 + k, hp: 4 * k };
       (S.stash ||= []).push({ ...g, uid: nextId++ });
       think(s, "made");
       return gameLog(`${s.name} came out of the forge with ${g.name}.`, "good", [s]);
@@ -1706,9 +1759,17 @@ const BOONS = [
   { can: () => true, does: () => { add("potions", 2); gameLog("🧪 A traveller left two potions on the step.", "good"); } },
 ];
 function boon(home) {
-  if (S.day - (S.boonDay ?? 0) < 12 || !chance(Math.min(0.08, S.day / 1500))) return;
+  const o = S.omen;
+  if (o?.b != null && S.day >= o.day) {
+    S.omen = null;
+    S.boonDay = S.day;
+    return (BOONS[o.b]?.can(home) ? BOONS[o.b] : pick(BOONS.filter((b) => b.can(home)))).does(home);
+  }
+  if (S.omen || S.day - (S.boonDay ?? 0) < 12 || !chance(Math.min(0.08, S.day / 1500))) return;
   const b = pick(BOONS.filter((b) => b.can(home)));
-  if (b) { S.boonDay = S.day; b.does(home); }
+  if (!b) return;
+  S.boonDay = S.day;
+  if (!warn("boon", { b: BOONS.indexOf(b) })) b.does(home);
 }
 function endDay(hold) {
   const got = {}, spent = {}, logN = S.logN || 0;
@@ -1725,7 +1786,7 @@ function endDay(hold) {
     b.unpaid = !up.every(([r, n]) => S.res[r] >= n);
     if (!b.unpaid) for (const [r, n] of up) { S.res[r] -= n; spent[r] = (spent[r] || 0) + n; }
     const boost = 1 + boostOf(b) + besideBoost(i, b.type);
-    const eff = (1 + skill * 0.1) * (s.graft === S.day ? 1.5 : 1) * (s.morale < 30 ? 0.5 : 1) * (haunted(s) ? 0.5 : 1) * (1 - arms(s) * 0.1) * fedRate(s) * boost;
+    const eff = (1 + skill * 0.1) * (s.graft === S.day ? 1.5 : 1) * (inspired(s) ? 1.25 : 1) * (s.morale < 30 ? 0.5 : 1) * (1 - arms(s) * 0.1) * fedRate(s) * boost;
     for (const [r, n] of Object.entries(addCost({ ...def.yields }, besideYields(i, b.type)))) take(r, n * eff);
     if (b.type === "library" && S.study && --S.study.left <= 0) learn();
     if (b.type === "library" && S.res.relics > 0) {
@@ -1784,14 +1845,9 @@ function endDay(hold) {
       s.hp = Math.max(1, s.hp - Math.ceil(stats(s).hpMax * 0.15));
     }
   });
-  for (const r of S.remains) {
-    if (r.haunts && !byId(r.haunts).dead) continue;
-    const l = living();
-    r.haunts = l.length ? pick(l).id : null;
-    if (r.haunts) gameLog(`${byId(r.id).name} haunts ${byId(r.haunts).name}.`, "bad", [byId(r.haunts)]);
-  }
-  home.forEach((s) => { rest(s); if (haunted(s)) think(s, "haunted"); });
+  home.forEach((s) => rest(s));
   gossip(home);
+  graveSpeaks(home);
   if (living().length > beds()) home.forEach((s) => think(s, "rough"));
   home.forEach((s) => { if (s.job != null && commute(s) > 4) think(s, "farwalk"); });
   raid();
@@ -2272,9 +2328,6 @@ function endFight(won) {
     }
   }
   for (const id of fell) {
-    const r = S.remains.find((x) => x.id === id), seen = partyAlive();
-    r.haunts = seen.length ? pick(seen).id : null;
-    if (r.haunts) gameLog(`${byId(id).name} haunts ${byId(r.haunts).name}.`, "bad", [byId(r.haunts)]);
     const rowOf = (sid) => fight.heroes.find((u) => u.id === sid).row;
     blameDeath(byId(id), partyAlive(), (s) => rowOf(s.id) === rowOf(id));
   }
@@ -2405,6 +2458,10 @@ function bury() {
   if (!home.length) return;
   S.remains = S.remains.filter((r) => r.at !== "home");
   const ids = home.map((r) => r.id);
+  for (const r of home) {
+    const claims = [...new Set(S.settlers.flatMap((s) => (s.heard || []).filter((x) => x.death === r.id).map((x) => `${byId(x.about).name} ${deed(x, x.v)}`)))];
+    (S.graves ||= []).push({ id: r.id, day: S.day, cause: `Fell on floor ${r.floor}`, claims: claims.slice(0, 3) });
+  }
   ids.forEach((id) => (byId(id).buried = true));
   S.settlers.forEach((s) => s.heard && (s.heard = s.heard.filter((x) => !ids.includes(x.death))));
   gameLog(`Buried ${ids.map((id) => byId(id).name).join(", ")}.`, "story", [...ids.map(byId), ...living()]);
