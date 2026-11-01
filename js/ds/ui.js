@@ -691,7 +691,8 @@ function pickRow(s) {
 }
 
 function viewExpedition() {
-  const ready = living().filter((s) => s.hp > 0);
+  const ready = living().filter((s) => s.hp > 0), q = (plan.q || "").trim().toLowerCase();
+  const shown = q ? ready.filter((s) => `${s.name} ${CLASSES[s.cls].name || s.cls}`.toLowerCase().includes(q)) : ready;
   const sworn = ready.filter(avenges).map((s) => s.id);
   plan.party = [...new Set([...sworn, ...plan.party])].filter((id) => ready.some((s) => s.id === id && !refuses(s))).slice(0, partyMax());
   plan.rations = Math.min(plan.rations, S.res.food);
@@ -701,7 +702,8 @@ function viewExpedition() {
   const site = S.sites[plan.site || 0], days = travelDays(site);
   plan.floor = Math.min(plan.floor, site.deepest + 1);
   const floors = Array.from({ length: site.deepest + 1 }, (_, k) => k + 1);
-  const where = known.length > 1 ? `<div class="sites">${known.map((x) => `<button class="${x === site ? "on" : ""}" data-act="site" data-v="${S.sites.indexOf(x)}"
+  const where = known.length > 8 ? `<select class="sitepick" data-act="sitesel" aria-label="Dungeon">${known.map((x) => `<option value="${S.sites.indexOf(x)}" ${x === site ? "selected" : ""}>${SITES[x.kind].icon} ${esc(x.name)}${tierOf(x) ? ` ${"▪".repeat(tierOf(x))}` : ""}</option>`).join("")}</select>`
+    : known.length > 1 ? `<div class="sites">${known.map((x) => `<button class="${x === site ? "on" : ""}" data-act="site" data-v="${S.sites.indexOf(x)}"
     aria-label="${esc(x.name)}">${SITES[x.kind].icon}${tierOf(x) ? `<small class="pips">${"▪".repeat(tierOf(x))}</small>` : ""}</button>`).join("")}</div>` : "";
   const home = living().filter((s) => !away(s) && !plan.party.includes(s.id));
   const per = (k) => `${roomsPer(k)} ${roomsPer(k) > 1 ? "rooms" : "room"}`;
@@ -710,7 +712,7 @@ function viewExpedition() {
       <button data-act="${act}" data-v="-1" data-hold>−</button><b>${n}</b><button data-act="${act}" data-v="1" data-hold>＋</button></span></div>`;
   return `${where}<div class="row between"><h3>${SITES[site.kind].icon} ${esc(site.name)}</h3><span class="row"><button class="ghost" data-act="beasts" aria-label="Beastiary">📖</button>${days ? tip("Travel", `👣 ${days}d`, "chip") : ""}</span></div>
     ${site.ruin && !S.wonder?.cleared ? `<p class="bad">${RUIN_WARN}</p>` : ""}<p class="dim">Party of up to ${partyMax()}. 🍞 ${per("food")}${cook ? ` · 🥪 ${per("meals")}, +${MEAL_HEAL}❤️` : ""}. No food: starving. Death is permanent.</p>
-    <div class="exped"><div class="roster">${ready.map(pickRow).join("")}</div><div class="plan">
+    <div class="exped"><div class="rosterbox">${ready.length > 12 ? `<input id="rosterq" type="search" placeholder="Search villagers" aria-label="Search villagers" value="${esc(plan.q || "")}">` : ""}<div class="roster">${shown.map(pickRow).join("") || `<p class="dim">Nobody matches.</p>`}</div></div><div class="plan">
     ${plan.party.length ? formation(plan.party.map(byId), false) : ""}
     ${home.length ? `<div class="row between"><span>👀 Gate watch</span><span class="keepers">${Array.from({ length: watchMax() }, (_, i) => {
       const on = guards()[i];
@@ -1764,6 +1766,7 @@ function celebrate(b) {
 
 document.addEventListener("input", (e) => {
   if (e.target.id === "town") { S.town = e.target.value; save(); }
+  if (e.target.id === "rosterq") { plan.q = e.target.value; render(); }
   if (e.target.id === "fightspeed") {
     fightSpeed = SPEEDS[+e.target.value];
     $("#fsval").textContent = `${fightSpeed}×`;
@@ -1780,6 +1783,7 @@ document.addEventListener("change", (e) => {
   }
   if (!el.dataset.act) return;
   if (el.dataset.act === "floor") plan.floor = +el.value;
+  if (el.dataset.act === "sitesel") ACTS.site(el.value);
   render();
 });
 
