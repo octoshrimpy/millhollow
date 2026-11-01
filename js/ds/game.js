@@ -553,7 +553,7 @@ const bandOf = (s) => AGE_BANDS.reduce((b, [k, from]) => (ageOf(s) >= from ? k :
 const kid = (s) => ageOf(s) < AGE_BANDS[1][1];
 const grownAge = (band, n = rand(1e6)) => { const [lo, hi] = ARRIVE_AGE[band]; return lo + (n % (hi - lo)); };
 const faceSrc = (s) => `assets/face-${s.face}-${bandOf(s)}-${mood(s)}.avif`;
-const living = () => S.settlers.filter((s) => !s.dead).sort((a, b) => b.level - a.level || a.name.localeCompare(b.name));
+const living = () => S.settlers.filter((s) => !s.dead).sort((a, b) => b.level - a.level || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)); // ponytail: no localeCompare, it dominated the sort
 const byId = (id) => S.settlers.find((s) => s.id === id) || (S.gone || []).find((s) => s.id === id);
 
 const xpNeed = (l) => Math.round(15 * l * (1 + l / 8));
@@ -1322,7 +1322,7 @@ const witness = (s, who, what, d, n, days) => who.filter((o) => o !== s).forEach
 const pupil = (s, home) => { const k = best(s); return k && home.filter((o) => o !== s && s.skills[k] - (o.skills[k] || 0) >= 1.5).sort((a, b) => (a.skills[k] || 0) - (b.skills[k] || 0))[0]; };
 const best = (s) => Object.keys(s.skills).sort((a, b) => s.skills[b] - s.skills[a])[0];
 const hurtest = (s, home) => home.filter((o) => o !== s && o.hp < stats(o).hpMax * 0.6).sort((a, b) => a.hp / stats(a).hpMax - b.hp / stats(b).hpMax)[0];
-const free = (s) => !s.vow && !living().some((o) => o.id === s.spouse);
+const free = (s) => !s.vow && !S.settlers.some((o) => o.id === s.spouse && !o.dead);
 const spark = (a, b) => (a.id * b.id * 37 + a.id + b.id) % 10 < 8;
 const kin = (a, b) => a.parents?.includes(b.id) || b.parents?.includes(a.id) || !!a.parents?.some((p) => b.parents?.includes(p));
 const sweetheart = (s, home) => free(s) && home.filter((o) => o !== s && free(o) && !kin(s, o) && !s.fz?.includes(o.id) && tieOf(s, o) >= 20 && (drive(o, "warmth") >= 30 || tieOf(s, o) >= FRIEND) && !grudge(s, o) && !grudge(o, s))

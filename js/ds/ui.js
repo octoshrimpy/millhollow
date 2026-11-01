@@ -147,7 +147,13 @@ function patch(to, from) {
   });
   while (to.childNodes.length > b.length) to.lastChild.remove();
 }
-const morph = (el, html) => { const t = document.createElement("template"); t.innerHTML = html; patch(el, t.content); };
+// ponytail: a redraw that builds the same html as last time is skipped; 114 villagers is 130 KB to parse and diff for nothing.
+const drawn = new WeakMap();
+const morph = (el, html) => {
+  if (drawn.get(el) === html) return;
+  drawn.set(el, html);
+  const t = document.createElement("template"); t.innerHTML = html; patch(el, t.content);
+};
 
 let logSeen = Infinity;
 const logLine = (l) => `<p data-key="${l.n}" class="${l.kind} ${l.aside ? "aside" : ""} ${l.n > logSeen ? "new" : ""}"><small>d${l.day}</small> ${named(esc(l.text))}</p>`;
