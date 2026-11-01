@@ -465,7 +465,7 @@ function petFind(home) {
   const came = chance(1 / 3), took = petFits(s, kind);
   const lead = came ? `${k.icon} ${cap(k.a)} followed ${s.name} home.` : `${k.icon} ${s.name} found ${k.a}`;
   if (!took) return gameLog(came ? `${lead} ${s.name} ${pick(["fed it and sent it on its way", "shooed it back out", "said no, firmly"])}.` : `${lead}, but ${pick(["it wasn't for them", "it was no use to them", "they had no room for it"])}. It went on its way.`, "story", [s], true);
-  const used = living().filter((o) => o.pet).map((o) => o.pet.name), name = pick(PET_NAMES.filter((n) => !used.includes(n)));
+  const used = living().filter((o) => o.pet).map((o) => o.pet.name), free = PET_NAMES.filter((n) => !used.includes(n)), name = pick(free.length ? free : PET_NAMES); // ponytail: past forty pets a name repeats
   s.pet = { kind, name, since: S.day, age0: Math.round(Math.random() * k.span * 6) / 10, ageAt: s.age };
   S.pets.adopted++;
   stir(s, "warmth", 10);
