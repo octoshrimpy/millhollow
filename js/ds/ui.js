@@ -55,6 +55,14 @@ function render() {
     sheet = { visitor: true };
   }
   if (sheet && sheet.visitor && !S.visitor) sheet = null;
+  if (!sheet && tab === "village" && !S.expedition && !botTimer && S.recapped < yearOf(S.day) - 1) {
+    const y = ++S.recapped, win = yearWin(y);
+    sheet = { recap: y };
+    Juice.veil(`Year ${y}`, y % 10 ? S.town : `A decade in ${S.town}`);
+    payOut(win, () => $("#sheet .reward") || $("#view"), 1000);
+    fireworks(y, 400);
+    save();
+  }
   const ev = S.expedition?.event, here = ev && `${S.expedition.map.floor}:${S.expedition.map.at}`;
   if (ev && here !== pleaded && tab === "dungeon" && !sheet && !S.expedition.fight) { pleaded = here; sheet = { event: true }; }
   if (sheet && sheet.event && !ev) sheet = null;
@@ -890,7 +898,9 @@ const GOALS = [
   ["Know your foes", () => Object.values(ENEMIES).every((e) => S.beasts?.[e.name]), { relics: 3 }, null, true],
   // Time
   ["A year gone", () => logged(/A year gone/), { relics: 2 }, null, true],
-  ["One year on", () => S.day >= 365, { relics: 2 }, null, true],
+  // Everyone who ever lived here counts, so the big numbers are for the long game.
+  ...[[10, "Ten", { food: 10 }], [25, "Twenty-five", { potions: 2 }], [50, "Fifty", { relics: 2 }], [100, "A hundred", { starmetal: 1, relics: 2 }], [200, "Two hundred", { starmetal: 3 }]]
+    .map(([n, name, win]) => [`${name} souls`, () => everyone().length >= n, win, null, true]),
   // Windfalls
   ["Bumper crop", () => logged(/^🌾 Bumper harvest/), { herbs: 3 }, null, true],
   ["Fallen oaks", () => logged(/^🌲 A storm felled/), { stone: 5 }, null, true],
@@ -922,8 +932,52 @@ function sheetGoals() {
     : goalDone(GOALS[i]) ? `<button data-act="claimgoal" data-v="${i}">${t} <span>${goods(win)}</span></button>`
     : secret || !goalOpen(GOALS[i]) ? `<p class="dim locked" aria-hidden="true">○ ${t} <span>${goods(win)}</span></p>`
     : `<p class="dim">○ ${t} <span>${goods(win)}</span></p>`;
-  const tabs = `<div class="sites lifetabs"><button class="${sheet.secret ? "" : "on"}" data-act="goaltab" aria-label="Goals">🔔</button><button class="${sheet.secret ? "on" : ""}" data-act="goaltab" data-v="secret" aria-label="Hidden">❔</button></div>`;
-  return `<div class="menu"><h3>🔔 Goals</h3>${tabs}<div class="goals">${GOALS.map((g, i) => !g[4] === !sheet.secret ? row(g, i) : "").join("")}</div></div>`;
+  const on = (k) => (k === (sheet.years ? "years" : sheet.secret ? "secret" : "") ? "on" : "");
+  const tabs = `<div class="sites lifetabs"><button class="${on("")}" data-act="goaltab" aria-label="Goals">🔔</button><button class="${on("secret")}" data-act="goaltab" data-v="secret" aria-label="Hidden">❔</button><button class="${on("years")}" data-act="goaltab" data-v="years" aria-label="Years">🕐</button></div>`;
+  const years = Object.entries(S.years || {}).map(([y, r]) => `<button data-act="recap" data-v="${y}">Year ${y} <span>👥 ${r.pop0}→${r.pop}</span></button>`).join("") || `<p class="dim">The first year isn't over yet.</p>`;
+  return `<div class="menu"><h3>🔔 Goals</h3>${tabs}<div class="goals">${sheet.years ? years : GOALS.map((g, i) => !g[4] === !sheet.secret ? row(g, i) : "").join("")}</div></div>`;
+}
+
+// A year in review: where the village stood, what it counted, and the few moments worth telling again.
+function sheetRecap(y) {
+  const r = S.years?.[y];
+  if (!r) return `<div class="menu"><h3>🕐 Year ${y}</h3><p class="dim">Nobody kept count.</p></div>`;
+  const counts = YEAR_EVENTS.filter(([k]) => r.n[k]).map(([k, , , icon, label]) => `<p><span>${icon}</span> ${label(r.n[k])}</p>`);
+  if (r.beasts > 0) counts.push(`<p><span>🐀</span> ${many(r.beasts, "beast")} slain</p>`);
+  const moments = YEAR_EVENTS.filter(([k, , w]) => w && r.top[k]).sort((a, b) => b[2] - a[2]).slice(0, 4)
+    .map(([k]) => r.top[k]).sort((a, b) => a.day - b.day);
+  const decade = y % 10 === 0;
+  return `<div class="menu recap"><h3>🕐 Year ${y}</h3>
+    <p class="dim lead">${esc(S.town)} · days ${365 * (y - 1) + 1}–${365 * y}</p>
+    <p class="big">👥 ${r.pop0} → ${r.pop}</p>
+    ${counts.length ? `<div class="beasts">${counts.join("")}</div>` : `<p class="dim lead">A quiet year.</p>`}
+    ${r.deepest ? `<p class="dim lead">Deepest floor so far: ${r.deepest}</p>` : ""}
+    ${moments.length ? `<h4>Remembered</h4>${moments.map((m) => `<p class="moment"><small>d${m.day}</small> ${named(esc(m.text))}</p>`).join("")}` : ""}
+    <p class="lead reward">${decade ? "🎉 A decade! " : ""}${goods(yearWin(y))}</p>
+    <button class="primary" data-act="close">${y === yearOf(S.day) - 1 ? "On to the next" : "Close"}</button></div>`;
+}
+
+// A year's gift flies to the top bar; the count ticks up as each icon lands.
+function payOut(win, from, delay = 0) {
+  for (const k in win) {
+    S.res[k] += win[k]; owed[k] = (owed[k] || 0) + win[k];
+    const fly = () => Juice.carry(RESOURCES[k].icon, typeof from === "function" ? from() : from, $(`#res [data-k="${k}"]`) || $("#res"), () => {
+      owed[k] -= win[k]; renderTop();
+      const at = $(`#res [data-k="${k}"]`) || $("#res"), p = Juice.center(at);
+      Juice.pop(at, 1.4); Juice.float(p.x, p.y + 16, `+${win[k]}`, "res up");
+    });
+    if (delay) setTimeout(fly, delay); else fly();
+  }
+}
+
+// Small bursts over the dimmed village behind the recap sheet; a decade gets a long show.
+function fireworks(y, after) {
+  const show = y % 10 === 0, n = show ? 16 : 5, hues = show ? [PAL.gold, PAL.fire, PAL.heal, PAL.arcane, PAL.blood] : [PAL.gold];
+  for (let i = 0; i < n; i++) setTimeout(() => {
+    if (sheet?.recap !== y) return;
+    const x = innerWidth * (0.1 + Math.random() * 0.8), yy = innerHeight * (0.08 + Math.random() * 0.4), colors = hues[i % hues.length];
+    Juice.burst(x, yy, { n: show ? 34 : 24, colors, speed: show ? 190 : 150, up: 40, gravity: 160, life: 1.2, size: 2.5, drag: 0.94, spark: true });
+  }, after + i * (show ? 380 : 600) + Math.random() * 200);
 }
 
 function sheetMenu() {
@@ -962,6 +1016,7 @@ const sheetEvents = () => { const take = feastCost(), wait = feastWait();
     <button data-act="feast" ${!afford(take) || wait ? "disabled" : ""}>🍖 <span><b>Feast</b><br><small>${wait ? `⏳ ${wait}d` : `−${take.food}${RESOURCES.food.icon}`}</small></span></button></div></div>`; };
 function renderSheet() {
   const box = $("#sheet"), inner = box.querySelector(".inner");
+  $("#fx").style.zIndex = sheet?.recap ? 9 : ""; // under the dimmed backdrop: fireworks stay in the background
   if (!sheet) {
     if (box.hidden || box.classList.contains("closing")) return;
     box.classList.add("closing");
@@ -980,7 +1035,7 @@ function renderSheet() {
     box.hidden = false;
     box.classList.add("open");
   }
-  morph(inner, iconize(sheet.ask ? sheetAsk() : sheet.goals ? sheetGoals() : sheet.beasts ? sheetBeasts() : sheet.menu ? sheetMenu() : sheet.event ? sheetEvent() : sheet.visitor ? sheetVisitor() : sheet.trouble ? sheetTrouble() : sheet.person ? sheetPerson()
+  morph(inner, iconize(sheet.ask ? sheetAsk() : sheet.goals ? sheetGoals() : sheet.recap ? sheetRecap(sheet.recap) : sheet.beasts ? sheetBeasts() : sheet.menu ? sheetMenu() : sheet.event ? sheetEvent() : sheet.visitor ? sheetVisitor() : sheet.trouble ? sheetTrouble() : sheet.person ? sheetPerson()
     : sheet.keep != null ? sheetKeep() : sheet.events ? sheetEvents() : sheetPlot(sheet.i)));
 }
 
@@ -1183,19 +1238,13 @@ const ACTS = {
   asides: () => (root.classList.toggle("asides"), "keep"),
   older: () => (older = true),
   goals: () => { sheet = { goals: true }; },
-  goaltab: (v) => { sheet.secret = v === "secret"; },
+  goaltab: (v) => { sheet.secret = v === "secret"; sheet.years = v === "years"; },
+  recap: (v) => { sheet = { recap: +v }; },
   claimgoal: (v, el) => {
     const [t, , win] = GOALS[v];
     if (S.claimed.includes(t) || !goalDone(GOALS[v])) return "keep";
     S.claimed.push(t);
-    for (const k in win) {
-      S.res[k] += win[k]; owed[k] = (owed[k] || 0) + win[k]; // the count ticks up when the icon lands
-      Juice.carry(RESOURCES[k].icon, el, $(`#res [data-k="${k}"]`) || $("#res"), () => {
-        owed[k] -= win[k]; renderTop();
-        const at = $(`#res [data-k="${k}"]`) || $("#res"), p = Juice.center(at);
-        Juice.pop(at, 1.4); Juice.float(p.x, p.y + 16, `+${win[k]}`, "res up");
-      });
-    }
+    payOut(win, el);
     save();
   },
   beasts: () => (sheet = { beasts: true }),

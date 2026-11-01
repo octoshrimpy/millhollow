@@ -31,8 +31,58 @@ let lastYields = [];
 function gameLog(text, kind = "", who = [], aside = false) {
   if (!aside && kind !== "day" && S.log.slice(-80).some((l) => l.text === text && S.day - l.day < 20)) aside = true;
   S.log.push({ day: S.day, text, kind, n: (S.logN = (S.logN || 0) + 1), ...(aside && { aside }) });
+  if (kind !== "day") tallyYear(text, S.day);
   if (S.log.length > 1500) S.log.splice(0, 300);
   who.forEach((s) => note(s, { text, kind }));
+}
+
+// Days 1–365 are year 1. A year's recap is counted from log lines as they're written; the log is trimmed long before a year is out.
+const yearOf = (day) => Math.floor((day - 1) / 365) + 1;
+const many = (n, one, more = `${one}s`) => `${n} ${n === 1 ? one : more}`;
+// [key, line pattern, weight as a memorable moment (0: counted only), icon, label]
+const YEAR_EVENTS = [
+  ["joined", /^.+ joined\.$/, 0, "👥", (n) => many(n, "newcomer")],
+  ["wed", / married( quietly|\.)/, 5, "💍", (n) => many(n, "wedding")],
+  ["friends", / are friends now\./, 2, "🤗", (n) => many(n, "new friendship")],
+  ["feuds", / can't stand each other\./, 2, "😠", (n) => many(n, "new feud")],
+  ["left", / (never came back|walked off|slipped away in the night|packed up and left in the night|left to find food elsewhere|didn't come back)\./, 3, "🚪", (n) => `${n} left`],
+  ["died", / died on floor \d+\./, 5, "💀", (n) => `${n} lost below`],
+  ["wiped", /^Party wiped out/, 4, "☠", (n) => many(n, "party wiped out", "parties wiped out")],
+  ["haunts", / haunts /, 4, "👻", (n) => many(n, "haunting")],
+  ["sorties", /^Set out /, 0, "🧭", (n) => many(n, "expedition")],
+  ["floors", /^Floor \d+: first clear/, 0, "🪜", (n) => many(n, "new floor cleared", "new floors cleared")],
+  ["keepers", /: boss down\./, 4, "⚔", (n) => many(n, "keeper felled", "keepers felled")],
+  ["crowns", /^Set the keeper's crown/, 5, "👑", (n) => many(n, "crown set in the hall", "crowns set in the hall")],
+  ["wonder", /^The wonder stands\./, 6, "🗼", () => "the wonder raised"],
+  ["built", /^Built (?!the town hall)/, 2, "🔨", (n) => many(n, "building raised", "buildings raised")],
+  ["learned", /^Learned /, 2, "📚", (n) => `${n} learned`],
+  ["levels", / is now level \d+\./, 0, "⭐", (n) => many(n, "level-up")],
+  ["raids", /^Drove off /, 3, "🛡", (n) => many(n, "raid driven off", "raids driven off")],
+  ["fires", / (knocked over a lamp|set fire to)/, 3, "🔥", (n) => many(n, "fire")],
+  ["windfalls", /^(🌾|🌲|🏺|☄️|🥈|🌸|🌈|🌌|🦉|✨|🧪) /, 2, "🎁", (n) => many(n, "windfall")],
+];
+const beastTotal = () => Object.values(S.beasts || {}).reduce((a, b) => a + b, 0);
+function tallyYear(text, day) {
+  S.mark ||= { pop: living().length, beasts: beastTotal() };
+  const y = (S.yr ||= { n: {}, top: {} });
+  for (const [k, re, weight] of YEAR_EVENTS) {
+    if (!re.test(text)) continue;
+    y.n[k] = (y.n[k] || 0) + 1;
+    if (weight && !y.top[k]) y.top[k] = { day, text };
+  }
+}
+function closeYear(y) {
+  const t = S.yr || { n: {}, top: {} }, mark = S.mark || { pop: living().length, beasts: beastTotal() };
+  (S.years ||= {})[y] = { ...t, pop0: mark.pop, pop: living().length, beasts: beastTotal() - mark.beasts, deepest: S.deepest };
+  S.yr = { n: {}, top: {} };
+  S.mark = { pop: living().length, beasts: beastTotal() };
+}
+// Every year's end pays; every fifth adds starmetal and every tenth pays big. Open-ended, so it isn't in the goals list.
+function yearWin(y) {
+  const win = { relics: 2 };
+  if (y % 5 === 0) win.starmetal = 1;
+  if (y % 10 === 0) { win.relics += 5; win.starmetal += 2; }
+  return win;
 }
 function note(s, entry) {
   s.story ||= [];
@@ -524,7 +574,7 @@ function newGame() {
   S = {
     day: 1, res: { food: 20, wood: 12, stone: 4, ore: 0, herbs: 0, relics: 0, research: 0, potions: 0, meals: 0, silver: 0, starmetal: 0 },
     seed: rand(2 ** 31), carry: {}, grid: Array(LAND * LAND).fill(null), seen: Array(LAND * LAND).fill(false), hall: null, cleared: 0, settlers: [], research: [],
-    deepest: 0, beasts: {}, visitor: null, expedition: null, log: [], remains: [], size: LAND, claim: 0, guards: [], goals: [],
+    deepest: 0, beasts: {}, visitor: null, expedition: null, log: [], remains: [], size: LAND, claim: 0, guards: [], goals: [], recapped: 0,
   };
   S.land = genLand(S.seed);
   S.towns = places();
@@ -623,6 +673,9 @@ function load() {
     S.arcane ??= false;
     S.beasts ??= {};
     S.claimed ??= [...(S.goals || [])]; // goals reached before claiming existed were paid on the spot
+    // Saves from before recaps start this year's tally from the log that's left, and don't replay years already gone.
+    S.recapped ??= yearOf(S.day) - 1;
+    if (!S.yr) for (const l of S.log) if (l.kind !== "day" && yearOf(l.day) === yearOf(S.day)) tallyYear(l.text, l.day);
     S.towns ??= places();
     S.town ??= S.recruits ? S.towns[0] : "Millhollow";
     if (S.expedition && S.expedition.fight) S.expedition.fight = null; // a fight restarts on reload
@@ -1656,6 +1709,7 @@ function endDay(hold) {
     gameLog(`${S.visitor.name} (${CLASSES[S.visitor.cls].name.toLowerCase()}) wants to join.`, "story");
   }
   S.day++;
+  if (yearOf(S.day) > yearOf(S.day - 1)) closeYear(yearOf(S.day - 1));
 }
 
 const num = (n) => +n.toFixed(1);

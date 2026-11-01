@@ -25,6 +25,12 @@ crown home and your land grows.
 The village talks. When someone dies, people decide whose fault it was, and the story
 changes as it gets passed around. Tap a face to hear what they think.
 
+Goals live behind the bell. Some are hidden until they happen, and a few reward the long game:
+how many people have ever lived in the village. Every year (365 days) ends with a recap of who
+came and went, what got built and lost, and a few moments worth remembering, plus a gift of
+relics. Every fifth year adds starmetal, and every tenth gets fireworks and a much bigger gift.
+Past recaps are under the clock tab.
+
 ## Running it yourself
 
 Plain JavaScript, no build step, no server code. Your save lives in the browser, and the
