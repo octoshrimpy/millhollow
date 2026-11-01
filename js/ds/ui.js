@@ -211,7 +211,8 @@ function viewVillage() {
     const who = (w ? `<img class="mini" src="${faceSrc(w)}" alt="${esc(w.name)}">` : "") + (sick ? `<img class="mini laid" src="${faceSrc(sick)}" alt="${esc(sick.name)}">` : "");
     const lvl = b.lvl ? `<span class="lvl${b.unpaid ? " bad" : ""}">${"●".repeat(b.lvl)}</span>` : "";
     const warn = S.hall != null && contested(i) ? `<span class="warn">❗</span>` : "";
-    return `<button class="tile${cls}${b.type === "townhall" ? " hall" : def.big ? " big" : ""}" ${at}><span class="ico">${def.icon}</span><small>${def.name}</small>${who}${warn}${lvl}</button>`;
+    const tired = VENUES[b.type] && stale(b);
+    return `<button class="tile${cls}${tired ? " tired" : ""}${b.type === "townhall" ? " hall" : def.big ? " big" : ""}" ${at}><span class="ico">${def.icon}</span><small>${def.name}</small>${who}${warn}${lvl}${tired ? `<span class="meh">😐</span>` : ""}</button>`;
   };
   let tiles = "";
   for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) tiles += tile(y * LAND + x);
@@ -287,6 +288,9 @@ function sheetPlot(i) {
   const knock = ["townhall", "wonder"].includes(b.type) ? "" : `<button class="danger small" data-act="demolish">Demolish${back ? ` <small>♻ ${back}</small>` : ""}</button>`;
   const lv = b.lvl || 0, pips = IMPROVABLE(b.type) ? ` <span class="pips">${"●".repeat(lv)}${"○".repeat(IMPROVE.length - lv)}</span>` : "";
   let body = `<div class="sheet-head"><h3>${d.icon} ${d.name}${pips}${besideTag(i, b.type)}</h3>${knock}</div><p class="dim desc">${d.desc}</p>${contested(i) ? `<p class="bad">❗ Too far from town hall: unsafe location!</p>` : ""}${b.unpaid ? `<p class="bad">❗ Upkeep unpaid, upgrade idle: need ${goods(IMPROVE[b.lvl - 1].upkeep)}/d</p>` : ""}${b.maker && byId(b.maker) ? `<p class="dim">🔨 ${esc(byId(b.maker).name)}</p>` : ""}`;
+  if (VENUES[b.type] && b.used) body += stale(b)
+    ? `<p class="bad">😐 Worn out: the village is tired of it and it no longer eases boredom. Pull it down and raise something they haven't seen lately (the same kind within ${VENUE_MEMORY} days comes back as worn).</p>`
+    : `<p class="dim">Used ${b.used} of ${VENUE_DAYS} days before the village tires of it.</p>`;
   if (d.up) {
     const to = BUILDINGS[d.up.to], locked = to.needs && !has(to.needs);
     body += `<button class="opt" data-act="upgrade" ${canUpgrade(i) ? "" : "disabled"}>
@@ -880,6 +884,9 @@ const GOALS = [
   ["Nothing to show", () => logged(/ out of the forge with nothing\./), { stone: 5 }, null, true],
   ["Loose lips", () => logged(/^Word got round that /), { silver: 1 }, null, true],
   ["Debts come due", () => logged(/^Collectors at the gate /), { silver: 1 }, null, true],
+  // Tired of it
+  ["Seen it all", () => S.tired > 0, { stone: 5 }, null, true],
+  ["Something new", () => S.renewed > 0, { wood: 10 }, null, true],
   // Gate and walls
   ["Struck a deal", () => logged(/^Traded /), { silver: 1 }, null, true],
   ["Drove them off", () => logged(/^Drove off /), { silver: 1 }, null, true],

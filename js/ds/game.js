@@ -678,6 +678,7 @@ function load() {
     S.claim ??= 0;
     S.arcane ??= false;
     S.beasts ??= {};
+    S.lately ??= {}; S.tired ??= 0; S.weary ??= 0; S.renewed ??= 0; // venue wear
     S.claimed ??= [...(S.goals || [])]; // goals reached before claiming existed were paid on the spot
     // Saves from before recaps start this year's tally from the log that's left. Years with no record were never paid: they come as one catch-up.
     S.recapped ??= yearOf(S.day) - 1;
@@ -1131,6 +1132,33 @@ const wet = () => near(S.hall ?? MID, 3).some((i) => S.land[i] === "water");
 const doable = (x, s, o, at) => (o || !x.includes("{o}")) && (!x.includes("dungeon") || (x.includes("{o}") ? o : s).delved) && (at || !/river|pond|heron/.test(x) || wet());
 const can = (need) => !need || (need === "water" ? wet() : built(need));
 const venues = () => Object.keys(VENUES).filter(built);
+// A venue wears thin: after VENUE_DAYS days of use it stops easing boredom. Pulling it down and raising the same kind
+// again within VENUE_MEMORY days brings the wear back; a kind the village hasn't just had is a real change (renewed).
+const stale = (b) => (b.used || 0) >= VENUE_DAYS;
+function wearVenue(at, s) {
+  const b = S.grid.find((b) => b?.type === at && !stale(b));
+  if (!b) return false;
+  if (b.seen !== S.day) {
+    b.seen = S.day;
+    b.used = (b.used || 0) + 1;
+    if (stale(b)) { S.tired = (S.tired || 0) + 1; gameLog(`${s.name} is tired of the ${BUILDINGS[at].name.toLowerCase()}.`, "bad", [s]); }
+  }
+  return true;
+}
+function pulledDown(b) {
+  if (!VENUES[b.type] || !b.used) return;
+  (S.lately ||= {})[b.type] = { day: S.day, used: b.used };
+  if (stale(b)) S.weary = (S.weary || 0) + 1; // weary till something new is raised
+}
+function raisedVenue(b) {
+  if (!VENUES[b.type]) return;
+  const l = S.lately?.[b.type];
+  if (l && S.day - l.day < VENUE_MEMORY) b.used = l.used;
+  else if (S.weary > 0) {
+    S.weary--; S.renewed = (S.renewed || 0) + 1;
+    gameLog(`Something new for evenings out: the ${BUILDINGS[b.type].name.toLowerCase()}. Spirits lift.`, "good", living());
+  }
+}
 const vs = (a, b) => ((a.vs ||= {})[b.id] ||= { w: 0, l: 0, r: 0 });
 // Grudging memories outlast the nightly ebb: each one keeps stirring its drive till it fades.
 const MEMS = { beaten: { drive: "anger", by: 3 }, snubbed: { drive: "pride", by: -3 }, brawled: { drive: "anger", by: 5 } };
@@ -1183,8 +1211,8 @@ function leisure(home) {
       }
       const line = roll(t.replace("{o}", o?.name));
       if (at) { const b = S.grid.find((b) => b?.type === at); if (b) b.maker ??= s.id; }
-      // a night out takes the edge off work: a day off the streak at their own place, sometimes elsewhere
-      if (at && s.same?.n > 0 && (own.includes(at) || chance(0.5))) s.same.n--;
+      // a night out takes the edge off work: a day off the streak at their own place, sometimes elsewhere (till it goes stale)
+      if (at && wearVenue(at, s) && s.same?.n > 0 && (own.includes(at) || chance(0.5))) s.same.n--;
       const game = /\bat (dice|cards|checkers|chess|backgammon)\b/.exec(t)?.[1], won = /^(beat|won)\b/.test(t);
       if (game && (won || /^lost\b/.test(t))) {
         const [w, l] = won ? [s, o] : [o, s];
@@ -1470,6 +1498,7 @@ function build(i, type) {
     reveal(i, 1);
     gameLog(`Built ${b.name.toLowerCase()}.`);
   }
+  raisedVenue(S.grid[i]);
   if (type === "graveyard") bury();
   living().filter((s) => !away(s)).forEach((s) => think(s, "built"));
   (S.asks?.[type] || []).map(byId).filter((s) => s && !s.dead).forEach((s) => think(s, "wish"));
@@ -1505,6 +1534,7 @@ function demolish(i) {
   if (b.worker) byId(b.worker).job = null;
   const back = refundOf(i);
   for (const [k, v] of Object.entries(back)) S.res[k] += v;
+  pulledDown(b);
   S.grid[i] = null;
   const got = Object.entries(back).map(([k, v]) => `+${v}${RESOURCES[k].icon}`).join(" ");
   gameLog(`Demolished ${BUILDINGS[b.type].name.toLowerCase()}.${got ? ` ${got}` : ""}`);

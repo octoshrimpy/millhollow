@@ -591,3 +591,5 @@ const VENUES = {
   stables: { for: ["riding"], does: ["rode out and back", "brushed down the horses", "taught {o} to ride"] },
   alehouse: { for: ["dice", "cards", "checkers", "backgammon", "chess", "brewing", "tales", "puzzles", "cooking", "baking"], does: ["drank a quiet one at the alehouse", "beat {o} at the alehouse table", "told stories at the alehouse"] },
 };
+// Days of use before a venue stops easing work boredom; how long a pulled-down kind is remembered.
+const VENUE_DAYS = 40, VENUE_MEMORY = 60;
