@@ -903,7 +903,7 @@ function migrate() {
     if (s.face > FACES) s.face = (s.face - 1) % FACES + 1;
     if (s.born == null) { s.born = S.day - 365 * grownAge(s.age || "mid", s.id); delete s.age; }
   }
-  for (const s of [...S.settlers, ...(S.gone || []), ...(S.recruits || []), S.visitor].filter(Boolean)) s.faith ??= Object.keys(DEITIES)[(s.id - 1) % Object.keys(DEITIES).length];
+  for (const s of [...S.settlers, ...(S.gone || []), ...(S.recruits || []), S.visitor].filter(Boolean)) { if (OLD_GODS[s.faith]) s.faith = OLD_GODS[s.faith]; s.faith ??= Object.keys(DEITIES)[(s.id - 1) % Object.keys(DEITIES).length]; }
   // Thoughts that were removed (haunted) would break every sheet and card that reads them.
   for (const s of [...S.settlers, ...(S.gone || []), ...(S.recruits || []), S.visitor].filter(Boolean)) {
     if (s.story) s.story = s.story.filter((e) => !e.k || THOUGHTS[e.k]);
@@ -2833,7 +2833,7 @@ function bury() {
   if (!home.length) return;
   S.remains = S.remains.filter((r) => r.at !== "home");
   for (const r of home) {
-    const d = byId(r.id), god = DEITIES[d.faith], mourners = living().filter((s) => s.spouse === d.id || kin(s, d) || tieOf(s, d) > 0)
+    const d = byId(r.id), god = DEITIES[d.faith] || DEITIES[OLD_GODS[d.faith]] || DEITIES.drun, mourners = living().filter((s) => s.spouse === d.id || kin(s, d) || tieOf(s, d) > 0)
       .sort((a, b) => (b.parents?.includes(d.id) || 0) - (a.parents?.includes(d.id) || 0) || tieOf(d, b) - tieOf(d, a)).slice(0, 3);
     const rite = god.rite === "sea" && !wet() ? "burial" : god.rite;
     const line = pick(rite === "burial" ? god.fallback : god.lines).replace("{name}", d.name)

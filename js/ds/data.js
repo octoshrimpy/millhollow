@@ -357,36 +357,39 @@ const PAST_WAS = {
   "Raised the town hall. Millhollow is founded.": "Built the town hall.",
 };
 
+// The five Founts of Kathara (chromaforge), as the village prays to them: storytellers give each a face and a domain.
+// OLD_GODS maps the names saves used before the Founts, by the rite they gave.
 const DEITIES = {
-  emberma: { name: "Emberma", rite: "hearth", riteName: "Ashes and a seedling", thought: "comforted", lines: [
-    "{name} went to Emberma's hearth-flame. A rowan seedling stands in the ashes.",
-    "We gave {name} to Emberma's hearth. A young rowan drinks the ashes.",
-    "{name}'s ashes lie under a new-planted rowan, warm in Emberma's keeping.",
+  seron: { name: "Seron", rite: "stone", riteName: "Beneath the cairn", thought: "inspired", lines: [
+    "Stone by stone, we set Seron's line over {name}. A cairn to mark where they ended.",
+    "{name} rests beneath a cairn, sealed and measured, in the Golden Line's keeping.",
+    "We heaped grey stones over {name}, one for every farewell, and drew the line.",
   ] },
-  ness: { name: "Ness", rite: "sea", riteName: "Out with the tide", thought: "inspired", lines: [
-    "{name} went out with Ness's tide in a little boat.",
-    "Ness took {name}'s little boat beyond the reeds.",
-    "We sent {name} downriver to Ness in a lantern-lit boat.",
+  orvik: { name: "Orvik", rite: "sea", riteName: "Out with the tide", thought: "inspired", lines: [
+    "{name} went out with the tide in a lantern-lit boat, into the Ink Beneath the Sea.",
+    "We sent {name} downriver to Orvik, every memory of them spoken aloud first.",
+    "Orvik took {name}'s little boat beyond the reeds. We will not forget the pattern of them.",
   ], fallback: [
-    "The water lay too far away, so we buried {name} beneath the graveyard wall.",
-    "No tide reached us. We laid {name} in the graveyard instead.",
+    "The water lay too far away, so we buried {name} beneath the graveyard wall and spoke their memories to Orvik.",
+    "No tide reached us. We laid {name} in the graveyard and told their whole story over it.",
   ] },
-  oldoak: { name: "Old Oak", rite: "oak", riteName: "Under the oak", thought: "comforted", lines: [
-    "{name} sleeps beneath Old Oak's roots.",
-    "We laid {name} under an oak, where the old roots run deep.",
-    "An oak keeps watch over {name} now.",
+  zhark: { name: "Zhark", rite: "fire", riteName: "The hilltop pyre", thought: "tale", lines: [
+    "{name} burned bright upon Zhark's hilltop pyre, released.",
+    "The Shatter-Song took {name} before dawn, in red fire on a high pyre.",
+    "We broke the old shape of {name} with fire, and Zhark carried the spark away.",
   ] },
-  redjack: { name: "Red Jack", rite: "fire", riteName: "The hilltop pyre", thought: "tale", lines: [
-    "{name} burned bright upon Red Jack's hilltop pyre.",
-    "Red Jack's pyre took {name} before dawn.",
-    "We gave {name} to the red fire on a high pyre.",
+  drun: { name: "Drun", rite: "oak", riteName: "Under the oak", thought: "comforted", lines: [
+    "{name} sleeps beneath an oak, in the Rooted Mountain's keeping. The roots will take them back.",
+    "We laid {name} where the old roots run deep, and Drun will grow from them again.",
+    "An oak keeps watch over {name} now. What endures, endures.",
   ] },
-  greynan: { name: "Grey Nan", rite: "stone", riteName: "Beneath the cairn", thought: "inspired", lines: [
-    "Stone by stone, we raised Grey Nan's cairn for {name}.",
-    "{name} rests beneath a cairn on Grey Nan's hill.",
-    "We heaped grey stones over {name}, one for every farewell.",
+  veyra: { name: "Veyra", rite: "hearth", riteName: "Ashes and a seedling", thought: "comforted", lines: [
+    "{name}'s ashes were shared among all who loved them. A rowan seedling stands where the last of them lay.",
+    "We gave {name} to the hearth, and each of us took a pinch: the Violet Thread holds us together still.",
+    "{name}'s ashes lie under a new-planted rowan, and we are tied to it as we were to them.",
   ] },
 };
+const OLD_GODS = { emberma: "veyra", ness: "orvik", oldoak: "drun", redjack: "zhark", greynan: "seron" };
 
 const TERRAIN = {
   meadow: { name: "Meadow", icon: "" },
