@@ -696,7 +696,7 @@ function save() {
   for (let n = 0; n < 10; n++) {
     try {
       localStorage.setItem(slotKey(), JSON.stringify({ S, nextId, others }));
-      return localStorage.setItem(slotKey() + "-meta", JSON.stringify({ town: S.town, day: S.day, founding: !!S.recruits }));
+      return localStorage.setItem(slotKey() + "-meta", JSON.stringify({ town: S.town, day: S.day, towns: 1 + others.length, founding: !!S.recruits }));
     } catch (e) {
       const long = [S, ...others.map((o) => o.S)].filter((s) => s.log.length >= 50);
       if (!/quota/i.test(e.name) || !long.length) return;
