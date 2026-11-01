@@ -1617,7 +1617,7 @@ function boon(home) {
 }
 // Families. Couples with room and food have children now and then; a child is not a hand yet (away() keeps
 // them out of jobs, parties and village doings) until 16, and everyone past OLD_AGE is on borrowed time.
-const BIRTH_GAP = 730, KIDS_MAX = 3, BIRTH_P = 0.0014;
+const BIRTH_GAP = 730, KIDS_MAX = 3, BIRTH_P = 0.005;
 function born(a, b) {
   const c = makeSettler();
   c.born = S.day;
@@ -1641,18 +1641,22 @@ function births(home) {
   if (pop >= beds() || S.res.food < 4 * pop || living().some((s) => s.unfed)) return;
   for (const a of home) {
     const b = byId(a.spouse);
-    if (!b || a.id > b.id || !home.includes(b) || ageOf(a) > 45 || ageOf(b) > 45) continue;
+    if (!b || a.id > b.id || !home.includes(b) || ageOf(a) > 50 || ageOf(b) > 50) continue;
     const kids = S.settlers.filter((k) => k.parents?.includes(a.id) && k.parents.includes(b.id));
     if (kids.length < KIDS_MAX && kids.every((k) => S.day - k.born >= BIRTH_GAP) && chance(BIRTH_P)) born(a, b);
   }
 }
 function grewUp(s) {
   gameLog(`${s.name} grew up.`, "good", [s, ...s.parents.map(byId).filter((p) => p && !p.dead)]);
-  const p = s.heir && byId(s.heir[1]);
-  if (p) gameLog(`${s.name} has ${p.name}'s ${TRAITS[s.heir[0]].name} nature.`, "story", [s, p]);
-  delete s.heir; delete s.lore;
+  delete s.lore;
 }
-// A child who picks up a parent's grudge hears it at the table, once.
+// At six a child's nature shows, and it is a parent's.
+function showNature(s) {
+  const [k, id] = s.heir, p = byId(id);
+  delete s.heir;
+  if (p) gameLog(`${s.name} has ${p.name}'s ${TRAITS[k].name} nature.`, "story", [s, p]);
+}
+// A child old enough to follow table talk picks up a parent's grudge, once.
 function learnGrudge(k) {
   for (const p of k.parents.map(byId).filter((x) => x && !x.dead)) {
     const t = living().find((o) => !kid(o) && !k.parents.includes(o.id) && grudge(p, o));
@@ -1675,11 +1679,12 @@ function oldAge(s) {
   bury();
 }
 // Strangers knock less as the village fills and its children grow: births carry the late game.
-const outsiders = () => 10 / (10 + Math.max(0, living().length - 6) + 3 * living().filter(kid).length);
+const outsiders = () => 8 / (8 + Math.max(0, living().length - 6) + 3 * living().filter(kid).length);
 function generations(home) {
   for (const s of living()) {
-    if (S.day - s.born === AGE_BANDS[1][1] * 365 && s.parents) grewUp(s);
-    else if (s.lore) learnGrudge(s);
+    if (s.parents && S.day - s.born === AGE_BANDS[1][1] * 365) grewUp(s);
+    if (s.heir && ageOf(s) >= 6) showNature(s);
+    else if (s.lore && ageOf(s) >= 6) learnGrudge(s);
   }
   // From the day they pass OLD_AGE: 1% a year, then more each year, three in four by ten years on.
   for (const s of home) if (chance(0.003 * Math.max(0, (S.day - s.born) / 365 - OLD_AGE) ** 2 / 100)) oldAge(s);
