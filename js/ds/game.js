@@ -575,22 +575,22 @@ function reveal(at, r) {
   S.seen.forEach((v, i) => { if (!v && dist(i, at) <= r) { S.seen[i] = true; newLand.push(i); } });
 }
 
-function newGame() {
+// Settlements not being played: frozen, whole, until switchTo brings one back. What the world shares moves with the player.
+let others = [];
+const SHARED = ["goals", "claimed", "beasts", "research", "arcane"];
+const FROZEN_LOG = 150;
+// A fresh settlement in S: land, sites and a town hall on the meadow nearest the middle.
+function foundTown(seed = rand(2 ** 31), name) {
   setLand(17);
   S = {
     day: 1, res: { food: 20, wood: 12, stone: 4, ore: 0, herbs: 0, relics: 0, research: 0, potions: 0, meals: 0, silver: 0, starmetal: 0 },
-    seed: rand(2 ** 31), carry: {}, grid: Array(LAND * LAND).fill(null), seen: Array(LAND * LAND).fill(false), hall: null, cleared: 0, settlers: [], research: [],
+    seed, carry: {}, grid: Array(LAND * LAND).fill(null), seen: Array(LAND * LAND).fill(false), hall: null, cleared: 0, settlers: [], research: [],
     deepest: 0, beasts: {}, visitor: null, expedition: null, log: [], remains: [], size: LAND, claim: 0, guards: [], goals: [], recapped: 0, lapsed: [],
   };
   S.land = genLand(S.seed);
   S.towns = places();
-  S.town = S.towns[0];
+  S.town = name ?? S.towns[0];
   S.sites = genSites(S.seed, S.land);
-  nextId = 1;
-  const cls = Object.keys(CLASSES);
-  for (const c of [...cls, pick(cls), pick(cls)].sort(() => Math.random() - 0.5)) S.settlers.push(makeSettler(c));
-  S.recruits = S.settlers;
-  S.settlers = [];
   const k = S.land.map((_, i) => i).filter((i) => S.land[i] === "meadow" && !siteAt(i))
     .sort((a, b) => dist(a, MID) - dist(b, MID))[0] ?? MID;
   S.land[k] = "meadow";
@@ -598,7 +598,42 @@ function newGame() {
   S.hall = k;
   reveal(k, sight());
   newLand = [];
+}
+function newGame() {
+  foundTown();
+  others = [];
+  nextId = 1;
+  const cls = Object.keys(CLASSES);
+  for (const c of [...cls, pick(cls), pick(cls)].sort(() => Math.random() - 0.5)) S.settlers.push(makeSettler(c));
+  S.recruits = S.settlers;
+  S.settlers = [];
   save();
+}
+// Founds one more settlement beside the one being played and returns its place in others.
+function openTown(name) {
+  const here = S;
+  foundTown(undefined, name);
+  SHARED.forEach((x) => delete S[x]);
+  others.push({ S });
+  S = here;
+  setLand(S.size);
+  newLand = [];
+  return others.length - 1;
+}
+// Plays another settlement. The outgoing one is frozen as it stands (no days pass in it) and the incoming one wakes where it was left.
+function switchTo(k) {
+  const to = others[k];
+  if (!to || S.expedition || S.recruits) return false;
+  const shared = Object.fromEntries(SHARED.map((x) => [x, S[x]]));
+  SHARED.forEach((x) => delete S[x]);
+  S.log = S.log.slice(-FROZEN_LOG);
+  others[k] = { S };
+  S = to.S;
+  Object.assign(S, shared);
+  setLand(S.size ||= 17);
+  newLand = [];
+  migrate();
+  return true;
 }
 
 function reroll(keep) {
@@ -660,12 +695,15 @@ function save() {
   if (S?.settlers) living().forEach(limbs);
   for (let n = 0; n < 10; n++) {
     try {
-      localStorage.setItem(slotKey(), JSON.stringify({ S, nextId }));
+      localStorage.setItem(slotKey(), JSON.stringify({ S, nextId, others }));
       return localStorage.setItem(slotKey() + "-meta", JSON.stringify({ town: S.town, day: S.day, founding: !!S.recruits }));
     } catch (e) {
-      if (!/quota/i.test(e.name) || S.log.length < 50) return;
-      const asides = S.log.filter((l) => l.aside), shed = new Set(asides.slice(0, Math.ceil(asides.length / 2)));
-      S.log = shed.size ? S.log.filter((l) => !shed.has(l)) : S.log.slice(Math.ceil(S.log.length / 4));
+      const long = [S, ...others.map((o) => o.S)].filter((s) => s.log.length >= 50);
+      if (!/quota/i.test(e.name) || !long.length) return;
+      for (const s of long) {
+        const asides = s.log.filter((l) => l.aside), shed = new Set(asides.slice(0, Math.ceil(asides.length / 2)));
+        s.log = shed.size ? s.log.filter((l) => !shed.has(l)) : s.log.slice(Math.ceil(s.log.length / 4));
+      }
     }
   }
 }
@@ -673,58 +711,62 @@ function load() {
   try {
     const raw = localStorage.getItem(slotKey());
     if (!raw) return false;
-    ({ S, nextId } = JSON.parse(raw));
-    setLand(S.size ||= 17);
-    S.claim ??= 0;
-    S.arcane ??= false;
-    S.beasts ??= {};
-    S.claimed ??= [...(S.goals || [])]; // goals reached before claiming existed were paid on the spot
-    // Saves from before recaps start this year's tally from the log that's left. Years with no record were never paid: they come as one catch-up.
-    S.recapped ??= yearOf(S.day) - 1;
-    if (!S.lapsed) { S.lapsed = []; for (let y = 1; y < yearOf(S.day); y++) if (!S.years?.[y]) S.lapsed.push(y); }
-    const renamed = (t) => t.replace(/ souls$/, " villagers in all");
-    S.goals = S.goals?.map(renamed); S.claimed = S.claimed.map(renamed);
-    if (!S.yr) for (const l of S.log) if (l.kind !== "day" && yearOf(l.day) === yearOf(S.day)) tallyYear(l.text, l.day);
-    S.towns ??= places();
-    S.town ??= S.recruits ? S.towns[0] : "Millhollow";
-    if (S.expedition && S.expedition.fight) S.expedition.fight = null; // a fight restarts on reload
-    if (!S.seen) widenLand();
-    if (!S.land) landFromWild();
-    if (!S.sites) {
-      S.sites = genSites(S.seed, S.land, S.grid);
-      S.sites[0].deepest = S.deepest;
-      if (S.expedition) S.expedition.site = 0;
-    }
-    unTool();
-    for (const k of Object.keys(RESOURCES)) S.res[k] ??= 0;
-    if (S.expedition) S.expedition.meals ??= 0;
-    S.remains ??= [];
-    // Floors kept from before the save were one object with the expedition's map.
-    if (S.expedition) (siteOf().floors ||= {})[S.expedition.map.floor] = S.expedition.map;
-    for (const j of S.forging || []) if (j.until) { delete j.until; j.left = 1; }
-    S.guards ??= S.guard ? [S.guard] : []; delete S.guard;
-    if (S.research.includes("walls")) S.ladders ??= S.day + 10 + rand(21);
-    if (S.trouble?.kind === "trader" && !S.trouble.offers) S.trouble.offers = [{ take: S.trouble.take, give: S.trouble.give }];
-    for (const e of [...S.log, ...[...S.settlers, S.visitor].filter(Boolean).flatMap((s) => s.story || [])]) e.text = PAST_WAS[e.text] || e.text;
-    // Fires were one line before purpose and accident were told apart: the benefit of the doubt.
-    for (const e of [...S.settlers, ...(S.gone || []), S.visitor].filter(Boolean).flatMap((s) => s.story || [])) {
-      if (e.kind !== "past" || !/^Burned down [^.]*\.$/.test(e.text) || / (on purpose|by accident)\.$/.test(e.text)) continue;
-      e.text = e.text.replace(/\.$/, " by accident.");
-      e.src = PAST.bad[1];
-    }
-    // Cooks arrived with no trade line until cooking had one.
-    for (const s of [...S.settlers, S.visitor].filter(Boolean)) for (const e of s.story || []) if (e.kind === "past" && !e.text) Object.assign(e, pastLine(pick(PAST.trade.cooking)));
-    // People from older saves get a past, drawn from what they were best at.
-    for (const s of [...S.settlers, S.visitor].filter(Boolean)) {
-      if ((s.story || []).some((e) => e.kind === "past")) continue;
-      const trade = Object.keys(s.skills).sort((a, b) => s.skills[b] - s.skills[a])[0] || pick(Object.keys(JOBS));
-      s.story = [...pastOf(s, trade), ...(s.story || [])];
-    }
-    for (const s of [...S.settlers, S.visitor].filter(Boolean)) s.pastime ??= pastimeOf(s);
-    // Older villagers get a nature now, and couples count their years from the upgrade.
-    for (const s of [...S.settlers, S.visitor].filter(Boolean)) { traitsOf(s); delete s.wins; if (s.spouse != null) s.wedDay ??= S.day; }
+    ({ S, nextId, others = [] } = JSON.parse(raw));
+    migrate();
     return true;
   } catch (e) { return false; }
+}
+// Brings a settlement from any older save up to date; S is the one in hand.
+function migrate() {
+  setLand(S.size ||= 17);
+  S.claim ??= 0;
+  S.arcane ??= false;
+  S.beasts ??= {};
+  S.claimed ??= [...(S.goals || [])]; // goals reached before claiming existed were paid on the spot
+  // Saves from before recaps start this year's tally from the log that's left. Years with no record were never paid: they come as one catch-up.
+  S.recapped ??= yearOf(S.day) - 1;
+  if (!S.lapsed) { S.lapsed = []; for (let y = 1; y < yearOf(S.day); y++) if (!S.years?.[y]) S.lapsed.push(y); }
+  const renamed = (t) => t.replace(/ souls$/, " villagers in all");
+  S.goals = S.goals?.map(renamed); S.claimed = S.claimed.map(renamed);
+  if (!S.yr) for (const l of S.log) if (l.kind !== "day" && yearOf(l.day) === yearOf(S.day)) tallyYear(l.text, l.day);
+  S.towns ??= places();
+  S.town ??= S.recruits ? S.towns[0] : "Millhollow";
+  if (S.expedition && S.expedition.fight) S.expedition.fight = null; // a fight restarts on reload
+  if (!S.seen) widenLand();
+  if (!S.land) landFromWild();
+  if (!S.sites) {
+    S.sites = genSites(S.seed, S.land, S.grid);
+    S.sites[0].deepest = S.deepest;
+    if (S.expedition) S.expedition.site = 0;
+  }
+  unTool();
+  for (const k of Object.keys(RESOURCES)) S.res[k] ??= 0;
+  if (S.expedition) S.expedition.meals ??= 0;
+  S.remains ??= [];
+  // Floors kept from before the save were one object with the expedition's map.
+  if (S.expedition) (siteOf().floors ||= {})[S.expedition.map.floor] = S.expedition.map;
+  for (const j of S.forging || []) if (j.until) { delete j.until; j.left = 1; }
+  S.guards ??= S.guard ? [S.guard] : []; delete S.guard;
+  if (S.research.includes("walls")) S.ladders ??= S.day + 10 + rand(21);
+  if (S.trouble?.kind === "trader" && !S.trouble.offers) S.trouble.offers = [{ take: S.trouble.take, give: S.trouble.give }];
+  for (const e of [...S.log, ...[...S.settlers, S.visitor].filter(Boolean).flatMap((s) => s.story || [])]) e.text = PAST_WAS[e.text] || e.text;
+  // Fires were one line before purpose and accident were told apart: the benefit of the doubt.
+  for (const e of [...S.settlers, ...(S.gone || []), S.visitor].filter(Boolean).flatMap((s) => s.story || [])) {
+    if (e.kind !== "past" || !/^Burned down [^.]*\.$/.test(e.text) || / (on purpose|by accident)\.$/.test(e.text)) continue;
+    e.text = e.text.replace(/\.$/, " by accident.");
+    e.src = PAST.bad[1];
+  }
+  // Cooks arrived with no trade line until cooking had one.
+  for (const s of [...S.settlers, S.visitor].filter(Boolean)) for (const e of s.story || []) if (e.kind === "past" && !e.text) Object.assign(e, pastLine(pick(PAST.trade.cooking)));
+  // People from older saves get a past, drawn from what they were best at.
+  for (const s of [...S.settlers, S.visitor].filter(Boolean)) {
+    if ((s.story || []).some((e) => e.kind === "past")) continue;
+    const trade = Object.keys(s.skills).sort((a, b) => s.skills[b] - s.skills[a])[0] || pick(Object.keys(JOBS));
+    s.story = [...pastOf(s, trade), ...(s.story || [])];
+  }
+  for (const s of [...S.settlers, S.visitor].filter(Boolean)) s.pastime ??= pastimeOf(s);
+  // Older villagers get a nature now, and couples count their years from the upgrade.
+  for (const s of [...S.settlers, S.visitor].filter(Boolean)) { traitsOf(s); delete s.wins; if (s.spouse != null) s.wedDay ??= S.day; }
 }
 
 // Saves from before the overworld had a 6×4 grid. It moves to the middle of the land, and the
