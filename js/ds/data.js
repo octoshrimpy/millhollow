@@ -355,6 +355,37 @@ const PAST_WAS = {
   "Raised the town hall. Millhollow is founded.": "Built the town hall.",
 };
 
+const DEITIES = {
+  emberma: { name: "Emberma", rite: "hearth", riteName: "Ashes and a seedling", thought: "comforted", lines: [
+    "{name} went to Emberma's hearth-flame. A rowan seedling stands in the ashes.",
+    "We gave {name} to Emberma's hearth. A young rowan drinks the ashes.",
+    "{name}'s ashes lie under a new-planted rowan, warm in Emberma's keeping.",
+  ] },
+  ness: { name: "Ness", rite: "sea", riteName: "Out with the tide", thought: "inspired", lines: [
+    "{name} went out with Ness's tide in a little boat.",
+    "Ness took {name}'s little boat beyond the reeds.",
+    "We sent {name} downriver to Ness in a lantern-lit boat.",
+  ], fallback: [
+    "The water lay too far away, so we buried {name} beneath the graveyard wall.",
+    "No tide reached us. We laid {name} in the graveyard instead.",
+  ] },
+  oldoak: { name: "Old Oak", rite: "oak", riteName: "Under the oak", thought: "comforted", lines: [
+    "{name} sleeps beneath Old Oak's roots.",
+    "We laid {name} under an oak, where the old roots run deep.",
+    "An oak keeps watch over {name} now.",
+  ] },
+  redjack: { name: "Red Jack", rite: "fire", riteName: "The hilltop pyre", thought: "tale", lines: [
+    "{name} burned bright upon Red Jack's hilltop pyre.",
+    "Red Jack's pyre took {name} before dawn.",
+    "We gave {name} to the red fire on a high pyre.",
+  ] },
+  greynan: { name: "Grey Nan", rite: "stone", riteName: "Beneath the cairn", thought: "inspired", lines: [
+    "Stone by stone, we raised Grey Nan's cairn for {name}.",
+    "{name} rests beneath a cairn on Grey Nan's hill.",
+    "We heaped grey stones over {name}, one for every farewell.",
+  ] },
+};
+
 const TERRAIN = {
   meadow: { name: "Meadow", icon: "" },
   forest: { name: "Woods", icon: "🌲", clear: { wood: 5 } },

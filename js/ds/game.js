@@ -147,6 +147,12 @@ function note(s, entry) {
 }
 
 let nextId = 1;
+function faithOf() {
+  const faiths = Object.keys(DEITIES), counts = {};
+  for (const s of S?.settlers || []) if (!s.dead && s.faith) counts[s.faith] = (counts[s.faith] || 0) + 1;
+  const common = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
+  return pick(common ? [...faiths, common, common] : faiths);
+}
 function makeSettler(cls) {
   // Any face no living villager wears can come as a visitor, including the dead's and the departed's; with every face worn, repeats beat nobody coming.
   const alive = new Set(S ? [...S.settlers.filter((s) => !s.dead), S.visitor].filter(Boolean).map((s) => s.face) : []);
@@ -155,7 +161,7 @@ function makeSettler(cls) {
   const taken = new Set(S ? S.settlers.map((s) => s.name) : []);
   const c = CLASSES[cls || pick(Object.keys(CLASSES))];
   const s = {
-    id: nextId++, name: makeName(sexOf(face), taken), face, born: (S ? S.day : 1) - 365 * grownAge(pick(Object.keys(ARRIVE_AGE))),
+    id: nextId++, name: makeName(sexOf(face), taken), face, born: (S ? S.day : 1) - 365 * grownAge(pick(Object.keys(ARRIVE_AGE))), faith: faithOf(),
     cls: cls || Object.keys(CLASSES).find((k) => CLASSES[k] === c),
     level: 1, xp: 0, hpMax: c.hp, hp: c.hp, morale: 70,
     skills: {}, job: null, gear: { weapon: null, armor: null },
@@ -861,6 +867,7 @@ function migrate() {
   S.remains ??= [];
   S.omen ??= null;
   S.graves ??= S.settlers.filter((s) => s.dead && s.buried).map((s) => ({ id: s.id, day: s.diedOn ?? S.day, cause: "", claims: [] }));
+  S.graves.forEach((g) => g.rite ??= "burial");
   S.remains.forEach((r) => delete r.haunts);
   // Floors kept from before the save were one object with the expedition's map.
   if (S.expedition) (siteOf().floors ||= {})[S.expedition.map.floor] = S.expedition.map;
@@ -886,6 +893,7 @@ function migrate() {
   for (const s of [...S.settlers, S.visitor].filter(Boolean)) s.pastime ??= pastimeOf(s);
   // Portrait bands used to be fixed words; they become birthdays that land in the same band.
   for (const s of [...S.settlers, ...(S.gone || []), ...(S.recruits || []), S.visitor].filter(Boolean)) if (s.born == null) { s.born = S.day - 365 * grownAge(s.age || "mid", s.id); delete s.age; }
+  for (const s of [...S.settlers, ...(S.gone || []), ...(S.recruits || []), S.visitor].filter(Boolean)) s.faith ??= Object.keys(DEITIES)[(s.id - 1) % Object.keys(DEITIES).length];
   // Older villagers get a nature now, and couples count their years from the upgrade.
   for (const s of [...S.settlers, S.visitor].filter(Boolean)) { traitsOf(s); s.feudSince ??= {}; delete s.wins; if (s.spouse != null) s.wedDay ??= S.day; }
 }
@@ -2027,6 +2035,7 @@ function born(a, b) {
   const c = makeSettler();
   c.born = S.day;
   c.parents = [a.id, b.id];
+  c.faith = pick([a.faith, b.faith]);
   c.skills = { [c.trade]: 1 };
   c.story = [{ text: `Born in ${S.town} to ${a.name} and ${b.name}.`, kind: "past" }];
   const from = pick([a, b]), k = pick(traitsOf(from));
@@ -2798,14 +2807,20 @@ function bury() {
   const home = S.remains.filter((r) => r.at === "home");
   if (!home.length) return;
   S.remains = S.remains.filter((r) => r.at !== "home");
-  const ids = home.map((r) => r.id);
   for (const r of home) {
+    const d = byId(r.id), god = DEITIES[d.faith], mourners = living().filter((s) => s.spouse === d.id || kin(s, d) || tieOf(s, d) > 0)
+      .sort((a, b) => (b.parents?.includes(d.id) || 0) - (a.parents?.includes(d.id) || 0) || tieOf(d, b) - tieOf(d, a)).slice(0, 3);
+    const rite = god.rite === "sea" && !wet() ? "burial" : god.rite;
+    const line = pick(rite === "burial" ? god.fallback : god.lines).replace("{name}", d.name)
+      + (mourners.length ? ` ${mourners.map((s) => s.name).join(" and ")} kept the watch.` : "");
     const claims = [...new Set(S.settlers.flatMap((s) => (s.heard || []).filter((x) => x.death === r.id).map((x) => `${byId(x.about).name} ${deed(x, x.v)}`)))];
-    (S.graves ||= []).push({ id: r.id, day: S.day, cause: `Fell on floor ${r.floor}`, claims: claims.slice(0, 3) });
+    (S.graves ||= []).push({ id: r.id, day: S.day, cause: r.floor ? `Fell on floor ${r.floor}` : "", claims: claims.slice(0, 3), rite });
+    d.buried = true;
+    mourners.forEach((s) => think(s, god.thought, d.id));
+    gameLog(line, "story", [d, ...mourners]);
   }
-  ids.forEach((id) => (byId(id).buried = true));
+  const ids = home.map((r) => r.id);
   S.settlers.forEach((s) => s.heard && (s.heard = s.heard.filter((x) => !ids.includes(x.death))));
-  gameLog(`Buried ${ids.map((id) => byId(id).name).join(", ")}.`, "story", [...ids.map(byId), ...living()]);
 }
 
 function backToWork(party) {

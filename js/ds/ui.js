@@ -354,8 +354,8 @@ function epitaphs() {
   const gs = (S.graves || []).slice(-40).reverse();
   if (!gs.length) return "";
   return `<h4>🪦 ${many(S.graves.length, "grave")}</h4>` + gs.map((g) => {
-    const d = byId(g.id), last = g.said ? `“${esc(g.said.text)}” <small>d${g.said.day}</small>` : esc(g.cause || "");
-    return `<p><small>d${d.diedOn ?? g.day}</small> ${named(esc(d.name))} <span class="dim">${last}</span>${g.claims?.length && !g.said ? `<br><small class="dim">${named(esc(g.claims.join("; ")))}</small>` : ""}</p>`;
+    const d = byId(g.id), last = g.said ? `“${esc(g.said.text)}” <small>d${g.said.day}</small>` : esc(g.cause || ""), rite = Object.values(DEITIES).find((x) => x.rite === g.rite)?.riteName || "Burial";
+    return `<p><small>d${d.diedOn ?? g.day}</small> ${named(esc(d.name))} <span class="dim">${esc(rite)}${last ? ` · ${last}` : ""}</span>${g.claims?.length && !g.said ? `<br><small class="dim">${named(esc(g.claims.join("; ")))}</small>` : ""}</p>`;
   }).join("");
 }
 
@@ -919,6 +919,8 @@ const GOALS = [
   ["First disrepair", () => !!S.wonder?.worn, { stone: 10 }, null, true],
   ["The ruin is quiet", () => !!(S.wonder?.cleared || S.wonder?.freed), { relics: 3 }, null, true],
   ["A face below", () => !!S.wonder?.knew, { relics: 1 }, null, true],
+  ["Ashes and a seedling", () => S.graves?.some((g) => g.rite === "hearth"), { herbs: 3 }, null, true],
+  ["Out with the tide", () => S.graves?.some((g) => g.rite === "sea"), { food: 5 }, null, true],
   // Hearts
   ["Fast friends", () => logged(/ are friends now\./), { food: 3 }, null, true],
   ["Bad blood", () => logged(/ can't stand each other\./), { herbs: 2 }, null, true],
