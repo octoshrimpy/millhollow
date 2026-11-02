@@ -65,12 +65,41 @@ const NAMES = {
 };
 
 
-const PET_NAMES = ["Biscuit", "Pepper", "Nettle", "Bramble", "Clover", "Moss", 
-  "Pip", "Dumpling", "Sorrel", "Juniper", "Tansy", "Button", "Mudge", "Pudding", 
-  "Rook", "Sprout", "Thimble", "Wren", "Hazel", "Barley", "Fennel", "Cobb", 
-  "Nutmeg", "Posy", "Tuppence", "Mabel", "Ember", "Gruff", "Sage", "Turnip", 
-  "Whistle", "Ash", "Crumb", "Dill", "Flint", "Marrow", "Olive", "Pickle", "Stoat", 
-  "Winkle", "Thistle", "Moss", "Cookie", "Toot"];
+const PET_NAMES = [
+  // Original names
+  "Biscuit", "Pepper", "Nettle", "Bramble", "Clover", "Moss",
+  "Pip", "Dumpling", "Sorrel", "Juniper", "Tansy", "Button",
+  "Mudge", "Pudding", "Rook", "Sprout", "Thimble", "Wren",
+  "Hazel", "Barley", "Fennel", "Cobb", "Nutmeg", "Posy",
+  "Tuppence", "Mabel", "Ember", "Gruff", "Sage", "Turnip",
+  "Whistle", "Ash", "Crumb", "Dill", "Flint", "Marrow", "Olive", 
+  "Pickle", "Stoat", "Winkle", "Thistle", "Cookie","Toot",
+
+  // Food & treats
+  "Muffin", "Toffee", "Truffle", "Waffle", "Custard",
+  "Noodle", "Tater", "Honey", "Crumble",
+  "Peaches", "Gingersnap", "Porridge", "Chutney", "Fig",
+  "Bean", "Scone", "Butterscotch", "Plum", "Taffy",
+
+  // Woodland & garden
+  "Acorn", "Fern", "Briar", "Willow",
+  "Dandelion", "Poppy", "Pebble", "Chestnut",
+  "Basil", "Yarrow", "Maple", "Lichen",
+  "Rue", "Bracken", "Mallow", "Sedge",
+
+  // Small, silly & affectionate
+  "Nib", "Nibbles", "Wiggle", "Tumble", "Bumble",
+  "Puddle", "Twitch", "Pips", "Snuffle", "Wobble",
+  "Tizzy", "Doodle", "Scamp", "Boggle", "Fidget",
+  "Mopsy", "Tiddle", "Poppet", "Squidge", "Bumpkin",
+
+  // Old-fashioned & storybook
+  "Barnaby", "Hobnob", "Tibby", "Gubbins", "Wilbur",
+  "Digby", "Bertie", "Fergus", "Hettie", "Puck",
+  "Mimsy", "Boffin", "Nim", "Tilly", "Wicket",
+  "Wimble", "Nod", "Bungo", "Dobby", "Tumblewick"
+];
+
 
 // Any line can hold {a|b|c}: each new person gets one of them, and braces can nest. A line is
 // picked before its braces, so a line with many options is no likelier than one with none.
@@ -82,7 +111,7 @@ const PAST = {
     "Born {on the frontier|on an island|in a forest village|during a hard winter|in a town that's gone now}.",
     "Born to {traders|millers|charcoal burners|shepherds|potters}.",
     "Born to {hunters|tinkers|a cooper and a brewer|the village reeve}.",
-    "Temple orphan.",
+    "{Temple|monastery} orphan.",
     "Grew up {on a hill farm|on an orchard|among sheep|in a lumber camp|by a quarry}.",
     "Grew up {in a mining town|in a salt town|in a monastery|on the docks|in a merchant house}.",
     "Grew up {over a tavern|near an old battlefield|on the king's road|by a shrine|under a ruined castle}.",
