@@ -3,7 +3,7 @@ const fs = require("fs"), vm = require("vm"), R = require("path").join(__dirname
 const OUT = require("path").join(__dirname, "out/");
 const ctx = { console, localStorage: { getItem: () => null, setItem() {}, removeItem() {} } };
 vm.createContext(ctx);
-vm.runInContext(["data.js", "names.js", "game.js", "combat.js"].map((f) => fs.readFileSync(R + f, "utf8")).join("\n"), ctx);
+vm.runInContext(["text.js", "data.js", "names.js", "game.js", "combat.js"].map((f) => fs.readFileSync(R + f, "utf8")).join("\n"), ctx);
 vm.runInContext(`this.year = () => {
   newGame(); settleIn(S.recruits.slice(0, 4).map((s) => s.id));
   for (let k = 0; k < 4; k++) S.settlers.push(makeSettler());

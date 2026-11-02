@@ -2,7 +2,7 @@
 const fs = require("fs"), vm = require("vm"), R = require("path").join(__dirname, "../../js/ds/");
 const ctx = { console, localStorage: { getItem: () => null, setItem() {}, removeItem() {} } };
 vm.createContext(ctx);
-const src = ["data.js", "names.js", "game.js", "combat.js"].map((f) => fs.readFileSync(R + f, "utf8")).join("\n");
+const src = ["text.js", "data.js", "names.js", "game.js", "combat.js"].map((f) => fs.readFileSync(R + f, "utf8")).join("\n");
 const run = (days, fed, show) => {
   const tally = {}, lines = [];
   for (let n = 0; n < 30; n++) {

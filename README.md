@@ -74,6 +74,7 @@ Everything lives in `js/ds/`:
 | File | What's in it |
 |---|---|
 | `themes.js` | Colour themes |
+| `text.js` | Every flavor-text pool: names, pasts, fireside lines |
 | `data.js` | The tables: terrain, buildings, research, enemies, sites, pasts |
 | `names.js` | Name generator for settlers |
 | `game.js` | The rules, the world, saving |

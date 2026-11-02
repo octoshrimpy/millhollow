@@ -478,7 +478,7 @@ function petFind(home) {
   S.petDay = S.day;
   const came = chance(1 / 3), took = petFits(s, kind);
   const lead = came ? `${k.icon} ${cap(k.a)} followed ${s.name} home.` : `${k.icon} ${s.name} found ${k.a}`;
-  if (!took) return gameLog(came ? `${lead} ${s.name} ${pick(["fed it and sent it on its way", "shooed it back out", "said no, firmly"])}.` : `${lead}, but ${pick(["it wasn't for them", "it was no use to them", "they had no room for it"])}. It went on its way.`, "story", [s], true);
+  if (!took) return gameLog(came ? `${lead} ${s.name} ${pick(PET_SENDOFF)}.` : `${lead}, but ${pick(PET_NO_ROOM)}. It went on its way.`, "story", [s], true);
   const used = living().filter((o) => o.pet).map((o) => o.pet.name), free = PET_NAMES.filter((n) => !used.includes(n)), name = pick(free.length ? free : PET_NAMES); // ponytail: past forty pets a name repeats
   s.pet = { kind, name, since: S.day, age0: Math.round(Math.random() * k.span * 6) / 10, ageAt: bandOf(s) };
   S.pets.adopted++;
@@ -493,8 +493,8 @@ function petDies(s) {
   s.morale = clampMorale(s.morale - 8);
   const mourners = living().filter((o) => o !== s && !away(o) && (o.spouse === s.id || tieOf(o, s) >= 15)).slice(0, 2);
   mourners.forEach((o) => { tie(o, s, 3); stir(o, "grief", 5); });
-  gameLog(`${k.icon} ${p.name} the ${k.name} ${pick(["passed away in their sleep", "slipped away quietly", "didn't wake up one morning"])}${yrs ? `, after ${many(yrs, "year")} with ${s.name}` : ""}.`, "story", [s]);
-  gameLog(`${mourners.length ? `${mourners.map((o) => o.name).join(" and ")} stood with ${s.name}` : `${s.name} dug the hole alone`}, and ${p.name} was laid under ${pick(["the hedge", "the old fence post", "a flat stone", "the apple tree"])}.`, "story", [s, ...mourners]);
+  gameLog(`${k.icon} ${p.name} the ${k.name} ${pick(PET_DEATH)}${yrs ? `, after ${many(yrs, "year")} with ${s.name}` : ""}.`, "story", [s]);
+  gameLog(`${mourners.length ? `${mourners.map((o) => o.name).join(" and ")} stood with ${s.name}` : `${s.name} dug the hole alone`}, and ${p.name} was laid under ${pick(PET_BURIAL)}.`, "story", [s, ...mourners]);
 }
 // An owner who has died leaves the pet to someone who was close and whom the species suits; otherwise it wanders off.
 function petOrphan(s) {
@@ -1098,13 +1098,6 @@ const holds = (n) => {
   return p / (p + n * 7 * (1 + S.day / 80));
 };
 // The dead keep speaking, one grave at a time. A grave that has spoken is quiet for a few days.
-const OMENS = {
-  bandits: ["riders coming", "iron on the road", "boots at the gate before long"],
-  pirates: ["lanterns on the water", "oars in the dark"],
-  trader: ["wheels on the road", "a stranger with wares"],
-  boon: ["luck is turning", "something kind is on its way"],
-};
-const MUSE = ["Finish what you started.", "Don't let the day go to waste.", "I'm still here. Get on.", "Mind your hands, mind your heart.", "You're better at this than you think."];
 const speaker = () => (built("graveyard") && pick((S.graves || []).filter((g) => g.ghost && !(S.day < g.quiet)))) || null;
 function speak(g, text, line) {
   g.said = { day: S.day, text };
@@ -1347,12 +1340,7 @@ function owe(s, o, why) {
   if (s.owes.length > 3) s.owes.shift();
 }
 const debt = (s, home) => (s.owes || []).find((x) => S.day - x.day >= 2 && home.some((o) => o.id === x.o));
-const GIFTS = { carving: "a carved bird", baskets: "a basket", pottery: "a bowl", knitting: "a scarf", baking: "a pie", brewing: "a jug of ale",
-  embroidery: "a stitched kerchief", pressing: "pressed flowers", candles: "a candle", toys: "a wooden horse", bees: "a jar of honey",
-  gardening: "a pot of herbs", fishing: "the best fish of the day", painting: "a little painting", poetry: "a poem", maps: "a map of the valley",
-  tanning: "a leather pouch", fletching: "a fistful of arrows", sewing: "a mended coat", herbs: "a tea blend", statues: "a clay figure",
-  smithing: "a new knife", binding: "a notebook", lute: "a song", singing: "a song", stars: "a name for a star", birds: "a feather", kites: "a kite" };
-const gift = (s) => GIFTS[s.pastime] || pick(["a warm loaf", "a cup of tea", "a handful of berries", "a smooth stone", "the last apple"]);
+const gift = (s) => GIFTS[s.pastime] || pick(GIFT_ANY);
 const SORE = ["grief", "jilted", "neardeath", "haunted", "snapped", "blamed"];
 const mourner = (s, home) => home.filter((o) => o !== s && (drive(o, "grief") >= 30 || drive(o, "fear") >= 40 || fresh(o).some((x) => SORE.includes(x.k))) && tieOf(s, o) >= 0 && !fresh(o).some((x) => x.k === "comforted"))
   .sort((a, b) => tieOf(s, b) - tieOf(s, a))[0];
@@ -1438,7 +1426,7 @@ const URGES = {
       }
       if (S.day - s.sweet.day < (s.sweet.wait ?? 14)) {
         spend(s, "warmth", 0.7); tie(s, o, 3);
-        return gameLog(`${s.name} ${pick(["picked flowers for", "saved a seat for", "walked home with", "fixed a stool for"])} ${o.name}.`, "story", [s, o], true);
+        return gameLog(`${s.name} ${pick(COURT)} ${o.name}.`, "story", [s, o], true);
       }
       delete s.sweet;
       spend(s, "warmth");
@@ -1832,8 +1820,8 @@ function settle(how) {
       pay(t.take);
       const lost = byId(t.for ?? s.id), slot = pick(["weapon", "armor"]);
       const k = 2 + Math.floor(S.day / 30);
-      const g = slot === "weapon" ? { name: `${lost.name}'s ${pick(["Lament", "Grief", "Due"])}`, slot, atk: 3 + k, spd: 1 }
-        : { name: `${lost.name}'s ${pick(["Shroud", "Vigil", "Keepsake"])}`, slot, def: 2 + k, hp: 4 * k };
+      const g = slot === "weapon" ? { name: `${lost.name}'s ${pick(KEEPSAKE_WEAPON)}`, slot, atk: 3 + k, spd: 1 }
+        : { name: `${lost.name}'s ${pick(KEEPSAKE_ARMOR)}`, slot, def: 2 + k, hp: 4 * k };
       (S.stash ||= []).push({ ...g, uid: nextId++ });
       think(s, "made");
       return gameLog(`${s.name} came out of the forge with ${g.name}.`, "good", [s]);

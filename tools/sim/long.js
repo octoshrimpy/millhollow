@@ -5,7 +5,7 @@ const years = +process.argv[2] || 8, villages = +process.argv[3] || 3;
 const R = path.resolve(process.argv[4] || path.join(__dirname, "../../js/ds")) + "/";
 const ctx = { console, localStorage: { getItem: () => null, setItem() {}, removeItem() {} } };
 vm.createContext(ctx);
-vm.runInContext(["data.js", "names.js", "game.js", "combat.js", "bot.js"].map((f) => fs.readFileSync(R + f, "utf8")).join("\n"), ctx);
+vm.runInContext(["text.js", "data.js", "names.js", "game.js", "combat.js", "bot.js"].map((f) => fs.readFileSync(R + f, "utf8")).join("\n"), ctx);
 vm.runInContext(`
 const KINDS = { joined: / joined\\.$/, born: / was born to /, grew: / grew up\\./, aged: /, aged \\d+\\./, lost: / died on floor/, left: /never came back|walked off|slipped away|packed up and left|left to find food|didn't come back/, wed: / married( quietly|\\.)/ };
 this.village = (years) => {

@@ -3,7 +3,7 @@ const OUT = require("path").join(__dirname, "out/");
 const fs = require("fs"), vm = require("vm"), R = require("path").join(__dirname, "../../js/ds/");
 const ctx = { console, localStorage: { getItem: () => null, setItem() {}, removeItem() {} } };
 vm.createContext(ctx);
-vm.runInContext(["data.js", "names.js", "game.js", "combat.js", "bot.js"].map((f) => fs.readFileSync(R + f, "utf8")).join("\n"), ctx);
+vm.runInContext(["text.js", "data.js", "names.js", "game.js", "combat.js", "bot.js"].map((f) => fs.readFileSync(R + f, "utf8")).join("\n"), ctx);
 vm.runInContext(`
 var LOG, from;
 const harvest = () => { LOG.push(...S.log.filter((e) => e.n > from)); from = S.logN; };

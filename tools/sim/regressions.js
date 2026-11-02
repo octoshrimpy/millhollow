@@ -3,7 +3,7 @@ const assert = require("assert"), fs = require("fs"), path = require("path"), vm
 const R = path.join(__dirname, "../../js/ds/");
 const ctx = { console, assert, localStorage: { getItem: () => null, setItem() {}, removeItem() {} } };
 vm.createContext(ctx);
-vm.runInContext(["data.js", "names.js", "game.js", "combat.js"].map((f) => fs.readFileSync(path.join(R, f), "utf8")).join("\n"), ctx);
+vm.runInContext(["text.js", "data.js", "names.js", "game.js", "combat.js"].map((f) => fs.readFileSync(path.join(R, f), "utf8")).join("\n"), ctx);
 vm.runInContext(`
 const reset = () => { newGame(); settleIn(S.recruits.slice(0, 4).map((s) => s.id)); };
 

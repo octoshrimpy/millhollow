@@ -319,8 +319,6 @@ function troubleStakes(t) {
   }[t.kind] || [], ...(t.warned != null ? [`${esc(byId(t.warned).name)} warned of this. Answer it and it costs less.`] : [])];
   return `<div class="stakes">${lines.map((l) => `<p>${l}</p>`).join("")}</div>`;
 }
-const TROUBLE_TITLE = { bandits: "Bandits!", pirates: "River pirates!", debt: "Debt collectors", fey: "Fey mood", feast: "Feast", wedding: "Wedding!", trader: "Trader",
-  royal: "Royal party", refugees: "Runaways", defectors: "Deserters", wildfire: "Fire!" };
 function sheetTrouble() {
   const t = S.trouble, ok = afford(t.take), title = `<h3>${TROUBLE_TITLE[t.kind]}</h3>`;
   const odds = t.n && holds(t.n), label = (x) => `<small>${x}</small>`;

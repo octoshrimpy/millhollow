@@ -3,7 +3,7 @@ const fs = require("fs"), vm = require("vm"), R = require("path").join(__dirname
 const N = +process.argv[2] || 8, game = process.argv[3] || R + "game.js";
 const ctx = { console, localStorage: { getItem: () => null, setItem() {}, removeItem() {} } };
 vm.createContext(ctx);
-const src = [R + "data.js", R + "names.js", game, R + "combat.js", R + "bot.js"].map((f) => fs.readFileSync(f, "utf8")).join("\n");
+const src = [R + "text.js", R + "data.js", R + "names.js", game, R + "combat.js", R + "bot.js"].map((f) => fs.readFileSync(f, "utf8")).join("\n");
 vm.runInContext(src, ctx);
 vm.runInContext(`this.run = () => {
   newGame(); S.beasts ??= {}; settleIn(S.recruits.slice(0, 4).map((s) => s.id));
