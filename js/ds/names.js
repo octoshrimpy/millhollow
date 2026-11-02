@@ -1,9 +1,3 @@
-
-const NAME_CORPUS = {
-  f: [...NAMES.f, ...NAMES.more.f],
-  m: [...NAMES.m, ...NAMES.more.m],
-};
-
 const chainOf = (names) => {
   const t = {};
   for (const n of names) {
@@ -12,12 +6,12 @@ const chainOf = (names) => {
   }
   return t;
 };
-const CHAINS = { f: chainOf(NAME_CORPUS.f), m: chainOf(NAME_CORPUS.m) };
-const REAL = new Set([...NAME_CORPUS.f, ...NAME_CORPUS.m].map((n) => n.toLowerCase()));
+const CHAINS = { f: chainOf([...NAMES.f, ...NAMES.any]), m: chainOf([...NAMES.m, ...NAMES.any]), any: chainOf([...NAMES.f, ...NAMES.m, ...NAMES.any]) };
+const REAL = new Set([...NAMES.f, ...NAMES.m, ...NAMES.any].map((n) => n.toLowerCase()));
 const AWKWARD = /[^aeiouy]{3}|[aeiou]{3}|(.)\1\1|x|[jqz][^aeiou]|w[^aeiouyrh]|[^aeiouy](wr|kn|gn)/;
 
 function makeName(sex, taken = new Set(), rng = Math.random) {
-  const chain = CHAINS[sex === "any" ? (rng() < 0.5 ? "f" : "m") : sex];
+  const chain = CHAINS[sex], ends = new Set([...taken].map((n) => n.slice(-3).toLowerCase()));
   for (let tries = 0; tries < 300; tries++) {
     let ctx = "^^", out = "";
     while (out.length < 10) {
@@ -27,7 +21,7 @@ function makeName(sex, taken = new Set(), rng = Math.random) {
       out += ch;
       ctx += ch;
     }
-    if (out.length < 4 || out.length > 7 || REAL.has(out) || WORDS.has(out) || AWKWARD.test(out)) continue;
+    if (out.length < 4 || out.length > 7 || REAL.has(out) || WORDS.has(out) || AWKWARD.test(out) || ends.has(out.slice(-3))) continue;
     const name = out[0].toUpperCase() + out.slice(1);
     if (!taken.has(name)) return name;
   }

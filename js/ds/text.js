@@ -1,24 +1,76 @@
 // Flavor text: every pool of names and prose variants. Logic that reads them lives in data.js, names.js, game.js and ui.js.
 
+
 const NAMES = {
-  f: ["Agatha", "Bridie", "Calla", "Dagny", "Freya", "Gerta", "Ilse", "Jorunn",
-    "Linnet", "Lisbet", "Mira", "Orla", "Ottoline", "Quenna", "Rhoswen", "Sela",
-    "Tamsin", "Thea", "Ulla", "Valla", "Verity", "Vesna", "Ysolde", "Zora"],
-  m: ["Anselm", "Bevan", "Brann", "Clement", "Corvin", "Dorn", "Elric", "Finn",
-    "Halvard", "Imre", "Jarl", "Kirwin", "Marek", "Merrick", "Norvel", "Nyle",
-    "Odo", "Osric", "Piet", "Rafe", "Tomas", "Tovar", "Wendel", "Yannick"],
-  any: ["Adrel", "Alder", "Bellamy", "Cass", "Delwyn", "Edrie", "Fenn", "Harlow",
+  f: [
+    "Agatha", "Bridie", "Calla", "Dagny", "Freya", "Gerta", "Ilse", "Jorunn", "Lisbet",
+    "Mira", "Orla", "Ottoline", "Quenna", "Rhoswen", "Sela", "Tamsin", "Thea", "Ulla",
+    "Valla", "Verity", "Vesna", "Ysolde", "Zora", "Aldith", "Ailsa", "Brenna", "Edith",
+    "Elswyth", "Eira", "Gwenna", "Hilde", "Ingrid", "Isolde", "Maude", "Morwen", "Nessa",
+    "Rowena", "Sigrid", "Tilda", "Astrid", "Branwen", "Cerys", "Delia", "Elowen",
+    "Gisela", "Hedda", "Ione", "Kerensa", "Lenna", "Mabyn", "Nia", "Oriel", "Petra",
+    "Rhian", "Senna", "Tova", "Una", "Wilda", "Aveline", "Beatrix", "Cressida",
+    "Emmeline", "Hester", "Imogen", "Liesel", "Marit", "Odile", "Runa", "Solveig", "Thora",
+
+    // Additional
+    "Adela", "Aderyn", "Alina", "Althea", "Amabel", "Anwen", "Ardis", "Arwen",
+    "Asta", "Audra", "Bera", "Berit", "Blythe", "Bronwen", "Brynja", "Catrin",
+    "Celia", "Clodagh", "Delyth", "Disa", "Dorothea", "Edda", "Eleri", "Elfrida",
+    "Elspeth", "Enid", "Erla", "Estrid", "Eydis", "Ffion", "Frieda", "Gilda",
+    "Githa", "Griselda", "Gudrun", "Halla", "Halwen", "Helga", "Hilda", "Ida",
+    "Idunn", "Ismay", "Janna", "Keira", "Liora", "Lowri", "Maren", "Martha",
+    "Melisende", "Meriel", "Morrigan", "Nerys", "Olwen", "Ragna", "Rhiannon",
+    "Rosamund", "Sibyl", "Sigrun", "Sioned", "Sunniva", "Sybil", "Tegan", "Thyra",
+    "Vigdis", "Willa", "Winifred", "Ylva", "Yvette", "Zelda"
+  ],
+
+  m: [
+    "Anselm", "Bevan", "Brann", "Clement", "Corvin", "Dorn", "Elric", "Halvard",
+    "Imre", "Jarl", "Kirwin", "Marek", "Merrick", "Norvel", "Nyle", "Odo", "Osric",
+    "Piet", "Rafe", "Tomas", "Tovar", "Wendel", "Yannick", "Aldric", "Bertram",
+    "Cadoc", "Dunstan", "Edwin", "Gareth", "Godric", "Hamond", "Ivor", "Leofric",
+    "Madoc", "Oswin", "Ranulf", "Sigurd", "Torben", "Ulric", "Wystan", "Alaric",
+    "Berin", "Cenric", "Duncan", "Emrys", "Gawain", "Harald", "Ingram", "Kenrick",
+    "Lorcan", "Mathis", "Nils", "Oskar", "Roald", "Sten", "Tancred", "Wulfric",
+    "Aled", "Bram", "Destan", "Egil", "Garrow", "Hob", "Lachlan", "Mungo", "Ned",
+    "Perran", "Soren", "Wat",
+
+    // Additional
+    "Aelfric", "Alban", "Albin", "Alfred", "Alwin", "Ambrose", "Aric", "Arvid",
+    "Asger", "Auberon", "Baldric", "Bastian", "Benedict", "Bjorn", "Borin",
+    "Brandt", "Cedric", "Conall", "Cormac", "Darian", "Darragh", "Dieter", "Eamon",
+    "Eirik", "Eldric", "Elias", "Esmond", "Everard", "Falk", "Ferdinand", "Fintan",
+    "Florian", "Garrick", "Gideon", "Goran", "Hadrian", "Hakon", "Haldor", "Hector",
+    "Henrik", "Heron", "Hrothgar", "Ilan", "Jasper", "Jorn", "Kasper", "Kieran",
+    "Leander", "Lennart", "Lucan", "Magnus", "Malcolm", "Merrion", "Nestor",
+    "Oberon", "Orson", "Oswald", "Padrig", "Ragnar", "Reynard", "Roderic",
+    "Rurik", "Silas", "Sverre", "Thane", "Theodric", "Tristan", "Viggo", "Wilfred",
+    "Wolfram"
+  ],
+
+  any: [
+    "Adrel", "Alder", "Bellamy", "Cass", "Delwyn", "Edrie", "Fenn", "Harlow",
     "Hesper", "Hollis", "Kestrel", "Mabry", "Perrin", "Pike", "Rowan", "Sorrel",
-    "Wren", "Wyn"],
-  more: {
-    f: "Aldith Ailsa Brenna Edith Elswyth Eira Gwenna Hilde Ingrid Isolde Maude Morwen Nessa Rowena Sigrid Tilda Wynne Astrid Branwen Cerys Delia Elowen Gisela Hedda Ione Kerensa Lenna Mabyn Nia Oriel Petra Rhian Senna Tova Una Wilda Aveline Beatrix Cressida Emmeline Greer Hester Imogen Liesel Marit Odile Runa Solveig Thora".split(" "),
-    m: "Aldric Bertram Cadoc Dunstan Edwin Gareth Godric Hamond Ivor Leofric Madoc Oswin Ranulf Sigurd Torben Ulric Wystan Alaric Berin Cenric Duncan Emrys Gawain Harald Ingram Jory Kenrick Lorcan Mathis Nils Oskar Roald Sten Tancred Wulfric Aled Bram Destan Egil Garrow Hob Kell Lachlan Mungo Ned Perran Rook Soren Tamlin Wat".split(" "),
-  },
+    "Wren", "Wyn", "Finn", "Greer", "Jory", "Kell", "Linnet", "Rook", "Tamlin", "Wynne",
+
+    // Additional
+    "Aeron", "Ainsley", "Alwen", "Arden", "Ash", "Aster", "Aubrey", "Briar",
+    "Bryn", "Caelan", "Celyn", "Cinder", "Dara", "Ellery", "Ember", "Ever",
+    "Garnet", "Glen", "Hadley", "Hart", "Indigo", "Irie", "Jules", "Kit",
+    "Larkin", "Linden", "Lior", "Lumi", "Marlowe", "Merrin", "Mica", "Morgan",
+    "Neryn", "Oak", "Onyx", "Quill", "Reed", "Ren", "Riven", "Robin",
+    "Sage", "Sable", "Shale", "Sparrow", "Taran", "Vale", "Vesper", "Winter",
+    "Wynn", "Yarrow", "Zephyr"
+  ]
 };
 
-const PET_NAMES = ["Biscuit", "Pepper", "Nettle", "Bramble", "Clover", "Moss", "Pip", "Dumpling", "Sorrel", "Juniper", "Tansy", "Button",
-  "Mudge", "Pudding", "Rook", "Sprout", "Thimble", "Wren", "Hazel", "Barley", "Fennel", "Cobb", "Nutmeg", "Posy", "Tuppence", "Mabel",
-  "Ember", "Gruff", "Sage", "Turnip", "Whistle", "Ash", "Crumb", "Dill", "Flint", "Marrow", "Olive", "Pickle", "Stoat", "Winkle"];
+
+const PET_NAMES = ["Biscuit", "Pepper", "Nettle", "Bramble", "Clover", "Moss", 
+  "Pip", "Dumpling", "Sorrel", "Juniper", "Tansy", "Button", "Mudge", "Pudding", 
+  "Rook", "Sprout", "Thimble", "Wren", "Hazel", "Barley", "Fennel", "Cobb", 
+  "Nutmeg", "Posy", "Tuppence", "Mabel", "Ember", "Gruff", "Sage", "Turnip", 
+  "Whistle", "Ash", "Crumb", "Dill", "Flint", "Marrow", "Olive", "Pickle", "Stoat", 
+  "Winkle", "Thistle", "Moss", "Cookie", "Toot"];
 
 // Any line can hold {a|b|c}: each new person gets one of them, and braces can nest. A line is
 // picked before its braces, so a line with many options is no likelier than one with none.
@@ -27,14 +79,14 @@ const PET_NAMES = ["Biscuit", "Pepper", "Nettle", "Bramble", "Clover", "Moss", "
 const PAST = {
   born: [
     "Born {in a fishing village|by a river crossing|in a market town|in a remote hamlet|in a tenement}.",
-    "Born {on the frontier|on an island|in a forest village|in a hard winter|in a town that's gone now}.",
+    "Born {on the frontier|on an island|in a forest village|during a hard winter|in a town that's gone now}.",
     "Born to {traders|millers|charcoal burners|shepherds|potters}.",
     "Born to {hunters|tinkers|a cooper and a brewer|the village reeve}.",
     "Temple orphan.",
     "Grew up {on a hill farm|on an orchard|among sheep|in a lumber camp|by a quarry}.",
-    "Grew up {in a mining town|in a salt town|in a monastery village|on the docks|in a merchant house}.",
+    "Grew up {in a mining town|in a salt town|in a monastery|on the docks|in a merchant house}.",
     "Grew up {over a tavern|near an old battlefield|on the king's road|by a shrine|under a ruined castle}.",
-    "Grew up with {an aunt in the city|grandparents in the mountains|traveling players|an older sibling|an old soldier}.",
+    "Grew up with {{an aunt|grandparents|traveling players|an older sibling|an old soldier} in the city| in the mountains}.",
     "Grew up {in a forest camp|with shepherds|on a horse farm|among ferrymen|on a canal}.",
     "Grew up in {a roadside inn|a coastal monastery|a manor kitchen|a guildhall|a monastery orphanage}.",
   ],
@@ -227,14 +279,12 @@ const PAST = {
   },
 
   bad: [
-    "Burned down {a library|a forge|a smokehouse|an infirmary|a farm|a church|the stables} on purpose.",
-    "Burned down {a library|a forge|a smokehouse|an infirmary|a farm|a church|the stables} by accident.",
-    "Fled a wedding.",
-    "Fled debts.",
+    "Burned down {a library|a forge|a smokehouse|an infirmary|a farm|a church|the stables} {on purpose|by accident}.",
+    "Fled {a wedding|debts}.",
     "Stole from a lord.",
-    "Drank away a fortune.",
-    "Carried a fever into a village.",
-    "Sold out a friend.",
+    "{Drank|Gambled} away {theid family|a fortune}.",
+    "Carried {the plague|a fever} into a {town|village}{ accidentally|}.",
+    "Sold out a {friend|family member} to {the king|the mob|bandits|pirates}.",
   ],
 
   road: [
@@ -293,7 +343,7 @@ const PAST_WAS = {
 const FIRESIDE = ["told the old days by the fire", "talked about home by the fire", "told about life before the village",
   "told a story by the fire", "told how it was back then"];
 const FIRESIDE_AGAIN = ["told it again", "told that story again", "told it again, longer"];
-const WORDS = new Set("line corn stan wain bran alla mile tomat pieth bern hart lord ward".split(" "));
+const WORDS = new Set("line corn stan wain bran alla mile tomat pieth bern hart lord ward flow tard hect".split(" "));
 // Old-English-ish fragments and whole landscape words. Whole words can also stand alone ("Rook Cross").
 
 const PLACE_HEAD = "ash brack thorn wil ald bram fen hol marl stan lang kes wyn wether elder sedge".split(" ");

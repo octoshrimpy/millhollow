@@ -26,6 +26,13 @@
   /* the name leads and the number follows it — the name is what gets spoken */
   .id b { font-weight: normal; font-size: 1.15em; }
   .num { color: var(--dim); letter-spacing: .08em; }
+  summary { cursor: pointer; list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  .id::before { content: "▸ "; }
+  details[open] .id::before { content: "▾ "; }
+  .peek { display: grid; grid-template-columns: repeat(4, minmax(0, 9em)); gap: 4px; }
+  .peek img { width: 100%; display: block; border-radius: 4px; }
+  details[open] .peek { display: none; }
   .grid { display: grid; grid-template-columns: auto repeat(5, 1fr); gap: 4px; align-items: center; }
   .grid img { width: 100%; display: block; border-radius: 4px; }
   /* column headings and row labels are the only text — everything else is faces */
@@ -53,7 +60,7 @@
   const MOODS = ["happy", "neutral", "sad", "angry", "scared"];
 
   // Handles for talking about a face out loud, nothing the game reads. They run
-  // A–Z for ids 1–26 and wrap to a second A–J for 27–36, so a name says roughly
+  // A–Z for ids 1–26 and wrap to a second A–J for 27–36 (37 on is in the list below), so a name says roughly
   // where its card is. Chosen to be distinct from each other by ear — no two
   // share an opening sound — and distinct from the NAMES pool the sim rolls
   // villagers from, so "Xanthe" is always a face and never a person in a log.
@@ -69,6 +76,15 @@
     "Vernon", "Winifred", "Xanthe", "Yvette", "Zillah",
     "Ansel", "Bryn", "Clemence", "Dunstan", "Elowen", "Fletcher", "Giselle",
     "Halloran", "Isolde", "Jerrold",
+    // 37–90: A–Z twice more, then A–B. Men and women follow FACE_F; 89 is the neutral one.
+    "Alys", "Barnaby", "Cordelia", "Dermot", "Ermine", "Fulk", "Gwendolen",
+    "Hugo", "Idony", "Joss", "Katrin", "Lyle", "Magda", "Nolan",
+    "Opal", "Peregrine", "Quilla", "Rolf", "Sabine", "Thaddeus", "Ursel",
+    "Vance", "Wenna", "Xavier", "Yorick", "Zenobia",
+    "Abel", "Bronwyn", "Caspian", "Dorcas", "Evander", "Fiona", "Gideon",
+    "Henrietta", "Ignatius", "Josephine", "Kendrew", "Lavinia", "Mortimer",
+    "Nell", "Orson", "Philippa", "Quinn", "Rosalind", "Stellan", "Thomasin",
+    "Ugo", "Viola", "Wilmot", "Ximena", "Yves", "Zinnia", "Ash", "Bastian",
   ];
 
   fetch("js/ds/data.js").then((r) => r.text()).then((src) => {
@@ -79,13 +95,15 @@
 
     const all = document.getElementById("all");
     for (let id = 1; id <= faces; id++) {
-      const card = document.createElement("div");
+      const card = document.createElement("details");
       card.className = "who";
       card.id = `face-${id}`;
       // a face past the end of the name list is still worth showing, just unnamed
       const nm = FACE_NAMES[id - 1];
       const head = nm ? `<b>${nm}</b> <span class="num">face ${id}</span>` : `face ${id}`;
-      const cells = [`<div class="id">${head}</div>`, `<div class="grid">`, `<div></div>`];
+      // collapsed: just the happy face at each age, in a row; open: the whole grid
+      const peek = AGES.map((a) => `<img loading="lazy" alt="face ${id}, ${a}" src="assets/face-${id}-${a}-happy.avif">`).join("");
+      const cells = [`<summary><div class="id">${head}</div><div class="peek">${peek}</div></summary>`, `<div class="grid">`, `<div></div>`];
       for (const m of MOODS) cells.push(`<div class="head">${m}</div>`);
       for (const a of AGES) {
         cells.push(`<div class="age">${a}</div>`);

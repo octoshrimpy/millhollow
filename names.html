@@ -1,0 +1,53 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Millhollow — name roller</title>
+<style>
+  :root { --bg: #14110e; --ink: #d9cbb4; --dim: #8a7c68; --line: #2e2721; --accent: #c08a4e; --card: #1d1814; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 1.2em; background: var(--bg); color: var(--ink); font: 16px/1.4 ui-serif, Georgia, serif; }
+  h1 { font-size: 1.2em; margin: 0 0 1em; font-weight: normal; }
+  .bar { display: flex; flex-wrap: wrap; gap: .6em 1em; align-items: center; margin-bottom: 1em; }
+  label { display: inline-flex; gap: .4em; align-items: center; cursor: pointer; }
+  input[type=number] { width: 4.5em; background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: .3em; font: inherit; }
+  button { background: var(--accent); color: #14110e; border: 0; border-radius: 6px; padding: .4em 1em; font: inherit; cursor: pointer; }
+  #out { display: grid; grid-template-columns: repeat(auto-fill, minmax(9em, 1fr)); gap: .4em; }
+  #out span { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: .3em .6em; }
+  #out .f { border-left: 3px solid #c0627a; }
+  #out .m { border-left: 3px solid #5a8ac0; }
+  #out .any { border-left: 3px solid var(--dim); }
+</style>
+
+<h1>Millhollow — name roller</h1>
+<div class="bar">
+  <label>How many <input type="number" id="n" value="30" min="1" max="500"></label>
+  <label><input type="checkbox" id="f" checked> women</label>
+  <label><input type="checkbox" id="m" checked> men</label>
+  <label><input type="checkbox" id="any" checked> neutral</label>
+  <button id="roll">Roll</button>
+</div>
+<div id="out"></div>
+
+<script src="js/ds/text.js"></script>
+<script src="js/ds/data.js"></script>
+<script>
+  // names.js needs only pick(); game.js defines it but drags in the whole game.
+  const pick = (xs) => xs[Math.floor(Math.random() * xs.length)];
+</script>
+<script src="js/ds/names.js"></script>
+<script>
+  const $ = (id) => document.getElementById(id);
+  function roll() {
+    const on = ["f", "m", "any"].filter((k) => $(k).checked);
+    if (!on.length) { $("out").textContent = "Tick at least one."; return; }
+    const n = Math.max(1, Math.min(500, +$("n").value || 1)), taken = new Set(), out = [];
+    for (let i = 0; i < n; i++) {
+      const sex = pick(on), name = makeName(sex, taken);
+      taken.add(name);
+      out.push(`<span class="${sex}">${name}</span>`);
+    }
+    $("out").innerHTML = out.join("");
+  }
+  $("roll").onclick = roll;
+  roll();
+</script>
