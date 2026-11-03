@@ -217,6 +217,8 @@ let logSeen = Infinity;
 const logLine = (l) => `<p data-key="${l.n}" class="${l.kind} ${l.aside ? "aside" : ""} ${l.n > logSeen ? "new" : ""}"><small>d${l.day}</small> ${named(esc(l.text))}</p>`;
 // Anyone named in a line opens their sheet. ponytail: names are matched as words, so two settlers with one name both open the first.
 let nameRe = null, nameIds = null, nameRoster = null, nameCount = -1; // ponytail: names never change, so the roster array and its length identify the matcher
+const fountRe = new RegExp(`(?<!\\p{L})(${Object.values(DEITIES).map((f) => f.name).join("|")})(?!\\p{L})`, "gu");
+const fountMark = (f) => `<span class="fount" style="--c:${f.color};--lift:${f.lift || "baseline"}">${f.sym}</span>`;
 const named = (html) => {
   if (S.settlers !== nameRoster || S.settlers.length !== nameCount) {
     nameRoster = S.settlers; nameCount = S.settlers.length;
@@ -225,7 +227,8 @@ const named = (html) => {
     const alt = [...nameIds.keys()].sort((a, b) => b.length - a.length).map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
     nameRe = alt.length ? new RegExp(`(?<!\\p{L})(${alt.join("|")})(?!\\p{L})`, "gu") : null;
   }
-  return nameRe ? html.replace(nameRe, (n) => `<u class="nm" data-act="person" data-v="${nameIds.get(n)}">${n}</u>`) : html;
+  if (nameRe) html = html.replace(nameRe, (n) => `<u class="nm" data-act="person" data-v="${nameIds.get(n)}">${n}</u>`);
+  return html.replace(fountRe, (n) => { const f = DEITIES[n.toLowerCase()]; return fountMark(f) + n; });
 };
 function renderLog() {
   const el = $("#log");
@@ -417,8 +420,8 @@ function epitaphs() {
   const gs = (S.graves || []).slice(-40).reverse();
   if (!gs.length) return "";
   return `<h4>🪦 ${many(S.graves.length, "grave")}</h4>` + gs.map((g) => {
-    const d = byId(g.id), last = g.said ? `“${esc(g.said.text)}” <small>d${g.said.day}</small>` : esc(g.cause || ""), rite = Object.values(DEITIES).find((x) => x.rite === g.rite)?.riteName || "Burial";
-    return `<p><small>d${d.diedOn ?? g.day}</small> ${g.ghost ? "👻 " : ""}${named(esc(d.name))} <span class="dim">${esc(rite)}${last ? ` · ${last}` : ""}</span>${g.claims?.length && !g.said ? `<br><small class="dim">${named(esc(g.claims.join("; ")))}</small>` : ""}</p>`;
+    const d = byId(g.id), last = g.said ? `“${esc(g.said.text)}” <small>d${g.said.day}</small>` : esc(g.cause || ""), god = Object.values(DEITIES).find((x) => x.rite === g.rite), rite = god ? `${fountMark(god)}${god.riteName}` : "Burial";
+    return `<p><small>d${d.diedOn ?? g.day}</small> ${g.ghost ? "👻 " : ""}${named(esc(d.name))} <span class="dim">${rite}${last ? ` · ${last}` : ""}</span>${g.claims?.length && !g.said ? `<br><small class="dim">${named(esc(g.claims.join("; ")))}</small>` : ""}</p>`;
   }).join("");
 }
 
@@ -607,12 +610,12 @@ function sheetPerson() {
     ${s.dead ? "" : `<div class="hpline">${bar(s.hp, st.hpMax, "hp")}</div>
     ${injuries(s).length ? `<p class="bad hurts">${injuries(s).join(" · ")}</p>` : ""}
     <div class="stats">${statLine(st, `❤️${s.hp}/${st.hpMax}`, s)}</div>`}</div></div>
-    ${!s.dead ? `<p class="said">“${esc(why(s))}”</p>` : ""}
+    ${!s.dead ? `<p class="said">“${esc(villagerSays(s))}”</p>` : ""}
     ${!s.dead && wants(s) ? `<div class="row center wrap">${Object.entries(S.asks).filter(([, ids]) => ids.includes(s.id))
       .map(([t]) => tip("Asked for", `🙋 ${BUILDINGS[t].icon} ${BUILDINGS[t].name}`, "chip")).join("")}</div>` : ""}
     ${s.dead ? "" : `<div class="thoughts">${fresh(s).sort((x, y) => y.n - x.n).map(thoughtChip).join("")}</div>
     ${drivePips(s)}
-    <div class="row wrap center">${skills}${traitsOf(s).map((k) => tip("Nature", `${TRAITS[k].icon} ${TRAITS[k].name}`, "chip")).join("")}${s.pastime ? tip("Pastime", `${PASTIMES[s.pastime].icon} ${PASTIMES[s.pastime].name}`, "chip") : ""}</div>
+    <div class="row wrap center">${skills}${traitsOf(s).map((k) => tip("Nature", `${TRAITS[k].icon} ${TRAITS[k].name}`, "chip")).join("")}${DEITIES[s.faith] ? tip(`Faith: ${DEITIES[s.faith].name}`, fountMark(DEITIES[s.faith]), "chip") : ""}${s.pastime ? tip("Pastime", `${PASTIMES[s.pastime].icon} ${PASTIMES[s.pastime].name}`, "chip") : ""}</div>
     ${petLine(s)}
     ${blames(s)}
     ${gearRow(s)}`}

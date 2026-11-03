@@ -1,6 +1,6 @@
 
 // Shown in settings; release.sh sets it with the Android versionName.
-const VERSION = "1.6.7";
+const VERSION = "1.6.8";
 const FACES = 90;
 const FACE_F = [1, 4, 6, 8, 13, 14, 16, 23, 24, 25, 26, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 51, 53, 55, 57, 59,
   62, 64, 66, 68, 70, 72, 74, 76, 78, 80, 82, 84, 86, 88];
@@ -80,14 +80,15 @@ const PAST_PAYS = {
 };
 
 // The five Founts of Kathara (chromaforge), as the village prays to them: storytellers give each a face and a domain.
+// sym/color: the Fount's symbol and house colour (lift: raises a symbol that sits low in the font) (chromaforge colors_houses), shown before its name in the UI.
 // OLD_GODS maps the names saves used before the Founts, by the rite they gave.
 const DEITIES = {
-  seron: { name: "Seron", rite: "stone", riteName: "Beneath the cairn", thought: "inspired", lines: [
+  seron: { sym: "ᛄ", color: "#d4a017", name: "Seron", rite: "stone", riteName: "Beneath the cairn", thought: "inspired", lines: [
     "Stone by stone, we set Seron's line over {name}. A cairn to mark where they ended.",
     "{name} rests beneath a cairn, sealed and measured, in the Golden Line's keeping.",
     "We heaped grey stones over {name}, one for every farewell, and drew the line.",
   ] },
-  orvik: { name: "Orvik", rite: "sea", riteName: "Out with the tide", thought: "inspired", lines: [
+  orvik: { sym: "∵", color: "#3b7dd8", name: "Orvik", rite: "sea", riteName: "Out with the tide", thought: "inspired", lines: [
     "{name} went out with the tide in a lantern-lit boat, into the Ink Beneath the Sea.",
     "We sent {name} downriver to Orvik, every memory of them spoken aloud first.",
     "Orvik took {name}'s little boat beyond the reeds. We will not forget the pattern of them.",
@@ -95,17 +96,17 @@ const DEITIES = {
     "The water lay too far away, so we buried {name} beneath the graveyard wall and spoke their memories to Orvik.",
     "No tide reached us. We laid {name} in the graveyard and told their whole story over it.",
   ] },
-  zhark: { name: "Zhark", rite: "fire", riteName: "The hilltop pyre", thought: "tale", lines: [
+  zhark: { sym: "ϟ", color: "#d64545", name: "Zhark", rite: "fire", riteName: "The hilltop pyre", thought: "tale", lines: [
     "{name} burned bright upon Zhark's hilltop pyre, released.",
     "The Shatter-Song took {name} before dawn, in red fire on a high pyre.",
     "We broke the old shape of {name} with fire, and Zhark carried the spark away.",
   ] },
-  drun: { name: "Drun", rite: "oak", riteName: "Under the oak", thought: "comforted", lines: [
+  drun: { sym: "△", lift: ".2em", color: "#4a9a4a", name: "Drun", rite: "oak", riteName: "Under the oak", thought: "comforted", lines: [
     "{name} sleeps beneath an oak, in the Rooted Mountain's keeping. The roots will take them back.",
     "We laid {name} where the old roots run deep, and Drun will grow from them again.",
     "An oak keeps watch over {name} now. What endures, endures.",
   ] },
-  veyra: { name: "Veyra", rite: "hearth", riteName: "Ashes and a seedling", thought: "comforted", lines: [
+  veyra: { sym: "⌘", color: "#8e5bc4", name: "Veyra", rite: "hearth", riteName: "Ashes and a seedling", thought: "comforted", lines: [
     "{name}'s ashes were shared among all who loved them. A rowan seedling stands where the last of them lay.",
     "We gave {name} to the hearth, and each of us took a pinch: the Violet Thread holds us together still.",
     "{name}'s ashes lie under a new-planted rowan, and we are tied to it as we were to them.",

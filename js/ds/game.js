@@ -196,9 +196,9 @@ const pastLine = (src) => {
 // "{a|b|c}" becomes one of a, b or c, innermost first so they nest. The unrolled line stays on as
 // src, so colours and pastHas still match the line as written in PAST.
 // A group spanning lines takes each line as an option (a leading "|" still works); lines are trimmed, blanks dropped.
-const roll = (t) => {
+const roll = (t, choose = pick) => {
   while (/\{[^{}]*\}/.test(t)) t = t.replace(/\{([^{}]*)\}/g, (_, o) =>
-    pick(o.includes("\n") ? o.split(/\n|\|/).map((s) => s.trim()).filter(Boolean) : o.split("|")));
+    choose(o.includes("\n") ? o.split(/\n|\|/).map((s) => s.trim()).filter(Boolean) : o.split("|")));
   return t;
 };
 
@@ -281,102 +281,121 @@ function gossip(home) {
   home.forEach((t) => { if (home.filter((o) => grudge(o, t)).length >= Math.max(1, Math.ceil((home.length - 1) / 3))) think(t, "blamed"); });
 }
 
-function why(s) {
-  const name = (id) => byId(id)?.name ?? "someone", has = (k) => fresh(s).some((x) => x.k === k), whom = (k) => byId(fresh(s).filter((x) => x.k === k && x.who).pop()?.who);
-  const told = (x) => (!x.hops ? "I was there." : x.from ? `${name(x.from)} told me.` : "I heard.");
-  const said = [];
+// What a villager says today. Every true thing about them is a candidate line [mood, weight, text];
+// the heaviest one or two, favouring their current mood, are shown on their card.
+function villagerSays(s) {
+  const nameOf = (id) => byId(id)?.name ?? "someone";
+  const hasThought = (kind) => fresh(s).some((t) => t.k === kind);
+  // The other villager named in a recent thought of this kind (who mended me, who I fought).
+  const thoughtOther = (kind) => byId(fresh(s).filter((t) => t.k === kind && t.who).pop()?.who);
+  const howIKnow = (rumour) => (!rumour.hops ? "I was there." : rumour.from ? `${nameOf(rumour.from)} told me.` : "I heard.");
+  const candidates = [];
   // Same pick all day, so the line holds still between redraws.
-  const hash = (k) => { let h = 2166136261; for (const c of `${s.id}:${S.day}:${k}`) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return (h ^ h >>> 16) >>> 0; };
-  const say = (m, w, ...xs) => said.push([m, w, xs[hash(xs[0]) % xs.length]]);
-  const hp = s.hp / stats(s).hpMax, d = (k) => drive(s, k);
-  const lift = fresh(s).find((x) => x.k === "inspired");
-  if (lift?.who) say("happy", 70, `${name(lift.who)} is still looking out for me.`, `I heard ${name(lift.who)} out there.`, `${name(lift.who)} would want this done.`);
-  if (hp < 0.15) say("scared", 95, "I can't get up.", "I'm not going to make it.", "Everything hurts.");
-  else if (hp < 0.3) say("scared", 80, "I can barely stand.", "I need rest.", "I'm in bad shape.");
-  const hurt = Object.keys(PARTS).map((p) => [p, sore(s, p)]).filter(([, n]) => n).sort((a, b) => b[1] - a[1]);
-  if (arms(s) === 4) say("sad", 65, "Can't use either arm.", "Someone has to feed me.", "Can't even hold a cup.");
-  else if (sore(s, "lleg") + sore(s, "rleg") === 4) say("sad", 65, "Can't stand.", "Neither leg will hold me.", "I crawl to the pot.");
-  else if (hurt.length) {
-    const [p, n] = hurt[0], part = PARTS[p][0].toLowerCase();
-    if (p === "torso") say("sad", n * 30, ...(n > 1 ? ["Hurts to breathe.", "My ribs are cracked.", "Can't bend."] : ["My ribs ache.", "Bruised all down my side.", "Hurts when I laugh."]));
-    else if (p.endsWith("arm")) say("sad", n * 30, ...(n > 1 ? [`My ${part} is useless.`, `Can't lift a thing with my ${part}.`, `Can't feel my ${part}.`] : [`My ${part} aches.`, `Favouring my ${part}.`, "Can't grip right."]));
-    else say("sad", n * 30, ...(n > 1 ? [`My ${part} won't hold me.`, `Can't put weight on my ${part}.`] : [`Limping on my ${part}.`, `My ${part}'s stiff.`, "Slow on the stairs."]));
-  } else if (hp < 0.5) say("sad", 45, "Still hurting.", "Wounds are slow.", "It aches.");
-  else if (hp < 0.7) say("sad", 20, "Still sore.", "Nearly healed.", "A few bruises left.");
-  const bed = s.laid != null && S.grid[s.laid]?.type;
-  if (bed === "infirmary") say("sad", 70, "The infirmary smells of herbs.", "The healer won't let me up.", "Another day on the cot.");
-  else if (bed === "townhall") say("sad", 70, "Sleeping on the hall floor.", "Everyone walks past my bed.", "The hall's cold at night.");
-  else if (bed) say("sad", 70, "Stuck in bed.", "I've counted every roof beam.", "Another day lying down.");
-  const job = s.wasJob && BUILDINGS[s.wasJob.type].name.toLowerCase();
-  if (bed && job) say("sad", 50, `Who's minding the ${job}?`, `I should be at the ${job}.`, `The ${job} won't run itself.`);
-  if (!bed && S.day - s.upDay < 2) say("happy", 45, "Back on my feet.", "Good to be up again.", "Thought I'd never leave that bed.");
-  if (has("neardeath")) say("scared", 75, "I nearly died down there.", "That was close. Too close.", "I thought that was it.");
-  if (has("fled")) say("scared", 50, "We ran.", "We turned and ran.", "We got out. Barely.");
-  for (const t of living()) {
-    const xs = (s.heard || []).filter((x) => x.about === t.id).sort((a, b) => a.v - b.v);
-    if (grudge(s, t)) say("angry", 70, `${t.name} ${deed(xs[0], -1)}. ${told(xs[0])}`);
-    else if (xs.length && xs[xs.length - 1].v > 0) say("happy", 40, `${t.name} ${deed(xs[xs.length - 1], 1)}. ${told(xs[xs.length - 1])}`);
+  const dayHash = (key) => { let h = 2166136261; for (const c of `${s.id}:${S.day}:${key}`) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return (h ^ h >>> 16) >>> 0; };
+  // Offer one of SAYS[key] (stable for the day), its {names} filled from vars; higher weights win.
+  const offer = (mood, weight, key, vars = {}) => {
+    const lines = SAYS[key].map((t) => t.replace(/\{(\w+)\}/g, (m, name) => (name in vars ? vars[name] : m)));
+    // {a|b} groups roll by the day's hash too, so the line doesn't change on every redraw.
+    let n = 0;
+    const line = lines[dayHash(lines[0]) % lines.length];
+    candidates.push([mood, weight, roll(line, (xs) => xs[dayHash(`${key}${n++}`) % xs.length])]);
+  };
+  const hpFraction = s.hp / stats(s).hpMax, driveOf = (kind) => drive(s, kind);
+
+  // --- Body: hurt, laid up, back on their feet ---
+  const inspiredBy = fresh(s).find((t) => t.k === "inspired");
+  if (inspiredBy?.who) offer("happy", 70, "lookedAfter", { who: nameOf(inspiredBy.who) });
+  if (hpFraction < 0.15) offer("scared", 95, "cantGetUp");
+  else if (hpFraction < 0.3) offer("scared", 80, "barelyStand");
+  const soreParts = Object.keys(PARTS).map((part) => [part, sore(s, part)]).filter(([, level]) => level).sort((a, b) => b[1] - a[1]);
+  if (arms(s) === 4) offer("sad", 65, "noArms");
+  else if (sore(s, "lleg") + sore(s, "rleg") === 4) offer("sad", 65, "noLegs");
+  else if (soreParts.length) {
+    const [part, level] = soreParts[0], partName = PARTS[part][0].toLowerCase();
+    if (part === "torso") offer("sad", level * 30, level > 1 ? "torsoBad" : "torsoMild");
+    else if (part.endsWith("arm")) offer("sad", level * 30, level > 1 ? "armBad" : "armMild", { part: partName });
+    else offer("sad", level * 30, level > 1 ? "limbBad" : "limbMild", { part: partName });
+  } else if (hpFraction < 0.5) offer("sad", 45, "stillHurting");
+  else if (hpFraction < 0.7) offer("sad", 20, "stillSore");
+  const bedType = s.laid != null && S.grid[s.laid]?.type;
+  if (bedType === "infirmary") offer("sad", 70, "inInfirmary");
+  else if (bedType === "townhall") offer("sad", 70, "onHallFloor");
+  else if (bedType) offer("sad", 70, "inBed");
+  const jobName = s.wasJob && BUILDINGS[s.wasJob.type].name.toLowerCase();
+  if (bedType && jobName) offer("sad", 50, "missWork", { job: jobName });
+  if (!bedType && S.day - s.upDay < 2) offer("happy", 45, "backOnFeet");
+  if (hasThought("neardeath")) offer("scared", 75, "nearDeath");
+  if (hasThought("fled")) offer("scared", 50, "fled");
+
+  // --- Grudges and good words heard about other villagers ---
+  for (const other of living()) {
+    const rumours = (s.heard || []).filter((r) => r.about === other.id).sort((a, b) => a.v - b.v);
+    if (grudge(s, other)) offer("angry", 70, "grudge", { who: other.name, deed: deed(rumours[0], -1), source: howIKnow(rumours[0]) });
+    else if (rumours.length && rumours[rumours.length - 1].v > 0) offer("happy", 40, "goodWord", { who: other.name, deed: deed(rumours[rumours.length - 1], 1), source: howIKnow(rumours[rumours.length - 1]) });
   }
-  if (has("starving")) say("angry", 85, "I'm starving.", "Days without food.", "There's nothing to eat.");
-  else if (has("hungry")) say("angry", 60, "I haven't eaten.", "I'm hungry.", "When do we eat?");
-  if (has("rough")) say("angry", 40, "There's no bed for me.", "I slept on the ground.", "I need a roof.");
-  if (s.morale < 15) say("angry", 80, "I'm done with this place.", "I'm leaving, first chance.", "Nothing here is worth it.");
-  else if (s.morale < 30) say("angry", 55, "I've had enough of this place.", "I'm sick of this.", "Something has to change.");
-  else if (s.morale >= 85) say("happy", 10, "Life is good.", "Best I've had it.", "No complaints.", "Can't complain.", "Things are good.", "Fair days.");
-  const mine = S.settlers.flatMap((o) => (o.heard || []).filter((x) => x.about === s.id && x.v < 0 && !o.dead));
-  if (has("blamed") && mine.length) say("sad", 60, `They say I ${deed(mine[0], -1)}.`, `People think I ${deed(mine[0], -1)}.`);
-  const lost = whom("grief") || S.settlers.filter((o) => o.dead && !o.buried).pop() || S.settlers.filter((o) => o.dead).pop();
-  if (has("jilted")) say("sad", 65, ...(whom("jilted") ? [`${whom("jilted").name} left me at the altar.`, `${whom("jilted").name} walked away from me.`] : ["I was left at the altar."]));
+
+  // --- Needs and morale ---
+  if (hasThought("starving")) offer("angry", 85, "starving");
+  else if (hasThought("hungry")) offer("angry", 60, "hungry");
+  if (hasThought("rough")) offer("angry", 40, "noBed");
+  if (s.morale < 15) offer("angry", 80, "doneHere");
+  else if (s.morale < 30) offer("angry", 55, "hadEnough");
+  else if (s.morale >= 85) offer("happy", 10, "lifeGood");
+
+  // --- Blame, grief, love, and run-ins with others ---
+  const rumoursAboutMe = S.settlers.flatMap((o) => (o.heard || []).filter((r) => r.about === s.id && r.v < 0 && !o.dead));
+  if (hasThought("blamed") && rumoursAboutMe.length) offer("sad", 60, "blamed", { deed: deed(rumoursAboutMe[0], -1) });
+  const mourned = thoughtOther("grief") || S.settlers.filter((o) => o.dead && !o.buried).pop() || S.settlers.filter((o) => o.dead).pop();
+  if (hasThought("jilted")) thoughtOther("jilted") ? offer("sad", 65, "jiltedBy", { who: thoughtOther("jilted").name }) : offer("sad", 65, "jilted");
   const ghost = S.remains.find((r) => r.haunts === s.id);
-  if (ghost) say("scared", 90, `${name(ghost.id)} won't leave me be.`, `I keep seeing ${name(ghost.id)}.`, `${name(ghost.id)} was here last night.`);
-  if (s.vow) say("sad", 30, "I'll not marry again.", "Never again.", "I'm done with all that.");
-  if (whom("mended")) say("happy", 45, `${whom("mended").name} patched me up.`, `${whom("mended").name} set my bones.`, `I owe ${whom("mended").name}.`);
-  if (whom("brawl")) say("angry", 55, `${whom("brawl").name} and I came to blows.`, `${whom("brawl").name} hit me.`, `I'm not done with ${whom("brawl").name}.`);
-  const sp = s.spouse && byId(s.spouse);
-  if (sp && !sp.dead && !has("wed") && hash("spouse") % 4 === 0) say("happy", 30, ...(away(sp) && !away(s)
-    ? [`${sp.name}'s out there. I hope they're safe.`, `Waiting on ${sp.name} to come home.`]
-    : [`${sp.name}'s waiting at home.`, `Thinking about ${sp.name}.`, `${sp.name} makes it all worth it.`, `Lucky to have ${sp.name}.`]));
-  const met = s.met && S.day - s.met.day < 2 && byId(s.met.o), w = s.met?.what, tail = w?.startsWith("at ") ? ` ${w}` : `, ${w}`;
-  if (met && !met.dead) say(s.met.k === "lost" || s.met.k === "meh" || s.met.k === "snub" ? "sad" : "happy", 25, ...{
-    fun: [`Had fun with ${met.name}${tail}.`, `Enjoyed an evening with ${met.name}${tail}.`, `${met.name}'s good company.`],
-    liked: [`Always good with ${met.name}${tail}.`, `Liked the evening with ${met.name}${tail}.`, `Nobody I'd rather spend an evening with than ${met.name}.`],
-    meh: [`Didn't enjoy the evening with ${met.name}${tail}.`, `Spent the evening with ${met.name}. Never again.`, `${met.name} spoiled it.`],
-    won: [`Beat ${met.name} ${w}.`, `${met.name} can't beat me ${w}.`, `Took ${met.name} ${w}. Easy.`],
-    lost: [`${met.name} beat me ${w}.`, `Didn't enjoy losing to ${met.name}.`, `Next time, ${met.name}.`],
-    snub: [`${met.name} wouldn't join me.`, `Asked ${met.name} along. No.`, `${met.name} turned me down.`],
-    spurn: [`${met.name} keeps asking me along.`, `Didn't feel like company. Told ${met.name} no.`, `Not tonight, ${met.name}.`],
-  }[s.met.k]);
-  if (has("wed") && s.spouse) say("happy", 70, `I married ${name(s.spouse)}.`, `${name(s.spouse)} and I are wed.`, `Married ${name(s.spouse)}. Best thing I did.`);
-  const balk = refuses(s), due = avenges(s);
-  if (due) say("angry", 75, `Something down there owes me ${due.name}.`, `I'm going back for ${due.name}.`, `Whatever killed ${due.name} dies next.`);
-  else if (balk === true) say("scared", 60, "I won't go below.", "Not going down there.", "Don't ask me to go below.");
-  else if (balk) say("sad", 60, `I won't go below. Not after ${balk.name}.`, `${balk.name} went below. I won't.`);
-  else if (has("grief") && lost && d("anger") >= 35) say("angry", 70, `When I can stand, I'm going down for ${lost.name}.`, `Someone pays for ${lost.name}.`);
-  else if (has("grief") && lost) say("sad", 70, `${lost.name} is dead.`, `I miss ${lost.name}.`, `${lost.name} should be here.`);
-  if (has("bored") && s.job != null && S.grid[s.job]) { const j = JOBS[BUILDINGS[S.grid[s.job].type].job].toLowerCase();
-    say("sad", 30, `Same ${j}, every day.`, `More ${j}.`, `I'm tired of ${j}.`); }
-  if (d("anger") >= 75) say("angry", d("anger"), "Someone's going to get hurt.", "I'm about to break something.", "Stay out of my way.");
-  else if (d("anger") >= 50) say("angry", d("anger"), "I could hit someone.", "Don't push me.", "I'm in a mood.");
-  if (d("fear") >= 75) say("scared", d("fear"), "Something's coming.", "I can't sleep.", "We're not safe here.");
-  else if (d("fear") >= 50) say("scared", d("fear"), "I keep watching the gate.", "Did you hear that?", "I don't like the dark.");
-  if (d("restless") >= 75) say("sad", d("restless"), "I have to get out of here.", "The road's calling.", "I won't stay much longer.");
-  else if (d("restless") >= 50) say("sad", d("restless"), "I could walk out of here.", "I want to see somewhere else.", "Same walls every day.");
-  if (d("grief") >= 50 && !has("grief")) say("sad", d("grief"), "I keep thinking about the dead.", "Too many graves.", "I miss them.");
+  if (ghost) offer("scared", 90, "ghost", { who: nameOf(ghost.id) });
+  if (s.vow) offer("sad", 30, "vow");
+  if (thoughtOther("mended")) offer("happy", 45, "mended", { who: thoughtOther("mended").name });
+  if (thoughtOther("brawl")) offer("angry", 55, "brawl", { who: thoughtOther("brawl").name });
+  const spouse = s.spouse && byId(s.spouse);
+  if (spouse && !spouse.dead && !hasThought("wed") && dayHash("spouse") % 4 === 0) offer("happy", 30, away(spouse) && !away(s) ? "spouseAway" : "spouseHome", { who: spouse.name });
+  // The last evening out with someone (s.met): what happened, and what it was ("at dice", ", by the fire").
+  const met = s.met && S.day - s.met.day < 2 && byId(s.met.o), what = s.met?.what, tail = what?.startsWith("at ") ? ` ${what}` : `, ${what}`;
+  if (met && !met.dead) offer(s.met.k === "lost" || s.met.k === "meh" || s.met.k === "snub" ? "sad" : "happy", 25, `met_${s.met.k}`, { who: met.name, tail, what });
+  if (hasThought("wed") && s.spouse) offer("happy", 70, "wed", { who: nameOf(s.spouse) });
+
+  // --- The dungeon: revenge, refusing to go back, mourning ---
+  const refusal = refuses(s), avengedName = avenges(s);
+  if (avengedName) offer("angry", 75, "avenge", { who: avengedName.name });
+  else if (refusal === true) offer("scared", 60, "refuseAll");
+  else if (refusal) offer("sad", 60, "refuseAfter", { who: refusal.name });
+  else if (hasThought("grief") && mourned && driveOf("anger") >= 35) offer("angry", 70, "griefAngry", { who: mourned.name });
+  else if (hasThought("grief") && mourned) offer("sad", 70, "griefSad", { who: mourned.name });
+  if (hasThought("bored") && s.job != null && S.grid[s.job]) { const jobWord = JOBS[BUILDINGS[S.grid[s.job].type].job].toLowerCase();
+    offer("sad", 30, "bored", { job: jobWord }); }
+
+  // --- Drives: how strongly each urge is running ---
+  if (driveOf("anger") >= 75) offer("angry", driveOf("anger"), "anger75");
+  else if (driveOf("anger") >= 50) offer("angry", driveOf("anger"), "anger50");
+  if (driveOf("fear") >= 75) offer("scared", driveOf("fear"), "fear75");
+  else if (driveOf("fear") >= 50) offer("scared", driveOf("fear"), "fear50");
+  if (driveOf("restless") >= 75) offer("sad", driveOf("restless"), "restless75");
+  else if (driveOf("restless") >= 50) offer("sad", driveOf("restless"), "restless50");
+  if (driveOf("grief") >= 50 && !hasThought("grief")) offer("sad", driveOf("grief"), "griefDrive");
   const friend = living().filter((o) => tieOf(s, o) >= FRIEND).sort((a, b) => tieOf(s, b) - tieOf(s, a))[0];
-  if (friend && s.fz?.includes(friend.id)) say("happy", 35, `${friend.name} and I are friends. Just friends.`, `${friend.name}'s a good friend. That's all.`);
-  else if (friend && tieOf(s, friend) >= 75) say("happy", 45, `I'd die for ${friend.name}.`, `${friend.name}'s family to me.`, `Nobody's closer than ${friend.name}.`);
-  else if (friend) say("happy", 35, `${friend.name} and I go way back.`, `${friend.name}'s all right.`, `I can count on ${friend.name}.`);
-  if (d("warmth") >= 75) say("happy", d("warmth") - 20, "This is home now.", "I love these people.", "I'd stay here forever.");
-  else if (d("warmth") >= 50) say("happy", d("warmth") - 20, "Good people here.", "I like it here.", "Folk here look out for me.", "Nice to have neighbours.", "Glad I came.", "This place grows on you.");
-  if (d("pride") >= 75) say("happy", d("pride") - 20, "Nobody does it better.", `Best in ${S.town}.`, "Watch and learn.");
-  else if (d("pride") >= 50) say("happy", d("pride") - 20, "I'm good at what I do.", "I know my work.", "I pull my weight.");
-  if (s.pastime && (s.id + S.day) % 4 === 0) say("happy", 15, `Wish I had more time for ${PASTIMES[s.pastime].name}.`, `Can't wait to get back to ${PASTIMES[s.pastime].name}.`, `Ask me about ${PASTIMES[s.pastime].name}.`);
-  if (has("victory")) say("happy", 65, "We killed the keeper.", "The keeper's dead.", "We won down there.");
-  if (has("levelup")) say("happy", 40, "I'm getting stronger.", "I'm getting better at this.", "I can take more now.");
-  if (has("home")) say("happy", 35, "Good to be home.", "Back home.", "My own bed again.");
-  if (has("built")) say("happy", 20, "The village is growing.", "We built something.", "More roofs every week.");
-  const m = mood(s);
-  const shape = hash("shape"), top = said.sort((x, y) => (y[0] === m) - (x[0] === m) || y[1] - x[1]).slice(0, 1 + (shape & 1)).map(([, , t]) => t);
+  if (friend && s.fz?.includes(friend.id)) offer("happy", 35, "justFriends", { who: friend.name });
+  else if (friend && tieOf(s, friend) >= 75) offer("happy", 45, "closeFriend", { who: friend.name });
+  else if (friend) offer("happy", 35, "friend", { who: friend.name });
+  if (driveOf("warmth") >= 75) offer("happy", driveOf("warmth") - 20, "warmth75");
+  else if (driveOf("warmth") >= 50) offer("happy", driveOf("warmth") - 20, "warmth50");
+  if (driveOf("pride") >= 75) offer("happy", driveOf("pride") - 20, "pride75", { town: S.town });
+  else if (driveOf("pride") >= 50) offer("happy", driveOf("pride") - 20, "pride50");
+  if (s.pastime && (s.id + S.day) % 4 === 0) offer("happy", 15, "pastime", { pastime: PASTIMES[s.pastime].name });
+
+  // --- Recent events ---
+  if (hasThought("victory")) offer("happy", 65, "victory");
+  if (hasThought("levelup")) offer("happy", 40, "levelup");
+  if (hasThought("home")) offer("happy", 35, "home");
+  if (hasThought("built")) offer("happy", 20, "built");
+
+  // Lines in their current mood first, then heaviest; one or two lines, in either order.
+  const currentMood = mood(s);
+  const shape = dayHash("shape"), top = candidates.sort((a, b) => (b[0] === currentMood) - (a[0] === currentMood) || b[1] - a[1]).slice(0, 1 + (shape & 1)).map(([, , text]) => text);
   return (shape & 2 ? top.reverse() : top).join(" ") || "Nothing much.";
 }
 

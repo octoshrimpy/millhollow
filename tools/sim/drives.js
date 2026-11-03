@@ -38,7 +38,7 @@ if (S.grid[at] !== null) throw "smash";
 if (!S.settlers.filter((o) => o !== a).every((o) => grudge(o, a))) throw "witness";
 S.res.food = 50; b.drive = { grief: 100 }; URGES.drink.does(b); if (S.res.food !== 40) throw "drink";
 b.drive = { fear: 70 }; if (refuses(b) !== true) throw "fear";
-console.log("forced acts ok:", S.log.slice(-2).map((e) => e.text).join(" | "), "|", why(a));
+console.log("forced acts ok:", S.log.slice(-2).map((e) => e.text).join(" | "), "|", villagerSays(a));
 `, ctx);
 vm.runInContext(`
 newGame(); settleIn(S.recruits.slice(0, 4).map((s) => s.id));

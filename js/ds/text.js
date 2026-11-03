@@ -1366,3 +1366,922 @@ const KEEPSAKE_ARMOR = [
   "Safe Harbor", "Everlasting Watch", "Peace",
   "Rest"
 ];
+
+const SAYS = {
+  lookedAfter: [
+    "{who} is still looking out for me.",
+    "I heard {who} out there.",
+    "{who} would want this done.",
+    "I can still {hear|feel} {who} nearby.",
+    "Sometimes I swear {who} is watching over me.",
+    "{who} hasn't forgotten me. I know it.",
+    "I had a dream about {who} last night.",
+    "I keep finding little reminders of {who}.",
+    "If {who} could see me now...",
+    "{who} always knew when I needed help."
+  ],
+
+  cantGetUp: [
+    "I can't get up.",
+    "I'm not going to make it.",
+    "Everything hurts.",
+    "I can't move. Not properly.",
+    "Someone help me.",
+    "I tried standing. Big mistake.",
+    "I don't think I can get through this alone.",
+    "Even breathing takes effort.",
+    "Just leave some water nearby.",
+    "I need a healer. Now."
+  ],
+
+  barelyStand: [
+    "I can barely stand.",
+    "I need rest.",
+    "I'm in bad shape.",
+    "My legs are shaking.",
+    "I can walk. Just not far.",
+    "Every step is a struggle.",
+    "I shouldn't be on my feet.",
+    "I feel like I've been trampled by {a horse|an ox|a whole herd}.",
+    "I need to sit before I fall.",
+    "I've had better days."
+  ],
+
+  noArms: [
+    "Can't use either arm.",
+    "Someone has to feed me.",
+    "Can't even hold a cup.",
+    "Both arms are useless right now.",
+    "I can't so much as scratch my nose.",
+    "Never thought I'd miss holding a spoon.",
+    "Everything needs someone else's hands.",
+    "I tried lifting a cup. Didn't go well.",
+    "Can't even pull a blanket over myself.",
+    "I'll be glad when I can use my hands again."
+  ],
+
+  noLegs: [
+    "Can't stand.",
+    "Neither leg will hold me.",
+    "I crawl to the pot.",
+    "These legs aren't taking me anywhere.",
+    "I can't get across the room alone.",
+    "Someone's going to have to carry me.",
+    "Even sitting up is trouble.",
+    "I'd give anything to walk outside.",
+    "My legs have had enough of me.",
+    "I miss walking."
+  ],
+
+  stillHurting: [
+    "Still hurting.",
+    "Wounds are slow.",
+    "It aches.",
+    "The pain hasn't gone anywhere.",
+    "Every morning I hope it'll hurt less.",
+    "Some wounds take their time.",
+    "The healer says I'm improving. Doesn't feel like it.",
+    "It hurts when I move. And when I don't.",
+    "I thought I'd be better by now.",
+    "Just need another few days. I hope."
+  ],
+
+  stillSore: [
+    "Still sore.",
+    "Nearly healed.",
+    "A few bruises left.",
+    "I'll be right soon enough.",
+    "Only hurts when I {bend|stretch|laugh|walk too fast}.",
+    "The worst of it has passed.",
+    "I'm healing. Slowly.",
+    "A little stiff, nothing more.",
+    "Give me another day or two.",
+    "I've had worse."
+  ],
+
+  inInfirmary: [
+    "The infirmary smells of herbs.",
+    "The healer won't let me up.",
+    "Another day on the cot.",
+    "I know every crack in this ceiling.",
+    "The healer keeps telling me to rest.",
+    "I've had enough of these four walls.",
+    "Someone's always coughing in here.",
+    "At least the blankets are warm.",
+    "I miss the sound of the village.",
+    "They won't even let me fetch my own water."
+  ],
+
+  onHallFloor: [
+    "Sleeping on the hall floor.",
+    "Everyone walks past my bed.",
+    "The hall's cold at night.",
+    "Hard to sleep with people coming and going.",
+    "I'd settle for a corner to myself.",
+    "The floor's harder every morning.",
+    "At least there's a roof over me.",
+    "Someone stepped over me before dawn.",
+    "I can hear every conversation in this hall.",
+    "A little privacy wouldn't hurt."
+  ],
+
+  inBed: [
+    "Stuck in bed.",
+    "I've counted every roof beam.",
+    "Another day lying down.",
+    "The world keeps moving without me.",
+    "I can hear everyone working outside.",
+    "The window's become my whole world.",
+    "I'd give anything for a walk.",
+    "Rest, rest, rest. That's all they tell me.",
+    "I never knew lying down could be so tiring.",
+    "I miss being useful."
+  ],
+
+  missWork: [
+    "Who's minding the {job}?",
+    "I should be at the {job}.",
+    "The {job} won't run itself.",
+    "Someone better be keeping the {job} going.",
+    "I wonder how things are at the {job}.",
+    "I can hear the work and I'm not part of it.",
+    "Hope they haven't made a mess of the {job}.",
+    "I'm going to have twice the work when I get back.",
+    "I ought to be working, not lying here.",
+    "I miss having something to do."
+  ],
+
+  backOnFeet: [
+    "Back on my feet.",
+    "Good to be up again.",
+    "Thought I'd never leave that bed.",
+    "Never thought walking would feel this good.",
+    "Still a bit stiff, but I'm moving.",
+    "Fresh air. Finally.",
+    "I was getting sick of that ceiling.",
+    "The healer says I can work again.",
+    "A little weak, but I'll manage.",
+    "Feels good to be useful."
+  ],
+
+  nearDeath: [
+    "I nearly died down there.",
+    "That was close. Too close.",
+    "I thought that was it.",
+    "I saw my life end for a moment.",
+    "I don't want to go through that again.",
+    "Another heartbeat and I'd have been gone.",
+    "I can still hear it coming.",
+    "I thought I'd never see daylight again.",
+    "I got lucky. That's all.",
+    "I keep remembering how close it was."
+  ],
+
+  fled: [
+    "We ran.",
+    "We turned and ran.",
+    "We got out. Barely.",
+    "There was nothing else we could do.",
+    "I'm not proud of it, but I'm alive.",
+    "We left everything behind.",
+    "I'd run again if I had to.",
+    "There were too many of them.",
+    "I didn't stop until I saw daylight.",
+    "I still hear our footsteps."
+  ],
+
+  grudge: [
+    "{who} {deed}. {source}",
+    "I'll remember what {who} did.",
+    "{who} knows what they did.",
+    "I haven't forgiven {who}.",
+    "Some things don't mend with time.",
+    "I thought I could trust {who}.",
+    "I won't forget {who}'s part in this.",
+    "I trusted {who}. That was my mistake.",
+    "Don't ask me to speak kindly of {who}.",
+    "One day {who} will understand."
+  ],
+
+  goodWord: [
+    "{who} {deed}. {source}",
+    "I've a good word for {who}.",
+    "{who} did right by me.",
+    "I won't forget {who}'s kindness.",
+    "If you need someone trustworthy, ask {who}.",
+    "{who} helped when it mattered.",
+    "I owe {who} more than thanks.",
+    "There's good in {who}. I've seen it.",
+    "I'd stand up for {who} any day.",
+    "{who} deserves better than they know."
+  ],
+
+  starving: [
+    "I'm starving.",
+    "Days without food.",
+    "There's nothing to eat.",
+    "I can hardly think for hunger.",
+    "My stomach's stopped complaining.",
+    "I'd eat {old bread|a raw turnip|anything} right now.",
+    "Food. Please.",
+    "I haven't the strength to work.",
+    "We're going to die if this keeps up.",
+    "I dream about supper."
+  ],
+
+  hungry: [
+    "I haven't eaten.",
+    "I'm hungry.",
+    "When do we eat?",
+    "A little bread would do nicely.",
+    "Is there anything left in the stores?",
+    "I could use a hot meal.",
+    "My stomach's making more noise than I am.",
+    "I skipped breakfast. Regretting it.",
+    "Hope there's supper tonight.",
+    "I'd settle for a crust."
+  ],
+
+  noBed: [
+    "There's no bed for me.",
+    "I slept on the ground.",
+    "I need a roof.",
+    "I'd like somewhere proper to sleep.",
+    "A blanket on the floor isn't a home.",
+    "Every night I wonder where I'll lie down.",
+    "Even the animals have somewhere to sleep.",
+    "I just want a corner of my own.",
+    "Can't we build another bed?",
+    "I'd sleep better under a roof."
+  ],
+
+  doneHere: [
+    "I'm done with this place.",
+    "I'm leaving, first chance.",
+    "Nothing here is worth it.",
+    "I've stayed too long already.",
+    "There's nothing keeping me here.",
+    "I'll find somewhere better.",
+    "I won't waste another season here.",
+    "The road looks kinder than this village.",
+    "I've made up my mind.",
+    "They can manage without me."
+  ],
+
+  hadEnough: [
+    "I've had enough of this place.",
+    "I'm sick of this.",
+    "Something has to change.",
+    "I can't keep living like this.",
+    "Every day it's something else.",
+    "How much more are we meant to take?",
+    "I used to think this would get better.",
+    "I've been patient long enough.",
+    "This isn't what I came here for.",
+    "I'm tired of pretending it's fine."
+  ],
+
+  lifeGood: [
+    "Life is good.",
+    "Best I've had it.",
+    "No complaints.",
+    "Can't complain.",
+    "Things are good.",
+    "Fair days.",
+    "Good food, good company. What more?",
+    "I've got enough. That's plenty.",
+    "Some days I forget how lucky I am.",
+    "I wouldn't trade this for much.",
+    "The world's being kind for once.",
+    "A fine day to be alive.",
+    "Things are finally settling.",
+    "I think I'll stay awhile.",
+    "Could get used to this."
+  ],
+
+  blamed: [
+    "They say I {deed}.",
+    "People think I {deed}.",
+    "Everyone's decided I {deed}.",
+    "I keep hearing that I {deed}.",
+    "They've already made up their minds.",
+    "Nobody's asked for my side of it.",
+    "I've tried explaining. Nobody listens.",
+    "Rumors travel faster than truth.",
+    "I'm tired of defending myself.",
+    "They can believe what they like."
+  ],
+
+  ghost: [
+    "{who} won't leave me be.",
+    "I keep seeing {who}.",
+    "{who} was here last night.",
+    "I heard {who}'s voice again.",
+    "Sometimes I forget {who} is gone.",
+    "I saw {who} standing by the door.",
+    "I know what I saw.",
+    "Something keeps bringing {who} back.",
+    "{who} visits when the fire burns low.",
+    "The dead ought to rest. So should I."
+  ],
+
+  vow: [
+    "I'll not marry again.",
+    "Never again.",
+    "I'm done with all that.",
+    "Once was enough for me.",
+    "My heart's had its share.",
+    "No more promises of that sort.",
+    "I'll keep my own company.",
+    "I won't make another vow like that.",
+    "Some doors are better left closed.",
+    "There's no replacing what I lost."
+  ],
+
+  mended: [
+    "{who} patched me up.",
+    "{who} set my bones.",
+    "I owe {who}.",
+    "{who} kept me breathing.",
+    "Wouldn't be standing here without {who}.",
+    "{who} has steadier hands than I deserve.",
+    "I thought I was finished until {who} came.",
+    "{who} saw me through the worst of it.",
+    "I'll not forget what {who} did.",
+    "Next time {who} needs help, I'll be there."
+  ],
+
+  brawl: [
+    "{who} and I came to blows.",
+    "{who} hit me.",
+    "I'm not done with {who}.",
+    "Things got ugly with {who}.",
+    "I lost my temper with {who}.",
+    "{who} had it coming. Maybe.",
+    "I should've walked away from {who}.",
+    "My knuckles still hurt from that fight.",
+    "{who} and I have some things to settle.",
+    "Next time I'll use words. Perhaps."
+  ],
+
+  wed: [
+    "I married {who}.",
+    "{who} and I are wed.",
+    "Married {who}. Best thing I did.",
+    "Still can't believe {who} said yes.",
+    "I get to come home to {who}.",
+    "It's a good feeling, being married.",
+    "{who} and I made our promises.",
+    "I hope I make {who} happy.",
+    "Never expected to find someone like {who}.",
+    "Here's to a long life together."
+  ],
+
+  avenge: [
+    "Something down there owes me {who}.",
+    "I'm going back for {who}.",
+    "Whatever killed {who} dies next.",
+    "I haven't forgotten what happened to {who}.",
+    "That thing's still breathing. {who} isn't.",
+    "I won't rest until I've settled this.",
+    "{who} deserves justice.",
+    "I'm not letting it end like this.",
+    "I know where I'm going next.",
+    "The dungeon took {who}. I'll make it answer."
+  ],
+
+  refuseAll: [
+    "I won't go below.",
+    "Not going down there.",
+    "Don't ask me to go below.",
+    "You can find someone else.",
+    "I've seen enough of that darkness.",
+    "No treasure is worth it.",
+    "My answer's still no.",
+    "I'll work up here. Not down there.",
+    "Some places should stay undisturbed.",
+    "I know my limits."
+  ],
+
+  refuseAfter: [
+    "I won't go below. Not after {who}.",
+    "{who} went below. I won't.",
+    "I saw what happened to {who}.",
+    "You won't send me where {who} died.",
+    "That place took {who}. Enough.",
+    "I promised myself after {who}. Never again.",
+    "Don't speak to me of another expedition.",
+    "I remember what came back without {who}.",
+    "Not after everything that happened.",
+    "I've lost enough to that place."
+  ],
+
+  griefAngry: [
+    "When I can stand, I'm going down for {who}.",
+    "Someone pays for {who}.",
+    "I'm tired of burying people.",
+    "I can't sit here while that thing lives.",
+    "{who} deserved better than this.",
+    "I want something to answer for it.",
+    "They tell me to rest. How can I?",
+    "The anger's all I've got right now.",
+    "I won't let {who} be forgotten.",
+    "This isn't over."
+  ],
+
+  griefSad: [
+    "{who} is dead.",
+    "I miss {who}.",
+    "{who} should be here.",
+    "I keep expecting to see {who}.",
+    "It's too quiet without {who}.",
+    "There's a place where {who} ought to be.",
+    "I wish we'd had more time.",
+    "I didn't get to say goodbye.",
+    "Some mornings I forget. Then I remember.",
+    "I don't know what to do with all this missing."
+  ],
+
+  bored: [
+    "Same {job}, every day.",
+    "More {job}.",
+    "I'm tired of {job}.",
+    "There's got to be more than this.",
+    "I know what tomorrow looks like already.",
+    "I could do this work in my sleep.",
+    "Even a little change would be welcome.",
+    "I need something new to think about.",
+    "The days are starting to blur together.",
+    "I'd welcome a surprise. A small one."
+  ],
+
+  anger75: [
+    "Someone's going to get hurt.",
+    "I'm about to break something.",
+    "Stay out of my way.",
+    "I've got no patience left.",
+    "One more word. Just one.",
+    "I can feel my hands shaking.",
+    "I'm trying very hard not to lose it.",
+    "Don't test me today.",
+    "Everything's making me angry.",
+    "I need to be alone before I do something foolish."
+  ],
+
+  anger50: [
+    "I could hit someone.",
+    "Don't push me.",
+    "I'm in a mood.",
+    "Not today. Please.",
+    "I'm running short on patience.",
+    "I woke up angry and stayed that way.",
+    "Best leave me to my work.",
+    "I'm biting my tongue as it is.",
+    "Little things are getting to me.",
+    "I need some quiet."
+  ],
+
+  fear75: [
+    "Something's coming.",
+    "I can't sleep.",
+    "We're not safe here.",
+    "Every sound makes me jump.",
+    "I keep dreaming something gets through the gate.",
+    "I don't think the walls will hold.",
+    "I feel like we're being watched.",
+    "Nobody else seems worried enough.",
+    "Something's wrong. I know it.",
+    "I don't want to be alone tonight."
+  ],
+
+  fear50: [
+    "I keep watching the gate.",
+    "Did you hear that?",
+    "I don't like the dark.",
+    "The woods seem quieter than usual.",
+    "I keep looking over my shoulder.",
+    "Was that a footstep?",
+    "I wish the guards would stay closer.",
+    "I've had uneasy dreams.",
+    "I don't like the way the wind sounds.",
+    "It's probably nothing. Probably."
+  ],
+
+  restless75: [
+    "I have to get out of here.",
+    "The road's calling.",
+    "I won't stay much longer.",
+    "I feel trapped.",
+    "Every day here feels smaller.",
+    "I need to see what's beyond the hills.",
+    "I can't bear another season like this.",
+    "Something out there is waiting for me.",
+    "I don't belong behind these walls.",
+    "I'd leave tonight if I could."
+  ],
+
+  restless50: [
+    "I could walk out of here.",
+    "I want to see somewhere else.",
+    "Same walls every day.",
+    "I wonder what's beyond the next ridge.",
+    "I've been thinking about the road.",
+    "Might be time for a journey.",
+    "I miss seeing new places.",
+    "I'd like a change of scenery.",
+    "The village feels smaller lately.",
+    "Perhaps I'll wander for a while."
+  ],
+
+  griefDrive: [
+    "I keep thinking about the dead.",
+    "Too many graves.",
+    "I miss them.",
+    "Every loss stays with me.",
+    "I don't want another name on the stones.",
+    "I remember their faces.",
+    "Sometimes I think the dead outnumber us.",
+    "We keep going. I don't know how.",
+    "I wish I could've done more.",
+    "There's too much sorrow in this place."
+  ],
+
+  justFriends: [
+    "{who} and I are friends. Just friends.",
+    "{who}'s a good friend. That's all.",
+    "People keep asking about {who}. There's nothing to tell.",
+    "I like {who}, but not that way.",
+    "Not every friendship needs to become something else.",
+    "{who} and I understand each other. That's enough.",
+    "I wish people would stop making assumptions.",
+    "We're friends. Why isn't that enough?",
+    "I enjoy {who}'s company. That's all there is.",
+    "There's nothing between us but friendship."
+  ],
+
+  closeFriend: [
+    "I'd die for {who}.",
+    "{who}'s family to me.",
+    "Nobody's closer than {who}.",
+    "I trust {who} with my life.",
+    "{who} knows me better than anyone.",
+    "We've been through too much together.",
+    "If {who} needs me, I'm there.",
+    "I don't know where I'd be without {who}.",
+    "Some friends become family.",
+    "I hope {who} knows how much they mean to me."
+  ],
+
+  friend: [
+    "{who} and I go way back.",
+    "{who}'s all right.",
+    "I can count on {who}.",
+    "Always glad to see {who}.",
+    "{who} makes the days easier.",
+    "We've shared a fair few laughs.",
+    "It's good having {who} around.",
+    "{who}'s good company.",
+    "I trust {who} to do right by me.",
+    "We look out for each other."
+  ],
+
+  warmth75: [
+    "This is home now.",
+    "I love these people.",
+    "I'd stay here forever.",
+    "I've found my place.",
+    "I wouldn't leave for all the gold in the world.",
+    "These people are my family.",
+    "I finally belong somewhere.",
+    "I want to grow old here.",
+    "It's not perfect. It's ours.",
+    "I never thought I'd find a home like this."
+  ],
+
+  warmth50: [
+    "Good people here.",
+    "I like it here.",
+    "Folk here look out for me.",
+    "Nice to have neighbours.",
+    "Glad I came.",
+    "This place grows on you.",
+    "It's starting to feel like home.",
+    "I've made a few good friends.",
+    "People know my name here.",
+    "There's a kindness to this place.",
+    "I think I'll stay.",
+    "It's good to be part of something."
+  ],
+
+  pride75: [
+    "Nobody does it better.",
+    "Best in {town}.",
+    "Watch and learn.",
+    "I've earned my reputation.",
+    "They'll remember my work.",
+    "I know exactly what I'm worth.",
+    "Go on, find someone better. I'll wait.",
+    "I didn't get this good by accident.",
+    "Even I impress myself sometimes.",
+    "My work speaks for itself."
+  ],
+
+  pride50: [
+    "I'm good at what I do.",
+    "I know my work.",
+    "I pull my weight.",
+    "I've learned a thing or two.",
+    "I'm getting the hang of it.",
+    "There's satisfaction in a job done properly.",
+    "I can hold my own.",
+    "I know my trade.",
+    "People can rely on me.",
+    "I take pride in good work."
+  ],
+
+  pastime: [
+    "Wish I had more time for {pastime}.",
+    "Can't wait to get back to {pastime}.",
+    "Ask me about {pastime}.",
+    "I could spend all day on {pastime}.",
+    "Nothing clears my head like {pastime}.",
+    "I've been thinking about {pastime} again.",
+    "A little {pastime} would do me good.",
+    "Work's fine, but I live for {pastime}.",
+    "I've gotten rather good at {pastime}.",
+    "If I had a free afternoon, I'd spend it on {pastime}."
+  ],
+
+  victory: [
+    "We killed the keeper.",
+    "The keeper's dead.",
+    "We won down there.",
+    "I still can't believe we did it.",
+    "That thing won't trouble anyone again.",
+    "We came back alive. Victorious, even.",
+    "The keeper fell. I saw it.",
+    "We did what nobody thought we could.",
+    "I'll remember that fight for the rest of my days.",
+    "We earned this victory."
+  ],
+
+  levelup: [
+    "I'm getting stronger.",
+    "I'm getting better at this.",
+    "I can take more now.",
+    "I learned something down there.",
+    "I'm not the same as when I started.",
+    "I can feel myself improving.",
+    "That would've beaten me once.",
+    "Practice is paying off.",
+    "I know what I'm doing now. Mostly.",
+    "The next time will be different."
+  ],
+
+  home: [
+    "Good to be home.",
+    "Back home.",
+    "My own bed again.",
+    "Nothing like coming back.",
+    "I've missed this place.",
+    "I could kiss the ground.",
+    "The village looks different after the road.",
+    "I don't care what's for supper. I'm home.",
+    "I missed the sound of familiar voices.",
+    "Feels good to shut my own door."
+  ],
+
+  built: [
+    "The village is growing.",
+    "We built something.",
+    "More roofs every week.",
+    "Look what we've made.",
+    "There's more here every season.",
+    "I remember when this was empty ground.",
+    "We're making a proper home of this place.",
+    "Another building finished. Good work.",
+    "It's starting to look like a village.",
+    "Hard to believe how far we've come."
+  ],
+
+  torsoBad: [
+    "Hurts to breathe.",
+    "My ribs are cracked.",
+    "Can't bend.",
+    "Every breath is sharp.",
+    "I can't straighten up.",
+    "Something's badly wrong inside.",
+    "Even coughing is agony.",
+    "Don't make me laugh. Please.",
+    "My chest feels like it's been crushed.",
+    "I need to lie still."
+  ],
+
+  torsoMild: [
+    "My ribs ache.",
+    "Bruised all down my side.",
+    "Hurts when I laugh.",
+    "A little tender around the middle.",
+    "I can breathe well enough. Mostly.",
+    "Still sore when I twist.",
+    "I took a hard knock.",
+    "My side's still bothering me.",
+    "I shouldn't have lifted that.",
+    "I'll manage if I move carefully."
+  ],
+
+  armBad: [
+    "My {part} is useless.",
+    "Can't lift a thing with my {part}.",
+    "Can't feel my {part}.",
+    "I can't move my {part} properly.",
+    "Something's badly wrong with my {part}.",
+    "I tried using my {part}. Never again.",
+    "I can't work like this.",
+    "My {part} hurts even when it's still.",
+    "I need someone to look at my {part}.",
+    "I can't even hold a tool."
+  ],
+
+  armMild: [
+    "My {part} aches.",
+    "Favouring my {part}.",
+    "Can't grip right.",
+    "My {part} is still stiff.",
+    "I can use it, just not well.",
+    "I keep forgetting about my {part} until it hurts.",
+    "A little swelling left.",
+    "I shouldn't strain my {part}.",
+    "The pain's easing.",
+    "I've had worse knocks."
+  ],
+
+  limbBad: [
+    "My {part} won't hold me.",
+    "Can't put weight on my {part}.",
+    "My {part} gives way when I stand.",
+    "I can't walk properly.",
+    "Every step sends pain through my {part}.",
+    "I need help getting about.",
+    "I'm not going anywhere on this {part}.",
+    "Something's badly wrong with my {part}.",
+    "I tried standing. Couldn't.",
+    "I need to stay off my {part}."
+  ],
+
+  limbMild: [
+    "Limping on my {part}.",
+    "My {part}'s stiff.",
+    "Slow on the stairs.",
+    "My {part} aches after walking.",
+    "I'm getting around, just slowly.",
+    "A little sore when I stand.",
+    "I think my {part} is improving.",
+    "I shouldn't run just yet.",
+    "I can walk it off. Eventually.",
+    "Still favouring my {part}."
+  ],
+
+  jiltedBy: [
+    "{who} left me at the altar.",
+    "{who} walked away from me.",
+    "I still don't understand why {who} left.",
+    "{who} made a promise and broke it.",
+    "Everyone saw what {who} did.",
+    "I waited. {who} never came.",
+    "I thought {who} meant it.",
+    "I trusted {who} with my future.",
+    "I wish {who} had told me sooner.",
+    "I don't know if I'll ever forgive {who}."
+  ],
+
+  jilted: [
+    "I was left at the altar.",
+    "Everyone was there. Except the one who mattered.",
+    "I still remember the silence.",
+    "I'd rather not speak of the wedding.",
+    "The flowers were lovely. Shame about the rest.",
+    "I waited longer than I should have.",
+    "I don't think I'll wear those clothes again.",
+    "The whole village knows.",
+    "Some promises don't survive the morning.",
+    "I suppose it could've been worse. Somehow."
+  ],
+
+  spouseAway: [
+    "{who}'s out there. I hope they're safe.",
+    "Waiting on {who} to come home.",
+    "It's quieter without {who}.",
+    "I wonder how {who} is getting on.",
+    "I keep looking toward the road.",
+    "Supper doesn't feel right without {who}.",
+    "I hope {who} knows I'm thinking of them.",
+    "Every day I wait for news.",
+    "I left a place by the fire for {who}.",
+    "I just want {who} home."
+  ],
+
+  spouseHome: [
+    "{who}'s waiting at home.",
+    "Thinking about {who}.",
+    "{who} makes it all worth it.",
+    "Lucky to have {who}.",
+    "I look forward to seeing {who} each evening.",
+    "Home's wherever {who} is.",
+    "I still smile when I see {who}.",
+    "There's no one I'd rather share supper with.",
+    "{who} knows all my faults and stays anyway.",
+    "I hope we get many more years together."
+  ],
+
+  met_fun: [
+    "Had fun with {who}{tail}.",
+    "Enjoyed an evening with {who}{tail}.",
+    "{who}'s good company.",
+    "I laughed more than I expected with {who}.",
+    "That was a fine evening.",
+    "I'd gladly spend another evening with {who}.",
+    "{who} knows how to have a good time.",
+    "We had a proper laugh.",
+    "I needed that evening with {who}.",
+    "Time passes quickly around {who}."
+  ],
+
+  met_liked: [
+    "Always good with {who}{tail}.",
+    "Liked the evening with {who}{tail}.",
+    "Nobody I'd rather spend an evening with than {who}.",
+    "I always look forward to seeing {who}.",
+    "{who} makes everything feel easier.",
+    "I wish the evening had lasted longer.",
+    "There's something about {who}.",
+    "I find myself smiling after seeing {who}.",
+    "I hope {who} enjoyed it as much as I did.",
+    "I'd choose {who}'s company every time."
+  ],
+
+  met_meh: [
+    "Didn't enjoy the evening with {who}{tail}.",
+    "Spent the evening with {who}. Never again.",
+    "{who} spoiled it.",
+    "That wasn't my idea of a good evening.",
+    "I think {who} and I want different things.",
+    "Next time I'll stay home.",
+    "I could've spent that time better.",
+    "{who} talked enough for both of us.",
+    "We didn't exactly get along.",
+    "I don't think I'll be asking {who} again."
+  ],
+
+  met_won: [
+    "Beat {who} {what}.",
+    "{who} can't beat me {what}.",
+    "Took {who} {what}. Easy.",
+    "Won against {who} {what}.",
+    "{who} nearly had me {what}. Nearly.",
+    "I was on fine form {what}.",
+    "Better luck next time, {who}.",
+    "I don't think {who} saw that coming.",
+    "A fine victory, if I say so myself.",
+    "{who} put up a good fight. Still lost."
+  ],
+
+  met_lost: [
+    "{who} beat me {what}.",
+    "Didn't enjoy losing to {who}.",
+    "Next time, {who}.",
+    "I almost had {who} {what}.",
+    "That was a poor showing from me.",
+    "{who} got lucky. That's my story.",
+    "I'll win the next one.",
+    "I should've seen that coming.",
+    "Losing to {who} stings a little.",
+    "Fair play to {who}. They earned it."
+  ],
+
+  met_snub: [
+    "{who} wouldn't join me.",
+    "Asked {who} along. No.",
+    "{who} turned me down.",
+    "I thought {who} might want company.",
+    "Apparently {who} had better things to do.",
+    "Well, I tried.",
+    "I won't ask {who} twice. Probably.",
+    "That was embarrassing.",
+    "I suppose {who} wasn't interested.",
+    "I'll find someone else to spend time with."
+  ],
+
+  met_spurn: [
+    "{who} keeps asking me along.",
+    "Didn't feel like company. Told {who} no.",
+    "Not tonight, {who}.",
+    "I just wanted some quiet.",
+    "I wasn't in the mood to go out.",
+    "{who} doesn't seem to take a hint.",
+    "I hope {who} didn't take it personally.",
+    "Sometimes I'd rather be alone.",
+    "I told {who} another time. Maybe.",
+    "I didn't owe anyone an evening."
+  ]
+};
