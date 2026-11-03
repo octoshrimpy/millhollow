@@ -21,7 +21,7 @@ function makeName(sex, taken = new Set(), rng = Math.random) {
       out += ch;
       ctx += ch;
     }
-    if (out.length < 4 || out.length > 7 || REAL.has(out) || WORDS.has(out) || AWKWARD.test(out) || ends.has(out.slice(-3))) continue;
+    if (out.length < 4 || out.length > 7 || REAL.has(out) || WORDS.includes(out) || AWKWARD.test(out) || ends.has(out.slice(-3))) continue;
     const name = out[0].toUpperCase() + out.slice(1);
     if (!taken.has(name)) return name;
   }

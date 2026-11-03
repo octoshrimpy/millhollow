@@ -195,8 +195,10 @@ const pastLine = (src) => {
 };
 // "{a|b|c}" becomes one of a, b or c, innermost first so they nest. The unrolled line stays on as
 // src, so colours and pastHas still match the line as written in PAST.
+// A group spanning lines takes each line as an option (a leading "|" still works); lines are trimmed, blanks dropped.
 const roll = (t) => {
-  while (/\{[^{}]*\}/.test(t)) t = t.replace(/\{([^{}]*)\}/g, (_, o) => pick(o.split("|")));
+  while (/\{[^{}]*\}/.test(t)) t = t.replace(/\{([^{}]*)\}/g, (_, o) =>
+    pick(o.includes("\n") ? o.split(/\n|\|/).map((s) => s.trim()).filter(Boolean) : o.split("|")));
   return t;
 };
 
@@ -1340,7 +1342,7 @@ function owe(s, o, why) {
   if (s.owes.length > 3) s.owes.shift();
 }
 const debt = (s, home) => (s.owes || []).find((x) => S.day - x.day >= 2 && home.some((o) => o.id === x.o));
-const gift = (s) => GIFTS[s.pastime] || pick(GIFT_ANY);
+const gift = (s) => roll(GIFTS[s.pastime] || pick(GIFT_ANY));
 const SORE = ["grief", "jilted", "neardeath", "haunted", "snapped", "blamed"];
 const mourner = (s, home) => home.filter((o) => o !== s && (drive(o, "grief") >= 30 || drive(o, "fear") >= 40 || fresh(o).some((x) => SORE.includes(x.k))) && tieOf(s, o) >= 0 && !fresh(o).some((x) => x.k === "comforted"))
   .sort((a, b) => tieOf(s, b) - tieOf(s, a))[0];

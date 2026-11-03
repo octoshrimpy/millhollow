@@ -1,0 +1,157 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Millhollow — generators</title>
+<style>
+  :root { --bg: #14110e; --ink: #d9cbb4; --dim: #8a7c68; --line: #2e2721; --accent: #c08a4e; --card: #1d1814; --good: #8fb573; --bad: #c9655a; }
+  * { box-sizing: border-box; }
+  html { min-height: 100vh; background: var(--bg); }
+  body { min-height: 100vh; margin: 0; padding: 1.2em; background: var(--bg); color: var(--ink); font: 16px/1.4 ui-serif, Georgia, serif; }
+  nav { display: flex; flex-wrap: wrap; gap: .4em; margin-bottom: 1em; }
+  nav a { padding: .25em .7em; border: 1px solid var(--line); border-radius: 6px; color: var(--dim); text-decoration: none; background: var(--card); }
+  nav a.on { color: #14110e; background: var(--accent); border-color: var(--accent); }
+  .bar { display: flex; flex-wrap: wrap; gap: .6em 1em; align-items: center; margin-bottom: 1em; }
+  label { display: inline-flex; gap: .4em; align-items: center; }
+  input, select { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: .3em; font: inherit; }
+  input[type=number] { width: 4.5em; }
+  button { background: var(--accent); color: #14110e; border: 0; border-radius: 6px; padding: .4em 1em; font: inherit; cursor: pointer; }
+  .list { display: grid; grid-template-columns: repeat(auto-fill, minmax(9em, 1fr)); gap: .4em; }
+  .list span { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: .3em .6em; }
+  .list.wide { grid-template-columns: repeat(auto-fill, minmax(18em, 1fr)); }
+  .list .f { border-left: 3px solid #c0627a; } .list .m { border-left: 3px solid #5a8ac0; }
+  .list .pet { border-left: 3px solid #8ab05a; } .list .any { border-left: 3px solid var(--dim); }
+  .list .place { border-left: 3px solid #d4a24a; }
+  /* the founding picker's card, copied from index.html */
+  .who { display: grid; grid-template-columns: repeat(auto-fill, minmax(19em, 1fr)); gap: 8px; }
+  .who .card { display: grid; grid-template-columns: auto 1fr; grid-template-rows: 1fr auto auto; align-items: start; gap: .3em .9em; padding: .7em .9em; background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
+  .who img { width: 96px; height: 96px; border-radius: 8px; object-fit: cover; display: block; }
+  .who .me { display: flex; }
+  .who .past { min-width: 0; display: flex; flex-direction: column; gap: .3em; font-size: .8rem; line-height: 1.35; color: var(--dim); }
+  .who .past .good { color: var(--good); } .who .past .bad { color: var(--bad); }
+  .who b { font-weight: normal; font-size: 1.05rem; text-align: center; align-self: baseline; }
+  .who .tags { align-self: baseline; display: flex; justify-content: space-between; gap: .5em; font-size: .85rem; }
+  .who .tags small { font-size: .8rem; }
+  .who .tags u { text-decoration: none; color: var(--accent); font-weight: bold; }
+  .who .more { grid-column: 1 / -1; font-size: .75rem; color: var(--dim); }
+</style>
+
+<nav id="tabs"></nav>
+
+<section id="names">
+  <div class="bar">
+    <label>How many <input type="number" id="nn" value="30" min="1" max="500"></label>
+    <label><input type="checkbox" id="f" checked> women</label>
+    <label><input type="checkbox" id="m" checked> men</label>
+    <label><input type="checkbox" id="any" checked> neutral</label>
+    <label><input type="checkbox" id="pet"> pets</label>
+    <label><input type="checkbox" id="place"> places</label>
+    <button id="rn">Roll</button>
+  </div>
+  <div class="list" id="nout"></div>
+</section>
+
+<section id="villagers">
+  <div class="bar">
+    <label>How many <input type="number" id="vn" value="6" min="1" max="60"></label>
+    <label>Class <select id="cls"><option value="">any</option></select></label>
+    <button id="rv">Roll</button>
+  </div>
+  <div class="who" id="vout"></div>
+</section>
+
+<section id="pool">
+  <div class="bar">
+    <label>How many <input type="number" id="pn" value="20" min="1" max="200"></label>
+    <label id="subl">Pool <select id="sub"></select></label>
+    <button id="rp">Roll</button>
+  </div>
+  <div class="list wide" id="pout"></div>
+</section>
+
+<!-- The same files the game loads; ui.js is left out, it needs the whole page. -->
+<script src="js/ds/text.js"></script>
+<script src="js/ds/data.js"></script>
+<script src="js/ds/names.js"></script>
+<script src="js/ds/game.js"></script>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  const clamp = (id, hi) => Math.max(1, Math.min(hi, +$(id).value || 1));
+
+  // ---- names ----
+  function rollNames() {
+    const on = ["f", "m", "any", "pet", "place"].filter((k) => $(k).checked);
+    if (!on.length) { $("nout").textContent = "Tick at least one."; return; }
+    const taken = new Set(), out = [];
+    for (let i = 0; i < clamp("nn", 500); i++) {
+      let kind = pick(on);
+      // pets come from the fixed PET_NAMES list; once it runs dry, fall back to neutral people
+      const left = PET_NAMES.filter((p) => !taken.has(p));
+      if (kind === "pet" && !left.length) kind = "any";
+      const name = kind === "pet" ? pick(left) : kind === "place" ? makePlace() : makeName(kind, taken);
+      if (kind !== "place") taken.add(name);
+      out.push(`<span class="${kind}">${esc(name)}</span>`);
+    }
+    $("nout").innerHTML = out.join("");
+  }
+
+  // ---- villagers ----
+  // makeSettler checks who is already in the village; an empty one stands in for it.
+  S = { day: 1, settlers: [], visitor: null };
+  for (const [k, c] of Object.entries(CLASSES)) $("cls").append(new Option(`${c.icon} ${c.name}`, k));
+  function card(s) {
+    const t = tradeOf(s), b = Object.values(BUILDINGS).find((x) => x.job === t), pt = PASTIMES[s.pastime];
+    return `<div class="card">
+      <span class="me"><img src="${faceSrc(s)}" alt=""></span>
+      <span class="past">${s.story.filter((e) => e.kind === "past").map((e) =>
+        `<span class="${PAST_GOOD.has(e.src || e.text) ? "good" : PAST_BAD.has(e.src || e.text) ? "bad" : ""}">${esc(e.text)}</span>`).join("")}</span>
+      <b>${esc(s.name)}</b>
+      <span class="tags"><small>${CLASSES[s.cls].icon} ${CLASSES[s.cls].name}</small><small>${b ? b.icon : ""} ${TRADES[t]} <u>+${s.skills[t]}</u></small></span>
+      <span class="more">face ${s.face} · age ${ageOf(s)} · ${DEITIES[s.faith]?.name ?? s.faith} · ${pt ? `${pt.icon} ${pt.name}` : s.pastime}</span>
+    </div>`;
+  }
+  function rollVillagers() {
+    const cls = $("cls").value || undefined;
+    S.settlers = []; // each villager is rolled alone, so faces and names can repeat across the page
+    $("vout").innerHTML = Array.from({ length: clamp("vn", 60) }, () => card(makeSettler(cls))).join("");
+  }
+
+  // ---- text pools: one tab per const in text.js ----
+  // Names, places and the PAST_WAS save-migration map have their own tab or no use here.
+  const POOLS = {
+    PAST, PAST_VIOLENT, FIRESIDE, FIRESIDE_AGAIN, MUSE, OMENS,
+    GIFTS: { pastime: GIFTS, any: GIFT_ANY },
+    TROUBLE_TITLE, PET_SENDOFF, PET_NO_ROOM, PET_DEATH, PET_BURIAL, COURT,
+    KEEPSAKES: { weapon: KEEPSAKE_WEAPON, armor: KEEPSAKE_ARMOR },
+  };
+  // [path, lines] for every list in a const: an array, or a map whose values are all strings, is a list.
+  const leaves = (v, path = []) =>
+    Array.isArray(v) ? [[path.join("."), v]]
+    : Object.values(v).every((x) => typeof x === "string") ? [[path.join("."), Object.values(v)]]
+    : Object.entries(v).flatMap(([k, x]) => leaves(x, [...path, k]));
+  let cur = null, lists = [];
+  function openPool(name) {
+    cur = name; lists = leaves(POOLS[name]);
+    $("sub").innerHTML = (lists.length > 1 ? [`<option value="-1">(all ${lists.length})</option>`] : [])
+      .concat(lists.map(([p, l], i) => `<option value="${i}">${esc(p || name)} (${l.length})</option>`)).join("");
+    $("subl").hidden = lists.length < 2;
+    rollPool();
+  }
+  function rollPool() {
+    const i = +$("sub").value, from = i < 0 ? lists.flatMap(([, l]) => l) : lists[i][1];
+    $("pout").innerHTML = Array.from({ length: clamp("pn", 200) }, () => `<span>${esc(roll(pick(from)))}</span>`).join("");
+  }
+
+  // ---- tabs ----
+  const TABS = ["Names", "Villagers", ...Object.keys(POOLS)];
+  function show() {
+    const t = decodeURIComponent(location.hash.slice(1));
+    const tab = TABS.includes(t) ? t : "Names", pool = tab in POOLS;
+    $("tabs").innerHTML = TABS.map((x) => `<a href="#${x}"${x === tab ? ' class="on"' : ""}>${x}</a>`).join("");
+    $("names").hidden = tab !== "Names"; $("villagers").hidden = tab !== "Villagers"; $("pool").hidden = !pool;
+    if (pool) openPool(tab); else if (tab === "Names") rollNames(); else rollVillagers();
+  }
+  $("rn").onclick = rollNames; $("rv").onclick = rollVillagers; $("rp").onclick = rollPool;
+  addEventListener("hashchange", show);
+  show();
+</script>
