@@ -6,7 +6,7 @@
 - **A region name.** Name the land around Millhollow and use generated place names in settler
   backstories.
 
-## From the old slice (`old-slice.html`)
+## From the old slice
 
 - **Villager errands.** Send a trusted villager for a small, capped batch of resources, ready on
   next open. Brushes against the no-offline-progress rule.

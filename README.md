@@ -103,11 +103,3 @@ drawn by hand in the script. Licences are in `ICON-LICENSES.md`.
 Eighteen of them, half dark and half light, picked from the gear menu. Your pick isn't part
 of the save. Portraits get tinted to match, except in the Millhollow theme, which shows them
 as drawn.
-
-## Older versions
-
-Two earlier attempts are still in the repo. They run, but I don't work on them anymore:
-
-- `old-slice.html`: minigames and town projects.
-- `log-rebuild.html`: a village told through its log, described in `DESIGN.md`.
-  `transcript.js` runs it without a screen.

@@ -227,8 +227,7 @@ The save stores a portrait's number, not a filename, so art can be redone withou
 
 ## Earlier: the log rebuild
 
-`log-rebuild.html` (`js/sim.js`, `js/app.js`) was a text-only village sim, read as a log. Kept
-because it still runs. What it tried:
+The log rebuild was a text-only village sim, read as a log. Removed from the repo (see git history). What it tried:
 
 - **Backgrounds as lenses.** About sixty trades map to nine lenses (land, stores, body, history,
   labour, talk, forest, river, underground). Events carry tags; a lens shows the extra detail
@@ -246,4 +245,3 @@ because it still runs. What it tried:
 - **Coming back.** Time away bought up to four picks of what the leader did meanwhile. Payouts
   were names, places and history, never stores or skill.
 
-`transcript.js` runs that sim headless and prints two runs of one village for comparison.

@@ -10,3 +10,8 @@ tools/faces/sheets/
 tools/faces/logs/
 tools/faces/run.log
 tools/sim/out/
+.claude/
+*.apk
+.ship
+_META.md
+*.mine.js
