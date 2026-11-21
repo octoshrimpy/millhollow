@@ -2838,7 +2838,7 @@ function returnHome() {
     S.claim += e.crowns || 1;
     gameLog(`Set the keeper's crown 👑 in the hall. The ward reaches further.`, "good", living());
   }
-  living().forEach((s) => think(s, "home"));
+  party.forEach((s) => think(s, "home"));
   party.forEach((s) => stir(s, "restless", -15 - 5 * (e.cleared || []).length));
   gameLog(`Home after ${days}d: ${[...brought, ...e.gear.map((g) => g.name)].join(" ") || "nothing"}.${short ? ` ${short} rations short.` : ""}`, short ? "bad" : "story", party);
   S.remains.forEach((r) => { if (r.at === "carried") r.at = "home"; });
